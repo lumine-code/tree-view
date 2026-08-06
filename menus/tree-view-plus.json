@@ -96,7 +96,7 @@
         "command": "tree-view:open-in-new-window"
       }
     ],
-    ".tree-view .full-menu.special-select": [
+    ".tree-view .full-menu .tree-view-special-entry": [
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path"

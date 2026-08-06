@@ -472,6 +472,24 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("the selection a package reads", () => {
+    it("leaves out the section header, which is a label rather than a path", () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+      });
+
+      treeView.selectEntry(section.root);
+      treeView.selectMultipleEntries(section.entries[0]);
+
+      expect(treeView.selectedPaths()).toEqual([__filename]);
+    });
+  });
+
   describe("the context menu marker for a virtual selection", () => {
     it("marks the list only while every selected row is virtual", () => {
       treeView = new TreeView({});
