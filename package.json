@@ -207,15 +207,15 @@
     "TreeView": "getTreeViewInstance"
   },
   "dependencies": {
-    "picomatch": "^4.0.5",
-    "natural-compare-lite": "^1.4.0"
+    "natural-compare-lite": "^1.4.0",
+    "picomatch": "^4.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.2.2",
-    "globals": "^17.7.0",
+    "globals": "^17.9.0",
     "prettier": "^3.9.6"
   }
 }
