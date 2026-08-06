@@ -290,6 +290,198 @@ describe("TreeView construction", () => {
       expect(treeView.getSelectedEntries()).toEqual([treeView.roots[0]]);
     });
   });
+
+  describe("a folder pinned in a root section", () => {
+    const specDirectory = __dirname;
+    let entries, config;
+
+    function register(overrides = {}) {
+      treeView = new TreeView({});
+      entries = [specDirectory];
+      config = {
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => entries,
+        ...overrides,
+      };
+      return treeView.addSpecialRoot(config);
+    }
+
+    it("is backed by a real directory, so it expands like a project folder", async () => {
+      const section = register();
+      const pinned = section.entries[0];
+
+      expect(pinned.kind).toBe("directory");
+      expect(pinned.special).toBe(true);
+      expect(pinned.section).toBe(section);
+
+      await pinned.expand();
+
+      expect(pinned.isExpanded).toBe(true);
+      expect(pinned.children.length).toBeGreaterThan(0);
+      const child = pinned.children.find((entry) => entry.name === path.basename(__filename));
+      expect(child).toBeDefined();
+      // Only the pinned row is virtual — everything under it is an ordinary
+      // entry that renames and deletes like any other.
+      expect(child.special).toBe(false);
+      expect(child.section).toBe(section);
+      expect(child.entryClassName).toBe("recent-entry");
+    });
+
+    it("renders the rows it reveals inside the section's own list", async () => {
+      const section = register();
+      await section.entries[0].expand();
+      treeView.rebuildVisibleRows();
+
+      const child = section.entries[0].children[0];
+      expect(treeView.elementForTreeEntry(child).parentElement).toBe(section.element);
+    });
+
+    it("stays open across a refresh that leaves its path alone", async () => {
+      const section = register();
+      const pinned = section.entries[0];
+      await pinned.expand();
+
+      entries = [specDirectory, __filename];
+      section.refresh();
+
+      expect(section.entries[0]).toBe(pinned);
+      expect(pinned.isExpanded).toBe(true);
+      expect(section.entries[1].kind).toBe("file");
+    });
+
+    it("reopens at the same folders after the section is rebuilt", async () => {
+      const expansionStates = new Map();
+      treeView = new TreeView({});
+      entries = [specDirectory];
+      config = {
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => entries,
+      };
+      const section = treeView.addSpecialRoot(config, expansionStates);
+      await section.entries[0].expand();
+      treeView.removeSpecialRoot(section);
+
+      const rebuilt = treeView.addSpecialRoot(config, expansionStates);
+
+      expect(rebuilt.entries[0].item.expansionState.isExpanded).toBe(true);
+    });
+
+    it("drops a path that is gone and re-reads one whose kind changed", () => {
+      const section = register();
+      const first = section.entries[0];
+
+      entries = [path.join(specDirectory, "does-not-exist")];
+      section.refresh();
+
+      expect(section.entries.length).toBe(1);
+      expect(section.entries[0]).not.toBe(first);
+      expect(section.entries[0].kind).toBe("file");
+      expect(section.entries[0].exists).toBe(false);
+      expect(treeView.treeEntries.has(first)).toBe(false);
+    });
+  });
+
+  describe("removing a selection that includes pinned rows", () => {
+    it("hands the pinned paths to the section instead of deleting them", async () => {
+      const onRemove = jasmine.createSpy("onRemove");
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+        onRemove,
+      });
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(atom, "confirm");
+      treeView.selectEntry(section.entries[0]);
+
+      await treeView.removeSelectedEntries();
+
+      expect(onRemove).toHaveBeenCalledWith([__filename]);
+      // The path itself is never handed to the delete machinery.
+      expect(atom.confirm).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for the section header, which is not a path", async () => {
+      const onRemove = jasmine.createSpy("onRemove");
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+        onRemove,
+      });
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(atom, "confirm");
+      treeView.selectEntry(section.root);
+
+      await treeView.removeSelectedEntries();
+
+      expect(onRemove).not.toHaveBeenCalled();
+      expect(atom.confirm).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("dropping onto a root section", () => {
+    it("hands the dropped paths to the section that owns the header", async () => {
+      const onDrop = jasmine.createSpy("onDrop");
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+        onDrop,
+      });
+      treeView.rebuildVisibleRows();
+      const header = treeView.elementForTreeEntry(section.root);
+      const event = {
+        target: header,
+        preventDefault() {},
+        stopPropagation() {},
+        dataTransfer: {
+          items: [{ type: "atom-tree-view-event", kind: "string" }],
+          getData: (key) => (key === "initialPaths" ? JSON.stringify(["/dropped.js"]) : "true"),
+        },
+      };
+
+      await treeView.onDrop(event);
+
+      expect(onDrop).toHaveBeenCalledWith(["/dropped.js"]);
+    });
+  });
+
+  describe("the context menu marker for a virtual selection", () => {
+    it("marks the list only while every selected row is virtual", () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+      });
+
+      treeView.selectEntry(section.entries[0]);
+      treeView.showFullMenu();
+      expect(treeView.list).toHaveClass("special-select");
+
+      treeView.selectEntry(treeView.roots[0]);
+      treeView.showFullMenu();
+      expect(treeView.list).not.toHaveClass("special-select");
+    });
+  });
 });
 
 describe("TreeView row model and sticky headers", () => {

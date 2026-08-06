@@ -37,7 +37,7 @@
     }
   ],
   "context-menu": {
-    ".tree-view .full-menu": [
+    ".tree-view .full-menu:not(.special-select)": [
       {
         "label": "New File",
         "command": "tree-view:add-file"
@@ -96,6 +96,16 @@
         "command": "tree-view:open-in-new-window"
       }
     ],
+    ".tree-view .full-menu.special-select": [
+      {
+        "label": "Copy Full Path",
+        "command": "tree-view:copy-full-path"
+      },
+      {
+        "label": "Open in New Window",
+        "command": "tree-view:open-in-new-window"
+      }
+    ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
       {
         "label": "Split Up",
@@ -117,7 +127,7 @@
         "type": "separator"
       }
     ],
-    ".tree-view .full-menu .project-root > .header": [
+    ".tree-view .full-menu .project-root:not(.tree-view-special-root) > .header": [
       {
         "label": "New File",
         "command": "tree-view:add-file"
@@ -202,7 +212,7 @@
         "command": "tree-view:show-in-file-manager"
       }
     ],
-    ".tree-view .multi-select": [
+    ".tree-view .multi-select:not(.special-select)": [
       {
         "label": "Delete",
         "command": "tree-view:remove"

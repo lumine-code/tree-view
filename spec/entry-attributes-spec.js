@@ -117,19 +117,34 @@ describe("tree-view entry attributes", () => {
       expect(view.element.dataset.name).toBe("notes.md");
       expect(view.element.dataset.path).toBe(filePath);
       expect(view.element.matches(".tree-view-special-entry.recent-entry")).toBe(true);
+      // `is` names the kind, so a package matching `[is="tree-view-file"]`
+      // reaches a pinned file the same way it reaches a project one.
+      expect(view.element.getAttribute("is")).toBe("tree-view-file");
       expect(view.name.dataset.name).toBeUndefined();
       expect(view.name.dataset.path).toBeUndefined();
     });
 
-    it("renders a special directory as a leaf without a disclosure arrow", () => {
+    it("renders a special directory as an expandable directory row", () => {
       const view = mount("directory", item("notes", path.join("/root", "notes")), {
         special: true,
+        entryClassName: "recent-entry",
       });
 
-      expect(view.element.matches(".directory.list-item")).toBe(true);
-      expect(view.element.classList.contains("list-nested-item")).toBe(false);
-      expect(view.element.getAttribute("is")).toBe("tree-view-special-entry");
-      expect(view.element.hasAttribute("aria-expanded")).toBe(false);
+      expect(view.element.matches(".directory.list-nested-item")).toBe(true);
+      expect(view.element.matches(".tree-view-special-entry.recent-entry")).toBe(true);
+      expect(view.element.getAttribute("is")).toBe("tree-view-directory");
+      expect(view.element.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("puts the section class on a row inside an expanded pinned folder", () => {
+      const view = mount("file", item("inner.js", path.join("/root", "notes", "inner.js")), {
+        entryClassName: "recent-entry",
+      });
+
+      // Not pinned itself, so it is an ordinary entry that happens to render
+      // inside the section — it renames and deletes like any other row.
+      expect(view.element.matches(".recent-entry")).toBe(true);
+      expect(view.element.matches(".tree-view-special-entry")).toBe(false);
     });
   });
 });

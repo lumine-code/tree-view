@@ -38,6 +38,8 @@ type RootConfig = {
   entryClassName: string;
   iconClass: string;
   getEntries(): string[];
+  onDrop?(paths: string[]): void;
+  onRemove?(paths: string[]): void;
 };
 
 type RootHandle = {
@@ -48,15 +50,24 @@ type RootHandle = {
 };
 ```
 
-The config, all five required:
+The config, five required:
 
 | Field            | Description                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
 | `name`           | Header text, also used as its tooltip.                                                          |
 | `className`      | CSS class on the section's root `<ol>`. The header entry gets `<className>-root`.               |
-| `entryClassName` | CSS class on each entry `<li>`, for styling the rows.                                           |
+| `entryClassName` | CSS class on every `<li>` in the section, including rows inside an expanded folder.             |
 | `iconClass`      | Icon class on the header, e.g. `icon-star`.                                                     |
 | `getEntries()`   | Returns the absolute paths to show. Called on every refresh — return the current set each time. |
+
+and two optional:
+
+| Field             | Description                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| `onDrop(paths)`   | Called when entries are dropped on the section header. Without it the section rejects drops.                |
+| `onRemove(paths)` | Called when `tree-view:remove` fires on rows of this section. Without it Delete does nothing on those rows. |
+
+Both take the affected paths and are expected to change the set `getEntries` returns, then call `update()`. Neither touches the disk: a row here stands for a path rather than owning it, so `tree-view:remove` never deletes one, and the section decides what removing means.
 
 The handle:
 
@@ -80,6 +91,8 @@ module.exports = {
       entryClassName: "my-favourites-entry",
       iconClass: "icon-star",
       getEntries: () => this.favourites,
+      onDrop: (paths) => paths.forEach((path) => this.addFavourite(path)),
+      onRemove: (paths) => paths.forEach((path) => this.removeFavourite(path)),
     });
     return new Disposable(() => this.root.dispose());
   },
@@ -95,7 +108,11 @@ module.exports = {
 
 `getEntries` is a pull, not a push: the tree calls it, so changing your own list does nothing visible until you call `update()`.
 
-Each path is stat'ed when its row is built, and a directory renders as a directory — but a virtual directory does not expand. It reports that it contains nothing, and expanding it is a no-op.
+Each path is stat'ed when its row is built. A directory is backed by the same model a project folder uses, so it expands, sorts, watches for changes and reports Git status like the rest of the tree — a section of folders reads as a set of extra project roots. A path that does not exist renders struck through rather than disappearing.
+
+Rows inside an expanded folder are ordinary entries: they rename, delete and drag exactly as they do under a project folder. Only the pinned rows — the ones `getEntries` named — are virtual, and they carry `tree-view-special-entry` to say so.
+
+`update()` reuses the rows whose path and kind are unchanged, so an open folder stays open across a refresh, and across the tree view being destroyed and re-created.
 
 Sections are inserted above the project folder list, in registration order, and survive the tree view being destroyed and re-created: the registration is held by the package, not by the view, and re-attaches on its own.
 
