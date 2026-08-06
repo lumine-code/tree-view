@@ -494,6 +494,27 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("revealing a path", () => {
+    it("waits for each folder on the way, so it reaches a collapsed subtree", async () => {
+      treeView = new TreeView({});
+      const target = path.join(__dirname, path.basename(__filename));
+      treeView.roots[0].collapse();
+
+      await treeView.revealPath(target);
+
+      expect(treeView.selectedEntry()?.getPath()).toBe(target);
+    });
+
+    it("selects a directory it reveals rather than only expanding it", async () => {
+      treeView = new TreeView({});
+
+      await treeView.revealPath(__dirname);
+
+      expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
+      expect(treeView.selectedEntry()?.isExpanded).toBe(true);
+    });
+  });
+
   describe("the selection a package reads", () => {
     it("leaves out the section header, which is a label rather than a path", () => {
       treeView = new TreeView({});
