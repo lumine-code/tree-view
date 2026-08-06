@@ -2,6 +2,28 @@ const path = require("path");
 const { webUtils } = require("electron");
 const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
+const TreeViewPackage = require("../lib/tree-view-package");
+
+describe("TreeViewPackage teardown", () => {
+  // Nothing fires onDidActivateInitialPackages in a spec run, and deactivate
+  // disposes the subscription before awaiting the promise it would resolve —
+  // so a package deactivated in that window used to hang forever, which is
+  // what stopped any suite from activating the real tree-view.
+  it("settles when deactivated before the initial packages activate", async () => {
+    spyOn(atom.packages, "hasActivatedInitialPackages").and.returnValue(false);
+    const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.activate();
+
+    await Promise.race([
+      treeViewPackage.deactivate(),
+      new Promise((_resolve, reject) =>
+        requestAnimationFrame(() => reject(new Error("deactivate never settled"))),
+      ),
+    ]);
+
+    expect(treeViewPackage.treeView).toBeNull();
+  });
+});
 
 describe("TreeView.entryForPath", () => {
   function makeEntry(entryPath, { realPath = entryPath, containedPaths = [] } = {}) {
