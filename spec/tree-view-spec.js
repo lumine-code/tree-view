@@ -330,6 +330,16 @@ describe("TreeView construction", () => {
       expect(child.entryClassName).toBe("recent-entry");
     });
 
+    it("leaves the project copy of a pinned path as the one to reveal", async () => {
+      const section = register();
+      await section.entries[0].expand();
+
+      const found = treeView.treeEntryForPath(specDirectory);
+
+      expect(found).not.toBe(section.entries[0]);
+      expect(found.section).toBeNull();
+    });
+
     it("renders the rows it reveals inside the section's own list", async () => {
       const section = register();
       await section.entries[0].expand();
