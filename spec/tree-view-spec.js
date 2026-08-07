@@ -597,6 +597,51 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("opening the selected entry in this window", () => {
+    beforeEach(() => {
+      spyOn(atom.project, "setState");
+      spyOn(atom, "open");
+    });
+
+    it("hands the folder to the project rather than opening a window", () => {
+      treeView = new TreeView({});
+      const root = treeView.roots[0];
+
+      treeView.selectEntry(root);
+      treeView.openSelectedEntryInThisWindow();
+
+      expect(atom.project.setState).toHaveBeenCalledWith([root.getPath()]);
+      expect(atom.open).not.toHaveBeenCalled();
+    });
+
+    // The project resolves a file to the directory holding it, so the command
+    // reads the same wherever it is invoked from.
+    it("passes a file's own path along, leaving the project to resolve it", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+
+      treeView.openSelectedEntryInThisWindow();
+
+      expect(atom.project.setState).toHaveBeenCalledWith([__filename]);
+    });
+
+    it("does nothing for an entry that owns no path", () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+      });
+
+      treeView.selectEntry(section.root);
+      treeView.openSelectedEntryInThisWindow();
+
+      expect(atom.project.setState).not.toHaveBeenCalled();
+    });
+  });
+
   describe("the context menu of a project folder", () => {
     it("claims the project-relative path item so the whole-tree menu cannot offer it", () => {
       const packagePath = path.resolve(__dirname, "..");

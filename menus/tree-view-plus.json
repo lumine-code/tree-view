@@ -94,6 +94,10 @@
       {
         "label": "Open in New Window",
         "command": "tree-view:open-in-new-window"
+      },
+      {
+        "label": "Open in This Window",
+        "command": "tree-view:open-in-this-window"
       }
     ],
     ".tree-view .full-menu .tree-view-special-entry": [
@@ -104,6 +108,10 @@
       {
         "label": "Open in New Window",
         "command": "tree-view:open-in-new-window"
+      },
+      {
+        "label": "Open in This Window",
+        "command": "tree-view:open-in-this-window"
       }
     ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
@@ -197,6 +205,10 @@
       {
         "label": "Open in New Window",
         "command": "tree-view:open-in-new-window"
+      },
+      {
+        "label": "Open in This Window",
+        "command": "tree-view:open-in-this-window"
       }
     ],
     ".platform-darwin .tree-view .full-menu": [
