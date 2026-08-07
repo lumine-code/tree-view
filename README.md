@@ -51,7 +51,6 @@ Commands available in `.tree-view`:
 - `tree-view:paste`: paste entries,
 - `tree-view:copy-full-path`: copy the full path of the selected entry,
 - `tree-view:copy-project-path`: copy the project-relative path of the selected entry,
-- `tree-view:show-in-file-manager`: show the selected entry in the system file manager,
 - `tree-view:open-in-new-window`: open the selected entry in a new window,
 - `tree-view:open-in-this-window`: open the selected entry's folder here, restoring the editors it was last left with,
 - `tree-view:unfocus`: return focus to the editor,

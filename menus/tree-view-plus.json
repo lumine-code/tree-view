@@ -91,9 +91,6 @@
       {
         "type": "separator"
       },
-      // The path group goes last so the platform-specific "Reveal in Finder" /
-      // "Show in Explorer", which its own selector can only append after
-      // everything here, lands beside the other items naming this entry.
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path"
@@ -215,24 +212,6 @@
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path",
         "visible": false
-      }
-    ],
-    ".platform-darwin .tree-view .full-menu": [
-      {
-        "label": "Reveal in Finder",
-        "command": "tree-view:show-in-file-manager"
-      }
-    ],
-    ".platform-win32 .tree-view .full-menu": [
-      {
-        "label": "Show in Explorer",
-        "command": "tree-view:show-in-file-manager"
-      }
-    ],
-    ".platform-linux .tree-view .full-menu": [
-      {
-        "label": "Show in File Manager",
-        "command": "tree-view:show-in-file-manager"
       }
     ],
     ".tree-view .multi-select:not(.special-select)": [
