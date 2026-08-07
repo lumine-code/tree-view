@@ -597,6 +597,35 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("the context menu of a project folder", () => {
+    it("claims the project-relative path item so the whole-tree menu cannot offer it", () => {
+      const packagePath = path.resolve(__dirname, "..");
+      const pack = atom.packages.loadPackage(packagePath);
+      expect(pack.path).toBe(packagePath);
+      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view-plus.json"));
+      const disposable = atom.contextMenu.add(menu["context-menu"]);
+
+      treeView = new TreeView({});
+      atom.workspace.getLeftDock().getActivePane().getElement().appendChild(treeView.element);
+      jasmine.attachToDOM(atom.workspace.getElement());
+      const rootHeader = treeView
+        .elementForTreeEntry(treeView.roots[0])
+        .querySelector(":scope > .header");
+      const labels = (element) =>
+        atom.contextMenu
+          .templateForElement(element)
+          .filter((item) => item.visible !== false)
+          .map((item) => item.label);
+
+      expect(labels(rootHeader)).toContain("Copy Full Path");
+      expect(labels(rootHeader)).not.toContain("Copy Project Path");
+      expect(labels(treeView.list)).toContain("Copy Project Path");
+
+      disposable.dispose();
+      atom.packages.unloadPackage(pack.name);
+    });
+  });
+
   describe("the context menu marker for a virtual selection", () => {
     it("marks the list only while every selected row is virtual", () => {
       treeView = new TreeView({});
