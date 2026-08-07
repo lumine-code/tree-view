@@ -533,6 +533,70 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("copying the selected entry's path", () => {
+    beforeEach(() => {
+      spyOn(atom.clipboard, "write");
+    });
+
+    it("copies the path the first time an entry is selected", () => {
+      treeView = new TreeView({});
+      const root = treeView.roots[0];
+
+      treeView.selectEntry(root);
+      treeView.copySelectedEntryPath();
+
+      expect(atom.clipboard.write).toHaveBeenCalledWith(root.getPath());
+    });
+
+    it("copies the path of the entry a multiple selection ended on", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      const file = treeView.selectedEntry();
+
+      treeView.selectEntry(treeView.roots[0]);
+      treeView.selectMultipleEntries(file);
+      treeView.copySelectedEntryPath();
+
+      expect(atom.clipboard.write).toHaveBeenCalledWith(__filename);
+    });
+
+    it("copies a path relative to the project folder holding it", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+
+      treeView.copySelectedEntryPath(true);
+
+      expect(atom.clipboard.write).toHaveBeenCalledWith(
+        path.join("spec", path.basename(__filename)),
+      );
+    });
+
+    it("leaves the clipboard alone for a project folder, which relativizes to nothing", () => {
+      treeView = new TreeView({});
+
+      treeView.selectEntry(treeView.roots[0]);
+      treeView.copySelectedEntryPath(true);
+
+      expect(atom.clipboard.write).not.toHaveBeenCalled();
+    });
+
+    it("leaves the clipboard alone for a section header, which owns no path", () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+      });
+
+      treeView.selectEntry(section.root);
+      treeView.copySelectedEntryPath();
+
+      expect(atom.clipboard.write).not.toHaveBeenCalled();
+    });
+  });
+
   describe("the context menu marker for a virtual selection", () => {
     it("marks the list only while every selected row is virtual", () => {
       treeView = new TreeView({});
