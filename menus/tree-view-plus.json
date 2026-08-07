@@ -39,6 +39,9 @@
   "context-menu": {
     ".tree-view .full-menu:not(.special-select)": [
       {
+        "type": "separator"
+      },
+      {
         "label": "New File",
         "command": "tree-view:add-file"
       },
@@ -98,9 +101,15 @@
       {
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path"
+      },
+      {
+        "type": "separator"
       }
     ],
     ".tree-view .full-menu .tree-view-special-entry": [
+      {
+        "type": "separator"
+      },
       {
         "label": "Open in New Window",
         "command": "tree-view:open-in-new-window"
@@ -115,6 +124,9 @@
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path"
+      },
+      {
+        "type": "separator"
       }
     ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
@@ -147,6 +159,9 @@
       }
     ],
     ".tree-view .full-menu .project-root:not(.tree-view-special-root) > .header": [
+      {
+        "type": "separator"
+      },
       {
         "label": "New File",
         "command": "tree-view:add-file"
@@ -220,9 +235,15 @@
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path",
         "visible": false
+      },
+      {
+        "type": "separator"
       }
     ],
     ".tree-view .multi-select:not(.special-select)": [
+      {
+        "type": "separator"
+      },
       {
         "label": "Delete",
         "command": "tree-view:remove"
@@ -238,6 +259,9 @@
       {
         "label": "Paste",
         "command": "tree-view:paste"
+      },
+      {
+        "type": "separator"
       }
     ],
     ".tree-view .multi-select.all-roots-selected": [
@@ -247,15 +271,27 @@
       {
         "label": "Remove Project Folders",
         "command": "tree-view:remove-project-folder"
+      },
+      {
+        "type": "separator"
       }
     ],
     "atom-pane[data-active-item-path] .item-views": [
       {
+        "type": "separator"
+      },
+      {
         "label": "Reveal in Tree View",
         "command": "tree-view:reveal-active-file"
+      },
+      {
+        "type": "separator"
       }
     ],
     "atom-pane[data-active-item-path] .tab.active": [
+      {
+        "type": "separator"
+      },
       {
         "label": "Rename File",
         "command": "tree-view:rename"
@@ -263,6 +299,9 @@
       {
         "label": "Reveal in Tree View",
         "command": "tree-view:reveal-active-file"
+      },
+      {
+        "type": "separator"
       }
     ]
   }
