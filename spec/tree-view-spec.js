@@ -643,31 +643,71 @@ describe("TreeView construction", () => {
   });
 
   describe("the context menu of a project folder", () => {
-    it("claims the project-relative path item so the whole-tree menu cannot offer it", () => {
+    let pack, disposable;
+
+    const openMenu = () => {
       const packagePath = path.resolve(__dirname, "..");
-      const pack = atom.packages.loadPackage(packagePath);
+      pack = atom.packages.loadPackage(packagePath);
       expect(pack.path).toBe(packagePath);
       const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view-plus.json"));
-      const disposable = atom.contextMenu.add(menu["context-menu"]);
+      disposable = atom.contextMenu.add(menu["context-menu"]);
 
       treeView = new TreeView({});
       atom.workspace.getLeftDock().getActivePane().getElement().appendChild(treeView.element);
       jasmine.attachToDOM(atom.workspace.getElement());
-      const rootHeader = treeView
-        .elementForTreeEntry(treeView.roots[0])
-        .querySelector(":scope > .header");
-      const labels = (element) =>
-        atom.contextMenu
-          .templateForElement(element)
-          .filter((item) => item.visible !== false)
-          .map((item) => item.label);
+      return treeView.elementForTreeEntry(treeView.roots[0]).querySelector(":scope > .header");
+    };
+
+    const labels = (element) =>
+      atom.contextMenu
+        .templateForElement(element)
+        .filter((item) => item.visible !== false)
+        .map((item) => item.label);
+
+    afterEach(() => {
+      disposable?.dispose();
+      if (pack) atom.packages.unloadPackage(pack.name);
+      disposable = pack = null;
+    });
+
+    it("claims the project-relative path item so the whole-tree menu cannot offer it", () => {
+      const rootHeader = openMenu();
 
       expect(labels(rootHeader)).toContain("Copy Full Path");
       expect(labels(rootHeader)).not.toContain("Copy Project Path");
       expect(labels(treeView.list)).toContain("Copy Project Path");
+    });
 
-      disposable.dispose();
-      atom.packages.unloadPackage(pack.name);
+    // The path items go last on purpose: a platform-specific "Show in
+    // Explorer" comes from a selector of its own, which can only append after
+    // everything the menus above contribute.
+    it("keeps the items that act on the project in one run", () => {
+      const rootHeader = openMenu();
+      const shown = labels(rootHeader);
+      const at = (label) => shown.indexOf(label);
+
+      const project = [
+        "Add Project Folder",
+        "Remove Project Folder",
+        "Collapse All Project Folders",
+        "Open in New Window",
+        "Open in This Window",
+      ];
+      for (const label of project) expect(at(label)).toBeGreaterThan(-1);
+      expect(project.map(at)).toEqual(project.map((_, i) => at(project[0]) + i));
+
+      expect(at("Copy Full Path")).toBeGreaterThan(at("Open in This Window"));
+    });
+
+    it("keeps the same run for a right-click anywhere else in the tree", () => {
+      openMenu();
+      const shown = labels(treeView.list);
+      const at = (label) => shown.indexOf(label);
+
+      expect(at("Open in New Window")).toBe(at("Add Project Folder") + 1);
+      expect(at("Open in This Window")).toBe(at("Add Project Folder") + 2);
+      expect(at("Copy Full Path")).toBeGreaterThan(at("Open in This Window"));
+      expect(at("Copy Project Path")).toBe(at("Copy Full Path") + 1);
     });
   });
 

@@ -81,8 +81,19 @@
         "command": "application:add-project-folder"
       },
       {
+        "label": "Open in New Window",
+        "command": "tree-view:open-in-new-window"
+      },
+      {
+        "label": "Open in This Window",
+        "command": "tree-view:open-in-this-window"
+      },
+      {
         "type": "separator"
       },
+      // The path group goes last so the platform-specific "Reveal in Finder" /
+      // "Show in Explorer", which its own selector can only append after
+      // everything here, lands beside the other items naming this entry.
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path"
@@ -90,28 +101,23 @@
       {
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path"
-      },
-      {
-        "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window"
-      },
-      {
-        "label": "Open in This Window",
-        "command": "tree-view:open-in-this-window"
       }
     ],
     ".tree-view .full-menu .tree-view-special-entry": [
       {
-        "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
-      },
-      {
         "label": "Open in New Window",
         "command": "tree-view:open-in-new-window"
       },
       {
         "label": "Open in This Window",
         "command": "tree-view:open-in-this-window"
+      },
+      {
+        "type": "separator"
+      },
+      {
+        "label": "Copy Full Path",
+        "command": "tree-view:copy-full-path"
       }
     ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
@@ -187,6 +193,14 @@
         "command": "tree-view:collapse-all"
       },
       {
+        "label": "Open in New Window",
+        "command": "tree-view:open-in-new-window"
+      },
+      {
+        "label": "Open in This Window",
+        "command": "tree-view:open-in-this-window"
+      },
+      {
         "type": "separator"
       },
       {
@@ -201,14 +215,6 @@
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path",
         "visible": false
-      },
-      {
-        "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window"
-      },
-      {
-        "label": "Open in This Window",
-        "command": "tree-view:open-in-this-window"
       }
     ],
     ".platform-darwin .tree-view .full-menu": [
@@ -248,6 +254,9 @@
       }
     ],
     ".tree-view .multi-select.all-roots-selected": [
+      {
+        "type": "separator"
+      },
       {
         "label": "Remove Project Folders",
         "command": "tree-view:remove-project-folder"
