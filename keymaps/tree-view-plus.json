@@ -36,7 +36,7 @@
     "h": "tree-view:collapse-directory",
     "enter": "tree-view:open-selected-entry",
     "escape": "tree-view:unfocus",
-    "ctrl-C": "tree-view:copy-full-path",
+    "ctrl-shift-c": "tree-view:copy-full-path",
     "f5": "tree-view:duplicate",
     "f6": "tree-view:move",
     "f7": "tree-view:add-folder",
