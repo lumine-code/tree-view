@@ -1035,6 +1035,7 @@ describe("TreeView row model and sticky headers", () => {
       "tree-view-row",
       "project-root",
       "expanded",
+      "selected",
     );
     root.style.setProperty("--tree-view-depth", "0");
     const rootHeader = document.createElement("div");
@@ -1109,6 +1110,15 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(rootHeader).lineHeight).toBe("32px");
       expect(rootHeader.getBoundingClientRect().height).toBe(32);
       expect(getComputedStyle(directoryRow).lineHeight).toBe("24px");
+      // The selection layer is as tall as the row it paints, whichever height
+      // that row happens to be, because it takes it from the row rather than
+      // restating it from a variable. The rule that named --ui-line-height used
+      // to win the tie against the one naming --tree-view-root-header-height,
+      // leaving a selected root's highlight 8px short of its own row.
+      expect(getComputedStyle(root, "::before").height).toBe("32px");
+      expect(root.getBoundingClientRect().height).toBe(32);
+      expect(getComputedStyle(file, "::before").height).toBe("24px");
+      expect(file.getBoundingClientRect().height).toBe(24);
       expect(stickyName.getBoundingClientRect().top - stickyEntry.getBoundingClientRect().top).toBe(
         directoryName.getBoundingClientRect().top - directory.getBoundingClientRect().top,
       );

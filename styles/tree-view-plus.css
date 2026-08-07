@@ -191,10 +191,6 @@
     padding-left: var(--tree-view-indent);
     overflow: hidden;
 
-    &::before {
-      top: 0;
-    }
-
     &.file {
       --tree-view-indent: calc(
         var(--component-icon-padding) + (var(--tree-view-depth) + 1) *
@@ -237,10 +233,6 @@
   }
 
   .project-root.project-root {
-    &::before {
-      height: var(--tree-view-root-header-height);
-    }
-
     > .header {
       line-height: var(--tree-view-root-header-height);
     }
@@ -260,13 +252,24 @@
   }
 
   .entry {
-    /* This fixes #110, see that issue for more details */
+    /* The hover and selection background is a layer of its own rather than the
+       row's background, so it can span the full width of the list — wider than
+       the row's text — and round its corners independently.
+
+       Its height is the row's own, never a variable: a row is one `li` sized to
+       a measured height, and a project root's header is taller than a regular
+       row. A rule restating that height names one variable or the other, and
+       whichever names the right one still has to win every specificity fight
+       with the ones that don't — which the selected root lost in silence. */
     &::before {
       content: "";
       position: absolute;
+      top: 0;
       right: var(--tree-view-row-inset);
       left: var(--tree-view-row-inset);
+      height: 100%;
       border-radius: var(--tree-view-row-border-radius);
+      pointer-events: none;
     }
   }
 
@@ -286,15 +289,11 @@
     background: var(--background-color-selected);
   }
 
-  li.list-item:not(.list-nested-item):not(.selected):hover::before,
-  .directory.list-nested-item:not(.selected):has(> .header:hover)::before {
-    height: var(--ui-line-height);
+  /* A row is a single `li` with no descendant rows, so hovering it is hovering
+     that row — a directory does not need to ask whether the pointer is over its
+     header to tell itself apart from its children any more. */
+  .entry:not(.selected):hover::before {
     background: var(--background-color-highlight);
-    pointer-events: none;
-  }
-
-  .project-root.project-root:not(.selected):has(> .project-root-header:hover)::before {
-    height: var(--tree-view-root-header-height);
   }
 
   &:focus {
@@ -317,10 +316,6 @@
     li:not(.list-nested-item),
     li.list-nested-item:not(.project-root) > .list-item {
       line-height: var(--ui-line-height);
-    }
-
-    .selected::before {
-      height: var(--ui-line-height);
     }
   }
 
