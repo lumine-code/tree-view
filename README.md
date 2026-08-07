@@ -29,8 +29,7 @@ Commands available in `atom-workspace`:
 - `tree-view:add-folder`: create a new folder,
 - `tree-view:duplicate`: duplicate the selected entry,
 - `tree-view:remove`: delete the selected entries,
-- `tree-view:rename`: rename the selected entry,
-- `tree-view:show-current-file-in-file-manager`: show the active file in the system file manager.
+- `tree-view:rename`: rename the selected entry.
 
 Commands available in `.tree-view`:
 
