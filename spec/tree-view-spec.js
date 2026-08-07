@@ -23,6 +23,25 @@ describe("TreeViewPackage teardown", () => {
 
     expect(treeViewPackage.treeView).toBeNull();
   });
+
+  // The command was in the View menu and in Packages > Tree View but was never
+  // registered, and the setting behind it was only read when the tree opened.
+  it("moves the tree to the other side when tree-view:toggle-side is dispatched", async () => {
+    jasmine.attachToDOM(atom.workspace.getElement());
+    const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.activate();
+    const treeView = treeViewPackage.getTreeViewInstance();
+    spyOn(treeView, "moveToPreferredLocation").and.returnValue(Promise.resolve());
+
+    atom.config.set("tree-view.showOnRightSide", false);
+    atom.commands.dispatch(atom.workspace.getElement(), "tree-view:toggle-side");
+
+    expect(atom.config.get("tree-view.showOnRightSide")).toBe(true);
+    expect(treeView.getPreferredLocation()).toBe("right");
+    expect(treeView.moveToPreferredLocation).toHaveBeenCalled();
+
+    await treeViewPackage.deactivate();
+  });
 });
 
 describe("TreeView.entryForPath", () => {

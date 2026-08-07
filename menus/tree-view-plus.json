@@ -119,20 +119,28 @@
     ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
       {
-        "label": "Split Up",
-        "command": "tree-view:open-selected-entry-up"
+        "type": "separator"
       },
       {
-        "label": "Split Down",
-        "command": "tree-view:open-selected-entry-down"
-      },
-      {
-        "label": "Split Left",
-        "command": "tree-view:open-selected-entry-left"
-      },
-      {
-        "label": "Split Right",
-        "command": "tree-view:open-selected-entry-right"
+        "label": "Open in Split",
+        "submenu": [
+          {
+            "label": "Up",
+            "command": "tree-view:open-selected-entry-up"
+          },
+          {
+            "label": "Down",
+            "command": "tree-view:open-selected-entry-down"
+          },
+          {
+            "label": "Left",
+            "command": "tree-view:open-selected-entry-left"
+          },
+          {
+            "label": "Right",
+            "command": "tree-view:open-selected-entry-right"
+          }
+        ]
       },
       {
         "type": "separator"
@@ -249,7 +257,7 @@
     ],
     "atom-pane[data-active-item-path] .tab.active": [
       {
-        "label": "Rename",
+        "label": "Rename File",
         "command": "tree-view:rename"
       },
       {
