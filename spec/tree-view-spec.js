@@ -603,10 +603,9 @@ describe("TreeView row model and sticky headers", () => {
     const treeView = Object.create(TreeView.prototype);
     treeView.stickyHeadersEnabled = true;
     treeView.scroller = document.createElement("div");
-    Object.defineProperties(treeView.scroller, {
-      scrollTop: { value: 0, writable: true },
-      scrollLeft: { value: 0, writable: true },
-    });
+    // The sticky pipeline reads the cached scroll position, never the element,
+    // so scrolling the harness means writing here.
+    treeView.scrollPosition = { top: 0, left: 0 };
     treeView.list = document.createElement("ol");
     treeView.list.style.width = "300px";
     treeView.selectedEntries = new Set();
@@ -623,7 +622,7 @@ describe("TreeView row model and sticky headers", () => {
 
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
 
-    treeView.scroller.scrollTop = 1;
+    treeView.scrollPosition.top = 1;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual([
       "root",
       "source",
@@ -638,13 +637,13 @@ describe("TreeView row model and sticky headers", () => {
     entry(treeView, "last.js", "file", directory);
     layout(treeView, [root]);
 
-    treeView.scroller.scrollTop = 47;
+    treeView.scrollPosition.top = 47;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual([
       "root",
       "source",
     ]);
 
-    treeView.scroller.scrollTop = 48;
+    treeView.scrollPosition.top = 48;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
   });
 
@@ -661,7 +660,7 @@ describe("TreeView row model and sticky headers", () => {
     entry(treeView, "next-directory", "directory", root);
     layout(treeView, [root]);
 
-    treeView.scroller.scrollTop = 25;
+    treeView.scrollPosition.top = 25;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
 
     expect(treeView.stickyHeaderList.children.length).toBe(2);
@@ -669,11 +668,11 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.stickyHeaderList.children[0].style.zIndex).toBe("2");
     expect(treeView.stickyHeaderList.children[1].style.zIndex).toBe("1");
 
-    treeView.scroller.scrollTop = 47;
+    treeView.scrollPosition.top = 47;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
     expect(treeView.stickyHeaderList.children[1].style.top).toBe("-23px");
 
-    treeView.scroller.scrollTop = 48;
+    treeView.scrollPosition.top = 48;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
     expect(treeView.stickyHeaderList.children.length).toBe(1);
     treeView.clearStickyHeaderViews();
@@ -694,7 +693,7 @@ describe("TreeView row model and sticky headers", () => {
     entry(treeView, "main.ipy", "file", sibling);
     layout(treeView, [root]);
 
-    treeView.scroller.scrollTop = 60;
+    treeView.scrollPosition.top = 60;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
 
     expect(treeView.stickyHeaderList.children.length).toBe(2);
@@ -715,7 +714,7 @@ describe("TreeView row model and sticky headers", () => {
     entry(treeView, "two.js", "file", second);
     layout(treeView, [first, second]);
 
-    treeView.scroller.scrollTop = second.top;
+    treeView.scrollPosition.top = second.top;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
   });
 
@@ -751,7 +750,7 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.stickyHeaderList.style.clipPath).toBe("inset(0px 16px 0px 0px)");
 
     treeView.contentWidth = 400;
-    treeView.scroller.scrollLeft = 30;
+    treeView.scrollPosition.left = 30;
     treeView.updateStickyHeaderOverlay();
 
     expect(treeView.stickyHeaderList.style.left).toBe("-30px");
@@ -863,7 +862,7 @@ describe("TreeView row model and sticky headers", () => {
     );
     expect(treeView.rowViews.size).toBe(treeView.visibleRows.length);
 
-    treeView.scroller.scrollTop = 12000;
+    treeView.scrollPosition.top = 12000;
     treeView.updateStickyHeaderOverlay();
     expect(treeView.rowViews.size).toBe(treeView.visibleRows.length);
     for (const [row, element] of initialElements) {
