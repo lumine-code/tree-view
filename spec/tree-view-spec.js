@@ -113,6 +113,78 @@ describe("TreeView root updates", () => {
       lumine.project = project;
     }
   });
+
+  it("restores a nested selection after rebuilding the project roots", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    const selectedPath = path.join(__dirname, path.basename(__filename));
+    lumine.project.setPaths([projectPath]);
+    const treeView = new TreeView({});
+
+    try {
+      await treeView.revealPath(selectedPath);
+      await treeView.updateRoots();
+
+      expect(treeView.selectedEntry()?.getPath()).toBe(selectedPath);
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("restores multiple selections and focus across separate project roots", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const firstProjectPath = path.resolve(__dirname, "..");
+    const secondProjectPath = path.resolve(__dirname, "..", "..", "archive-view");
+    const firstSelectedPath = path.join(firstProjectPath, "package.json");
+    const secondSelectedPath = path.join(secondProjectPath, "package.json");
+    lumine.project.setPaths([firstProjectPath, secondProjectPath]);
+    const treeView = new TreeView({});
+
+    try {
+      await treeView.revealPath(firstSelectedPath);
+      const firstEntry = treeView.selectedEntry();
+      await treeView.revealPath(secondSelectedPath);
+      treeView.selectMultipleEntries(firstEntry);
+
+      await treeView.updateRoots();
+
+      expect(treeView.selectedPaths().sort()).toEqual(
+        [firstSelectedPath, secondSelectedPath].sort(),
+      );
+      expect(treeView.selectedEntry()?.getPath()).toBe(firstSelectedPath);
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("keeps the nearest visible ancestor when an ignore toggle hides the selection", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const originalIgnoredNames = lumine.config.get("core.ignoredNames");
+    const originalHideIgnoredNames = lumine.config.get("tree-view.hideIgnoredNames");
+    const projectPath = path.resolve(__dirname, "..");
+    const selectedPath = path.join(__dirname, path.basename(__filename));
+    lumine.project.setPaths([projectPath]);
+    lumine.config.set("core.ignoredNames", [path.basename(__filename)]);
+    lumine.config.set("tree-view.hideIgnoredNames", false);
+    const treeView = new TreeView({});
+
+    try {
+      await treeView.revealPath(selectedPath);
+      spyOn(treeView, "updateRoots").and.callThrough();
+
+      lumine.config.set("tree-view.hideIgnoredNames", true);
+      await treeView.updateRoots.calls.mostRecent().returnValue;
+
+      expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+      lumine.config.set("core.ignoredNames", originalIgnoredNames);
+      lumine.config.set("tree-view.hideIgnoredNames", originalHideIgnoredNames);
+    }
+  });
 });
 
 describe("TreeView OS file drops", () => {
