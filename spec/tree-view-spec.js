@@ -451,14 +451,14 @@ describe("TreeView construction", () => {
         onRemove,
       });
       spyOn(treeView, "hasFocus").and.returnValue(true);
-      spyOn(atom, "confirm");
+      spyOn(atom.window, "confirm");
       treeView.selectEntry(section.entries[0]);
 
       await treeView.removeSelectedEntries();
 
       expect(onRemove).toHaveBeenCalledWith([__filename]);
       // The path itself is never handed to the delete machinery.
-      expect(atom.confirm).not.toHaveBeenCalled();
+      expect(atom.window.confirm).not.toHaveBeenCalled();
     });
 
     it("does nothing for the section header, which is not a path", async () => {
@@ -473,13 +473,13 @@ describe("TreeView construction", () => {
         onRemove,
       });
       spyOn(treeView, "hasFocus").and.returnValue(true);
-      spyOn(atom, "confirm");
+      spyOn(atom.window, "confirm");
       treeView.selectEntry(section.root);
 
       await treeView.removeSelectedEntries();
 
       expect(onRemove).not.toHaveBeenCalled();
-      expect(atom.confirm).not.toHaveBeenCalled();
+      expect(atom.window.confirm).not.toHaveBeenCalled();
     });
   });
 
@@ -619,7 +619,7 @@ describe("TreeView construction", () => {
   describe("opening the selected entry in this window", () => {
     beforeEach(() => {
       spyOn(atom.project, "setState");
-      spyOn(atom, "open");
+      spyOn(atom.app, "openWindow");
     });
 
     it("hands the folder to the project rather than opening a window", () => {
@@ -630,7 +630,7 @@ describe("TreeView construction", () => {
       treeView.openSelectedEntryInThisWindow();
 
       expect(atom.project.setState).toHaveBeenCalledWith([root.getPath()]);
-      expect(atom.open).not.toHaveBeenCalled();
+      expect(atom.app.openWindow).not.toHaveBeenCalled();
     });
 
     // The project resolves a file to the directory holding it, so the command
