@@ -439,6 +439,26 @@ describe("TreeView construction", () => {
   });
 
   describe("removing a selection that includes pinned rows", () => {
+    it("trashes an ordinary entry through the shell service", async () => {
+      treeView = new TreeView({});
+      const entry = {
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => __filename,
+      };
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue([__filename]);
+      spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
+      spyOn(treeView, "updateRoots");
+      spyOn(atom.window, "confirm").and.returnValue(Promise.resolve(0));
+      spyOn(atom.shell, "trashItem").and.returnValue(Promise.resolve());
+
+      await treeView.removeSelectedEntries();
+
+      expect(atom.shell.trashItem).toHaveBeenCalledWith(__filename);
+    });
+
     it("hands the pinned paths to the section instead of deleting them", async () => {
       const onRemove = jasmine.createSpy("onRemove");
       treeView = new TreeView({});
