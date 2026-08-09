@@ -12,8 +12,8 @@ describe("TreeView dialogs", () => {
 
   beforeEach(() => {
     projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-dialog-")));
-    atom.project.setPaths([projectPath]);
-    jasmine.attachToDOM(atom.views.getView(atom.workspace));
+    lumine.project.setPaths([projectPath]);
+    jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
     dialogs = [];
   });
 
@@ -117,7 +117,7 @@ describe("TreeView dialogs", () => {
     }
 
     it("binds the open-after-copy checkbox to the tree-view.openAfterCopy config", () => {
-      atom.config.set("tree-view.openAfterCopy", true);
+      lumine.config.set("tree-view.openAfterCopy", true);
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
 
@@ -126,7 +126,7 @@ describe("TreeView dialogs", () => {
 
       checkbox.checked = false;
       checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-      expect(atom.config.get("tree-view.openAfterCopy")).toBe(false);
+      expect(lumine.config.get("tree-view.openAfterCopy")).toBe(false);
     });
 
     it("does not offer to open a copied directory", () => {
@@ -139,22 +139,22 @@ describe("TreeView dialogs", () => {
     });
 
     it("reflects an external config change in the checkbox", async () => {
-      atom.config.set("tree-view.openAfterCopy", false);
+      lumine.config.set("tree-view.openAfterCopy", false);
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
       expect(dialog.inputDialogView.element.querySelector(".input-checkbox").checked).toBe(false);
 
-      atom.config.set("tree-view.openAfterCopy", true);
+      lumine.config.set("tree-view.openAfterCopy", true);
       await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
       expect(dialog.inputDialogView.element.querySelector(".input-checkbox").checked).toBe(true);
     });
 
     it("opens the duplicate when openAfterCopy is enabled", async () => {
-      atom.config.set("tree-view.openAfterCopy", true);
+      lumine.config.set("tree-view.openAfterCopy", true);
       // Run the copy callback synchronously so the open decision is testable
       // without depending on real async filesystem timing.
       spyOn(fsCompat, "copy").and.callFake((source, destination, callback) => callback());
-      spyOn(atom.workspace, "open").and.returnValue(Promise.resolve());
+      spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
 
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
@@ -162,15 +162,15 @@ describe("TreeView dialogs", () => {
       await dialog.onConfirm(dialog.miniEditor.getText());
 
       expect(fsCompat.copy).toHaveBeenCalled();
-      expect(atom.workspace.open).toHaveBeenCalledWith(path.join(projectPath, "b.txt"), {
+      expect(lumine.workspace.open).toHaveBeenCalledWith(path.join(projectPath, "b.txt"), {
         activatePane: true,
       });
     });
 
     it("does not open the duplicate when openAfterCopy is disabled", async () => {
-      atom.config.set("tree-view.openAfterCopy", false);
+      lumine.config.set("tree-view.openAfterCopy", false);
       spyOn(fsCompat, "copy").and.callFake((source, destination, callback) => callback());
-      spyOn(atom.workspace, "open").and.returnValue(Promise.resolve());
+      spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
 
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
@@ -178,7 +178,7 @@ describe("TreeView dialogs", () => {
       await dialog.onConfirm(dialog.miniEditor.getText());
 
       expect(fsCompat.copy).toHaveBeenCalled();
-      expect(atom.workspace.open).not.toHaveBeenCalled();
+      expect(lumine.workspace.open).not.toHaveBeenCalled();
     });
   });
 });

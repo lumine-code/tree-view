@@ -10,7 +10,7 @@ describe("TreeViewPackage teardown", () => {
   // so a package deactivated in that window used to hang forever, which is
   // what stopped any suite from activating the real tree-view.
   it("settles when deactivated before the initial packages activate", async () => {
-    spyOn(atom.packages, "hasActivatedInitialPackages").and.returnValue(false);
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
 
@@ -27,16 +27,16 @@ describe("TreeViewPackage teardown", () => {
   // The command was in the View menu and in Packages > Tree View but was never
   // registered, and the setting behind it was only read when the tree opened.
   it("moves the tree to the other side when tree-view:toggle-side is dispatched", async () => {
-    jasmine.attachToDOM(atom.workspace.getElement());
+    jasmine.attachToDOM(lumine.workspace.getElement());
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
     spyOn(treeView, "moveToPreferredLocation").and.returnValue(Promise.resolve());
 
-    atom.config.set("tree-view.showOnRightSide", false);
-    atom.commands.dispatch(atom.workspace.getElement(), "tree-view:toggle-side");
+    lumine.config.set("tree-view.showOnRightSide", false);
+    lumine.commands.dispatch(lumine.workspace.getElement(), "tree-view:toggle-side");
 
-    expect(atom.config.get("tree-view.showOnRightSide")).toBe(true);
+    expect(lumine.config.get("tree-view.showOnRightSide")).toBe(true);
     expect(treeView.getPreferredLocation()).toBe("right");
     expect(treeView.moveToPreferredLocation).toHaveBeenCalled();
 
@@ -102,15 +102,15 @@ describe("TreeView.entryForPath", () => {
 
 describe("TreeView root updates", () => {
   it("ignores updates after the project has been cleared during teardown", () => {
-    const project = atom.project;
+    const project = lumine.project;
     const treeView = { selectedPaths: jasmine.createSpy("selectedPaths") };
 
     try {
-      atom.project = null;
+      lumine.project = null;
       expect(() => TreeView.prototype.updateRoots.call(treeView)).not.toThrow();
       expect(treeView.selectedPaths).not.toHaveBeenCalled();
     } finally {
-      atom.project = project;
+      lumine.project = project;
     }
   });
 });
@@ -122,7 +122,7 @@ describe("TreeView OS file drops", () => {
     spyOn(webUtils, "getPathForFile").and.callFake((file) =>
       file === droppedFolder ? nativePath : "",
     );
-    spyOn(atom.project, "addPath");
+    spyOn(lumine.project, "addPath");
     const event = {
       target: { closest: () => null },
       dataTransfer: { files: [droppedFolder] },
@@ -133,12 +133,12 @@ describe("TreeView OS file drops", () => {
 
     TreeView.prototype.onDrop.call(treeView, event);
 
-    expect(atom.project.addPath).toHaveBeenCalledWith(nativePath);
+    expect(lumine.project.addPath).toHaveBeenCalledWith(nativePath);
   });
 
   it("ignores a dropped file when Electron cannot resolve its path", () => {
     spyOn(webUtils, "getPathForFile").and.returnValue("");
-    spyOn(atom.project, "addPath");
+    spyOn(lumine.project, "addPath");
     const event = {
       target: { closest: () => null },
       dataTransfer: { files: [{}] },
@@ -148,7 +148,7 @@ describe("TreeView OS file drops", () => {
     };
 
     expect(() => TreeView.prototype.onDrop.call(treeView, event)).not.toThrow();
-    expect(atom.project.addPath).not.toHaveBeenCalled();
+    expect(lumine.project.addPath).not.toHaveBeenCalled();
   });
 });
 
@@ -157,13 +157,13 @@ describe("TreeView construction", () => {
   let treeView;
 
   beforeEach(() => {
-    originalProjectPaths = atom.project.getPaths();
-    atom.project.setPaths([path.resolve(__dirname, "..")]);
+    originalProjectPaths = lumine.project.getPaths();
+    lumine.project.setPaths([path.resolve(__dirname, "..")]);
   });
 
   afterEach(() => {
     treeView?.destroy();
-    atom.project.setPaths(originalProjectPaths);
+    lumine.project.setPaths(originalProjectPaths);
   });
 
   it("mounts project rows inside the scroller and keeps stickies outside it", () => {
@@ -255,7 +255,7 @@ describe("TreeView construction", () => {
       { getPath: () => firstPath, getBuffer: () => firstBuffer },
       { getPath: () => secondPath, getBuffer: () => secondBuffer },
     ];
-    spyOn(atom.workspace, "getTextEditors").and.returnValue(editors);
+    spyOn(lumine.workspace, "getTextEditors").and.returnValue(editors);
 
     treeView.emitter.emit("will-move-entry", { initialPath: firstPath });
     treeView.emitter.emit("will-move-entry", { initialPath: secondPath });
@@ -451,12 +451,12 @@ describe("TreeView construction", () => {
       spyOn(treeView, "selectedPaths").and.returnValue([__filename]);
       spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
       spyOn(treeView, "updateRoots");
-      spyOn(atom.window, "confirm").and.returnValue(Promise.resolve(0));
-      spyOn(atom.shell, "trashItem").and.returnValue(Promise.resolve());
+      spyOn(lumine.window, "confirm").and.returnValue(Promise.resolve(0));
+      spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
 
       await treeView.removeSelectedEntries();
 
-      expect(atom.shell.trashItem).toHaveBeenCalledWith(__filename);
+      expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
     });
 
     it("hands the pinned paths to the section instead of deleting them", async () => {
@@ -471,14 +471,14 @@ describe("TreeView construction", () => {
         onRemove,
       });
       spyOn(treeView, "hasFocus").and.returnValue(true);
-      spyOn(atom.window, "confirm");
+      spyOn(lumine.window, "confirm");
       treeView.selectEntry(section.entries[0]);
 
       await treeView.removeSelectedEntries();
 
       expect(onRemove).toHaveBeenCalledWith([__filename]);
       // The path itself is never handed to the delete machinery.
-      expect(atom.window.confirm).not.toHaveBeenCalled();
+      expect(lumine.window.confirm).not.toHaveBeenCalled();
     });
 
     it("does nothing for the section header, which is not a path", async () => {
@@ -493,13 +493,13 @@ describe("TreeView construction", () => {
         onRemove,
       });
       spyOn(treeView, "hasFocus").and.returnValue(true);
-      spyOn(atom.window, "confirm");
+      spyOn(lumine.window, "confirm");
       treeView.selectEntry(section.root);
 
       await treeView.removeSelectedEntries();
 
       expect(onRemove).not.toHaveBeenCalled();
-      expect(atom.window.confirm).not.toHaveBeenCalled();
+      expect(lumine.window.confirm).not.toHaveBeenCalled();
     });
   });
 
@@ -522,7 +522,7 @@ describe("TreeView construction", () => {
         preventDefault() {},
         stopPropagation() {},
         dataTransfer: {
-          items: [{ type: "atom-tree-view-event", kind: "string" }],
+          items: [{ type: "lumine-tree-view-event", kind: "string" }],
           getData: (key) => (key === "initialPaths" ? JSON.stringify(["/dropped.js"]) : "true"),
         },
       };
@@ -574,7 +574,7 @@ describe("TreeView construction", () => {
 
   describe("copying the selected entry's path", () => {
     beforeEach(() => {
-      spyOn(atom.clipboard, "write");
+      spyOn(lumine.clipboard, "write");
     });
 
     it("copies the path the first time an entry is selected", () => {
@@ -584,7 +584,7 @@ describe("TreeView construction", () => {
       treeView.selectEntry(root);
       treeView.copySelectedEntryPath();
 
-      expect(atom.clipboard.write).toHaveBeenCalledWith(root.getPath());
+      expect(lumine.clipboard.write).toHaveBeenCalledWith(root.getPath());
     });
 
     it("copies the path of the entry a multiple selection ended on", async () => {
@@ -596,7 +596,7 @@ describe("TreeView construction", () => {
       treeView.selectMultipleEntries(file);
       treeView.copySelectedEntryPath();
 
-      expect(atom.clipboard.write).toHaveBeenCalledWith(__filename);
+      expect(lumine.clipboard.write).toHaveBeenCalledWith(__filename);
     });
 
     it("copies a path relative to the project folder holding it", async () => {
@@ -605,7 +605,7 @@ describe("TreeView construction", () => {
 
       treeView.copySelectedEntryPath(true);
 
-      expect(atom.clipboard.write).toHaveBeenCalledWith(
+      expect(lumine.clipboard.write).toHaveBeenCalledWith(
         path.join("spec", path.basename(__filename)),
       );
     });
@@ -616,7 +616,7 @@ describe("TreeView construction", () => {
       treeView.selectEntry(treeView.roots[0]);
       treeView.copySelectedEntryPath(true);
 
-      expect(atom.clipboard.write).not.toHaveBeenCalled();
+      expect(lumine.clipboard.write).not.toHaveBeenCalled();
     });
 
     it("leaves the clipboard alone for a section header, which owns no path", () => {
@@ -632,14 +632,14 @@ describe("TreeView construction", () => {
       treeView.selectEntry(section.root);
       treeView.copySelectedEntryPath();
 
-      expect(atom.clipboard.write).not.toHaveBeenCalled();
+      expect(lumine.clipboard.write).not.toHaveBeenCalled();
     });
   });
 
   describe("opening the selected entry in this window", () => {
     beforeEach(() => {
-      spyOn(atom.project, "setState");
-      spyOn(atom.app, "openWindow");
+      spyOn(lumine.project, "setState");
+      spyOn(lumine.app, "openWindow");
     });
 
     it("hands the folder to the project rather than opening a window", () => {
@@ -649,8 +649,8 @@ describe("TreeView construction", () => {
       treeView.selectEntry(root);
       treeView.openSelectedEntryInThisWindow();
 
-      expect(atom.project.setState).toHaveBeenCalledWith([root.getPath()]);
-      expect(atom.app.openWindow).not.toHaveBeenCalled();
+      expect(lumine.project.setState).toHaveBeenCalledWith([root.getPath()]);
+      expect(lumine.app.openWindow).not.toHaveBeenCalled();
     });
 
     // The project resolves a file to the directory holding it, so the command
@@ -661,7 +661,7 @@ describe("TreeView construction", () => {
 
       treeView.openSelectedEntryInThisWindow();
 
-      expect(atom.project.setState).toHaveBeenCalledWith([__filename]);
+      expect(lumine.project.setState).toHaveBeenCalledWith([__filename]);
     });
 
     it("does nothing for an entry that owns no path", () => {
@@ -677,7 +677,7 @@ describe("TreeView construction", () => {
       treeView.selectEntry(section.root);
       treeView.openSelectedEntryInThisWindow();
 
-      expect(atom.project.setState).not.toHaveBeenCalled();
+      expect(lumine.project.setState).not.toHaveBeenCalled();
     });
   });
 
@@ -686,26 +686,26 @@ describe("TreeView construction", () => {
 
     const openMenu = () => {
       const packagePath = path.resolve(__dirname, "..");
-      pack = atom.packages.loadPackage(packagePath);
+      pack = lumine.packages.loadPackage(packagePath);
       expect(pack.path).toBe(packagePath);
       const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view-plus.json"));
-      disposable = atom.contextMenu.add(menu["context-menu"]);
+      disposable = lumine.contextMenu.add(menu["context-menu"]);
 
       treeView = new TreeView({});
-      atom.workspace.getLeftDock().getActivePane().getElement().appendChild(treeView.element);
-      jasmine.attachToDOM(atom.workspace.getElement());
+      lumine.workspace.getLeftDock().getActivePane().getElement().appendChild(treeView.element);
+      jasmine.attachToDOM(lumine.workspace.getElement());
       return treeView.elementForTreeEntry(treeView.roots[0]).querySelector(":scope > .header");
     };
 
     const labels = (element) =>
-      atom.contextMenu
+      lumine.contextMenu
         .templateForElement(element)
         .filter((item) => item.visible !== false)
         .map((item) => item.label);
 
     afterEach(() => {
       disposable?.dispose();
-      if (pack) atom.packages.unloadPackage(pack.name);
+      if (pack) lumine.packages.unloadPackage(pack.name);
       disposable = pack = null;
     });
 
@@ -1105,7 +1105,7 @@ describe("TreeView row model and sticky headers", () => {
   });
 
   it("keeps scrolling and sticky paint in separate surfaces", () => {
-    const stylesheet = atom.themes.requireStylesheet(
+    const stylesheet = lumine.themes.requireStylesheet(
       path.join(__dirname, "..", "styles", "tree-view-plus.css"),
     );
     const tree = document.createElement("div");
@@ -1258,7 +1258,7 @@ describe("TreeView row model and sticky headers", () => {
   });
 
   it("joins adjacent rounded selections into continuous areas", () => {
-    const stylesheet = atom.themes.requireStylesheet(
+    const stylesheet = lumine.themes.requireStylesheet(
       path.join(__dirname, "..", "styles", "tree-view-plus.css"),
     );
     const tree = document.createElement("div");
@@ -1327,7 +1327,7 @@ describe("TreeView row model and sticky headers", () => {
   // measured: a row is `min-width: 100%` of the list, so a measured maximum
   // fed back into the list width can only ever grow.
   it("follows a long row's width back down when the row goes away", () => {
-    const stylesheet = atom.themes.requireStylesheet(
+    const stylesheet = lumine.themes.requireStylesheet(
       path.join(__dirname, "..", "styles", "tree-view-plus.css"),
     );
     const tree = document.createElement("div");

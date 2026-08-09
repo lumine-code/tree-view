@@ -276,7 +276,7 @@
         "type": "separator"
       }
     ],
-    "atom-pane[data-active-item-path] .item-views": [
+    "lumine-pane[data-active-item-path] .item-views": [
       {
         "type": "separator"
       },
@@ -288,7 +288,7 @@
         "type": "separator"
       }
     ],
-    "atom-pane[data-active-item-path] .tab.active": [
+    "lumine-pane[data-active-item-path] .tab.active": [
       {
         "type": "separator"
       },

@@ -19,7 +19,7 @@ To install `tree-view` search for _tree-view_ in the Install pane of the Lumine 
 
 ## Commands
 
-Commands available in `atom-workspace`:
+Commands available in `lumine-workspace`:
 
 - `tree-view:show`: show the tree view,
 - `tree-view:toggle`: toggle the tree view,

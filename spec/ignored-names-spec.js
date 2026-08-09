@@ -3,7 +3,7 @@ const path = require("path");
 const IgnoredNames = require("../lib/ignored-names");
 
 function matcherFor(ignoredNames) {
-  atom.config.set("core.ignoredNames", ignoredNames);
+  lumine.config.set("core.ignoredNames", ignoredNames);
   return new IgnoredNames();
 }
 
@@ -32,7 +32,7 @@ describe("IgnoredNames", () => {
   });
 
   it("accepts a single name given as a string", () => {
-    atom.config.set("core.ignoredNames", ".git");
+    lumine.config.set("core.ignoredNames", ".git");
     const ignored = new IgnoredNames();
 
     expect(ignored.matches(path.join("proj", ".git"))).toBe(true);

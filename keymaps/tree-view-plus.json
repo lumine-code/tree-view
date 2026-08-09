@@ -1,5 +1,5 @@
 {
-  "atom-workspace": {
+  "lumine-workspace": {
     "alt-t": "tree-view:toggle-focus",
     "cmdorctrl-shift-\\": "tree-view:reveal-active-file"
   },
@@ -55,7 +55,7 @@
     "home": "core:move-to-top",
     "end": "core:move-to-bottom"
   },
-  ".tree-view-dialog atom-text-editor[mini]": {
+  ".tree-view-dialog lumine-text-editor[mini]": {
     "enter": "core:confirm",
     "escape": "core:cancel"
   }

@@ -1,4 +1,4 @@
-const { Disposable } = require("atom");
+const { Disposable } = require("lumine");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -31,7 +31,7 @@ function repositoryFor({ directoryStatusSummary = null } = {}) {
 }
 
 function createDirectory(fullPath, repository, { isRoot = false, ignoredNames } = {}) {
-  spyOn(atom.repositories, "getForPath").andReturn(repository);
+  spyOn(lumine.repositories, "getForPath").andReturn(repository);
   return new Directory({
     name: "repository",
     fullPath,
