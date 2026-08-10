@@ -10,6 +10,9 @@
   --tree-view-row-border-radius: 0px;
   --tree-view-indent-size: calc(var(--component-icon-size) + var(--component-icon-padding));
   --tree-view-indent-guide-color: var(--text-color-subtle);
+  --tree-view-indent-guide-origin: calc(
+    var(--component-icon-padding) + var(--component-icon-size) / 4
+  );
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
   --tree-view-root-name-font-size: inherit;
@@ -197,7 +200,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(var(--component-icon-padding) + var(--component-icon-size) / 2);
+    left: var(--tree-view-indent-guide-origin);
     z-index: 1;
     display: flex;
     pointer-events: none;
@@ -216,9 +219,8 @@
     top: 0;
     bottom: 0;
     left: calc(
-      var(--component-icon-padding) + var(--component-icon-size) / 2 -
-        var(--disclosure-arrow-size) / 2 + var(--tree-view-disclosure-depth) *
-        var(--tree-view-indent-size)
+      var(--tree-view-indent-guide-origin) - var(--disclosure-arrow-size) / 2 +
+        var(--tree-view-disclosure-depth) * var(--tree-view-indent-size)
     );
     z-index: 1;
     width: var(--disclosure-arrow-size);

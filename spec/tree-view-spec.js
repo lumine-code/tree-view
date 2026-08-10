@@ -1433,7 +1433,7 @@ describe("TreeView row model and sticky headers", () => {
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
       expect(stickyGuides.children.length).toBe(1);
-      expect(getComputedStyle(directoryGuides).left).toBe("13px");
+      expect(getComputedStyle(directoryGuides).left).toBe("9px");
       expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("21px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
