@@ -203,7 +203,6 @@
   }
 
   .tree-view-indent-guide {
-    position: relative;
     box-sizing: border-box;
     width: var(--tree-view-indent-size);
     height: 100%;
@@ -225,21 +224,7 @@
     pointer-events: auto;
   }
 
-  .directory.expanded > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
-    &::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--tree-view-indent-guide-color);
-      transform: translate(-50%, -50%);
-    }
-  }
-
-  .directory.collapsed > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
+  .directory > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
     border-left: 0;
     background:
       linear-gradient(var(--tree-view-indent-guide-color), var(--tree-view-indent-guide-color)) left
@@ -248,8 +233,8 @@
         bottom / 1px calc(50% - 4px) no-repeat;
   }
 
-  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before,
-  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
+  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::before,
+  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
     content: "";
     position: absolute;
     left: 50%;
@@ -259,14 +244,26 @@
     transform-origin: left center;
   }
 
-  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
     top: calc(50% - 4px);
     transform: translateY(-50%) rotate(30deg);
   }
 
-  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
+  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
     top: calc(50% + 4px);
     transform: translateY(-50%) rotate(-30deg);
+  }
+
+  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    background: var(--tree-view-indent-guide-color);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    transform: translateY(-50%);
   }
 
   .tree-view-special {

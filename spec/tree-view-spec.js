@@ -1435,23 +1435,22 @@ describe("TreeView row model and sticky headers", () => {
       expect(stickyGuides.children.length).toBe(1);
       expect(getComputedStyle(directoryGuides).left).toBe("13px");
       expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("21px");
-      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("1px");
-      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftColor).toBe(
-        "rgb(180, 180, 180)",
-      );
+      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
-      expect(getComputedStyle(directoryGuides.firstElementChild, "::before").borderRadius).toBe(
-        "50%",
-      );
+      expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
+      expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("1px");
       expect(getComputedStyle(fileGuides.firstElementChild).borderLeftColor).toBe(
         "rgb(100, 100, 100)",
       );
       directory.classList.replace("expanded", "collapsed");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
-      expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
+      expect(getComputedStyle(directoryDisclosure, "::after").content).toBe("none");
+      expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("8px");
+      expect(getComputedStyle(directoryDisclosure, "::before").clipPath).not.toBe("none");
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)
