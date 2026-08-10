@@ -197,7 +197,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(var(--component-icon-padding) + var(--disclosure-arrow-size) / 2);
+    left: calc(var(--component-icon-padding) + var(--component-icon-size) / 2);
     display: flex;
     pointer-events: none;
   }
@@ -211,30 +211,63 @@
   }
 
   .tree-view-disclosure {
-    display: inline-block;
-    box-sizing: border-box;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(
+      var(--component-icon-padding) + var(--component-icon-size) / 2 -
+        var(--disclosure-arrow-size) / 2 + var(--tree-view-disclosure-depth) *
+        var(--tree-view-indent-size)
+    );
+    z-index: 1;
     width: var(--disclosure-arrow-size);
-    height: var(--component-icon-size);
-    margin-right: var(--component-icon-padding);
-    line-height: var(--component-icon-size);
-    text-align: center;
-    vertical-align: text-bottom;
+    pointer-events: auto;
   }
 
-  .directory > .header > .tree-view-disclosure::before {
-    content: "\f0a3"; /* chevron-down */
-    display: block;
-    font-family: "Octicons Regular";
-    font-size: var(--disclosure-arrow-size);
-    font-style: normal;
-    font-weight: normal;
-    -webkit-font-smoothing: antialiased;
-    text-decoration: none;
+  .directory > .tree-view-disclosure::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    box-sizing: border-box;
   }
 
-  .directory.collapsed > .header > .tree-view-disclosure::before {
-    content: "\f078"; /* chevron-right */
-    translate: 1px 0;
+  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--tree-view-indent-guide-color);
+    transform: translate(-50%, -50%);
+  }
+
+  .directory.collapsed > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
+    border-left: 0;
+    background:
+      linear-gradient(var(--tree-view-indent-guide-color), var(--tree-view-indent-guide-color)) left
+        top / 1px calc(50% - 4px) no-repeat,
+      linear-gradient(var(--tree-view-indent-guide-color), var(--tree-view-indent-guide-color)) left
+        bottom / 1px calc(50% - 4px) no-repeat;
+  }
+
+  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before,
+  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 8px;
+    height: 1px;
+    background: var(--tree-view-indent-guide-color);
+    transform-origin: left center;
+  }
+
+  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+    top: calc(50% - 4px);
+    transform: translateY(-50%) rotate(30deg);
+  }
+
+  .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
+    top: calc(50% + 4px);
+    transform: translateY(-50%) rotate(-30deg);
   }
 
   .tree-view-special {
@@ -327,8 +360,7 @@
 
   &:focus {
     .selected.list-item > .name,
-    .selected.list-nested-item > .list-item > .name,
-    .selected.list-nested-item > .header > .tree-view-disclosure {
+    .selected.list-nested-item > .list-item > .name {
       color: var(--accent-bg-text-color);
     }
 

@@ -62,16 +62,27 @@ describe("tree-view entry attributes", () => {
     expect(view.indentGuides.children.length).toBe(1);
   });
 
-  it("uses the same explicit disclosure carrier for files and directories", () => {
+  it("renders a guide-integrated disclosure only for directories", () => {
     const fileView = mount("file", item("file.js", path.join("/root", "file.js")));
-    const directoryView = mount("directory", item("src", path.join("/root", "src")));
+    const directoryView = mount("directory", item("src", path.join("/root", "src")), {
+      depth: 2,
+    });
 
-    expect(fileView.disclosure.parentElement).toBe(fileView.element);
-    expect(directoryView.disclosure.parentElement).toBe(directoryView.header);
-    expect(fileView.disclosure.classList.contains("tree-view-disclosure")).toBe(true);
+    expect(fileView.disclosure).toBeNull();
+    expect(directoryView.disclosure.parentElement).toBe(directoryView.element);
     expect(directoryView.disclosure.classList.contains("tree-view-disclosure")).toBe(true);
-    expect(fileView.disclosure.getAttribute("aria-hidden")).toBe("true");
     expect(directoryView.disclosure.getAttribute("aria-hidden")).toBe("true");
+    expect(directoryView.disclosure.style.getPropertyValue("--tree-view-disclosure-depth")).toBe(
+      "1",
+    );
+    expect(directoryView.header.firstElementChild).toBe(directoryView.name);
+  });
+
+  it("uses the directory icon area as the disclosure target at depth zero", () => {
+    const view = mount("directory", item("root", "/root"));
+
+    expect(view.disclosure.classList.contains("tree-view-root-disclosure")).toBe(true);
+    expect(view.disclosure.style.getPropertyValue("--tree-view-disclosure-depth")).toBe("0");
   });
 
   describe("a file row", () => {

@@ -1320,9 +1320,11 @@ describe("TreeView row model and sticky headers", () => {
       return guides;
     };
 
-    const disclosure = () => {
+    const disclosure = (depth, root = false) => {
       const element = document.createElement("span");
       element.classList.add("tree-view-disclosure");
+      element.style.setProperty("--tree-view-disclosure-depth", Math.max(depth - 1, 0));
+      if (root) element.classList.add("tree-view-root-disclosure");
       return element;
     };
 
@@ -1336,24 +1338,23 @@ describe("TreeView row model and sticky headers", () => {
     file.classList.add("file", "entry", "list-item", "tree-view-row", "selected");
     file.style.setProperty("--tree-view-depth", "1");
     const fileGuides = indentGuides(1);
-    const fileDisclosure = disclosure();
     const fileName = document.createElement("span");
     fileName.classList.add("name");
     fileName.textContent = "styles.css";
-    file.append(fileGuides, fileDisclosure, fileName);
+    file.append(fileGuides, fileName);
 
     const directory = document.createElement("li");
     directory.classList.add("directory", "entry", "list-nested-item", "tree-view-row", "expanded");
     directory.style.setProperty("--tree-view-depth", "1");
     const directoryGuides = indentGuides(1);
+    const directoryDisclosure = disclosure(1);
     const directoryRow = document.createElement("div");
     directoryRow.classList.add("header", "list-item");
-    const directoryDisclosure = disclosure();
     const directoryName = document.createElement("span");
     directoryName.classList.add("name");
     directoryName.textContent = "Source";
-    directoryRow.append(directoryDisclosure, directoryName);
-    directory.append(directoryGuides, directoryRow);
+    directoryRow.append(directoryName);
+    directory.append(directoryGuides, directoryDisclosure, directoryRow);
 
     const root = document.createElement("li");
     root.classList.add(
@@ -1367,14 +1368,14 @@ describe("TreeView row model and sticky headers", () => {
     );
     root.style.setProperty("--tree-view-depth", "0");
     const rootGuides = indentGuides(0);
+    const rootDisclosure = disclosure(0, true);
     const rootHeader = document.createElement("div");
     rootHeader.classList.add("header", "list-item", "project-root-header");
-    const rootDisclosure = disclosure();
     const rootName = document.createElement("span");
     rootName.classList.add("name");
     rootName.textContent = "project";
-    rootHeader.append(rootDisclosure, rootName);
-    root.append(rootGuides, rootHeader);
+    rootHeader.append(rootName);
+    root.append(rootGuides, rootDisclosure, rootHeader);
 
     list.append(root, file, directory);
     scroller.appendChild(list);
@@ -1393,14 +1394,14 @@ describe("TreeView row model and sticky headers", () => {
     );
     stickyEntry.style.setProperty("--tree-view-depth", "1");
     const stickyGuides = indentGuides(1);
+    const stickyDisclosure = disclosure(1);
     const stickyRow = document.createElement("div");
     stickyRow.classList.add("tree-view-sticky-header-row", "header", "list-item");
-    const stickyDisclosure = disclosure();
     const stickyName = document.createElement("span");
     stickyName.classList.add("name");
     stickyName.textContent = "Source";
-    stickyRow.append(stickyDisclosure, stickyName);
-    stickyEntry.append(stickyGuides, stickyRow);
+    stickyRow.append(stickyName);
+    stickyEntry.append(stickyGuides, stickyDisclosure, stickyRow);
     stickyList.appendChild(stickyEntry);
     stickyLayer.appendChild(stickyList);
     viewport.append(scroller, stickyLayer);
@@ -1431,7 +1432,7 @@ describe("TreeView row model and sticky headers", () => {
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
       expect(stickyGuides.children.length).toBe(1);
-      expect(getComputedStyle(directoryGuides).left).toBe("11px");
+      expect(getComputedStyle(directoryGuides).left).toBe("13px");
       expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("17px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("1px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftColor).toBe(
@@ -1440,11 +1441,13 @@ describe("TreeView row model and sticky headers", () => {
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
-      const expandedDisclosure = getComputedStyle(directoryDisclosure, "::before").content;
+      expect(getComputedStyle(directoryDisclosure, "::before").borderRadius).toBe("50%");
       directory.classList.replace("expanded", "collapsed");
-      expect(getComputedStyle(directoryDisclosure, "::before").content).not.toBe(
-        expandedDisclosure,
-      );
+      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
+      expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
+      expect(getComputedStyle(rootDisclosure, "::before").borderTopWidth).toBe("0px");
+      expect(getComputedStyle(rootDisclosure, "::before").backgroundColor).toBe("rgba(0, 0, 0, 0)");
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)
