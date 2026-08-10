@@ -86,8 +86,23 @@ describe("TreeView dialogs", () => {
       dialog.onConfirm(dialog.miniEditor.getText());
 
       await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
-      expect(dialog.inputDialogView.refs.errorMessage.textContent).toContain("already exists");
-      expect(dialog.inputDialogView.element.classList.contains("error")).toBe(true);
+      const status = dialog.inputDialogView.refs.statusMessage;
+      expect(status.textContent).toContain("already exists");
+      expect(status.classList.contains("text-error")).toBe(true);
+    });
+
+    it("clears the error once the name changes", async () => {
+      fixture("exists.txt");
+      const dialog = track(new AddDialog(projectPath, true));
+      dialog.attach();
+      dialog.miniEditor.setText("exists.txt");
+      dialog.onConfirm(dialog.miniEditor.getText());
+      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
+      expect(dialog.inputDialogView.refs.statusMessage).toBeDefined();
+
+      dialog.miniEditor.setText("fresh.txt");
+      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
+      expect(dialog.inputDialogView.refs.statusMessage).toBeUndefined();
     });
   });
 
