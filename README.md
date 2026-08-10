@@ -69,12 +69,14 @@ Commands available in `.tree-view`:
 
 ## Customization
 
-Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to enlarge the entry text and loosen the row spacing:
+Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to enlarge the entry text, loosen the row spacing, and restyle the indentation guides:
 
 ```css
 .tree-view {
   font-size: 14px;
   line-height: 1.6;
+  --tree-view-indent-size: 18px;
+  --tree-view-indent-guide-color: var(--text-color-subtle);
 }
 ```
 

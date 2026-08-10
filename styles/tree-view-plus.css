@@ -8,6 +8,8 @@
   --tree-view-sticky-background: var(--tree-view-background-color);
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
+  --tree-view-indent-size: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+  --tree-view-indent-guide-color: var(--base-border-color);
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
   --tree-view-root-name-font-size: inherit;
@@ -179,8 +181,7 @@
 
   .tree-view-row {
     --tree-view-indent: calc(
-      var(--component-icon-padding) + var(--tree-view-depth) *
-        (var(--disclosure-arrow-size) + var(--component-icon-padding))
+      var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size)
     );
 
     position: relative;
@@ -190,22 +191,50 @@
     padding-right: var(--component-padding);
     padding-left: var(--tree-view-indent);
     overflow: hidden;
-
-    &.file {
-      --tree-view-indent: calc(
-        var(--component-icon-padding) + (var(--tree-view-depth) + 1) *
-          (var(--disclosure-arrow-size) + var(--component-icon-padding))
-      );
-
-      margin-left: 0;
-    }
   }
 
-  .tree-view-root.has-collapsable-children > .tree-view-row.file,
-  .tree-view-special.has-collapsable-children > .tree-view-row.file {
-    /* Files reserve the disclosure width in --tree-view-indent. Override the
-       shared list-item margin so it is not counted a second time. */
-    margin-left: 0;
+  .tree-view-indent-guides {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--component-icon-padding) + var(--disclosure-arrow-size) / 2);
+    display: flex;
+    pointer-events: none;
+  }
+
+  .tree-view-indent-guide {
+    box-sizing: border-box;
+    width: var(--tree-view-indent-size);
+    height: 100%;
+    flex: none;
+    border-left: 1px solid var(--tree-view-indent-guide-color);
+  }
+
+  .tree-view-disclosure {
+    display: inline-block;
+    box-sizing: border-box;
+    width: var(--disclosure-arrow-size);
+    height: var(--component-icon-size);
+    margin-right: var(--component-icon-padding);
+    line-height: var(--component-icon-size);
+    text-align: center;
+    vertical-align: text-bottom;
+  }
+
+  .directory > .header > .tree-view-disclosure::before {
+    content: "\f0a3"; /* chevron-down */
+    display: block;
+    font-family: "Octicons Regular";
+    font-size: var(--disclosure-arrow-size);
+    font-style: normal;
+    font-weight: normal;
+    -webkit-font-smoothing: antialiased;
+    text-decoration: none;
+  }
+
+  .directory.collapsed > .header > .tree-view-disclosure::before {
+    content: "\f078"; /* chevron-right */
+    translate: 1px 0;
   }
 
   .tree-view-special {
@@ -299,7 +328,7 @@
   &:focus {
     .selected.list-item > .name,
     .selected.list-nested-item > .list-item > .name,
-    .selected.list-nested-item > .header::before {
+    .selected.list-nested-item > .header > .tree-view-disclosure {
       color: var(--accent-bg-text-color);
     }
 
@@ -362,8 +391,7 @@
       padding-left: max(
         0px,
         calc(
-          var(--component-icon-padding) + var(--tree-view-depth) *
-            (var(--disclosure-arrow-size) + var(--component-icon-padding)) -
+          var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size) -
             var(--tree-view-row-inset)
         )
       );

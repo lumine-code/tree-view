@@ -156,7 +156,7 @@
     },
     "dirDoubleClick": {
       "title": "Dir Double Click",
-      "description": "Require double click to expand/collapse folders. When enabled, single click only selects the entry. The arrow icon always responds to a single click.",
+      "description": "Require double click to expand/collapse folders. When enabled, single click only selects the entry. The disclosure control always responds to a single click.",
       "type": "boolean",
       "default": false
     },

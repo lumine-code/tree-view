@@ -4,6 +4,7 @@ const path = require("path");
 const { webUtils } = require("electron");
 const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
+const TreeRowView = require("../lib/tree-row-view");
 const TreeViewPackage = require("../lib/tree-view-package");
 
 describe("TreeViewPackage teardown", () => {
@@ -99,6 +100,72 @@ describe("TreeView.entryForPath", () => {
 
     expect(TreeView.prototype.entryForPath.call(treeView, "/root/file.js")).toBe(element);
     expect(treeView.elementForTreeEntry).toHaveBeenCalledWith(logicalEntry);
+  });
+});
+
+describe("TreeView directory disclosure clicks", () => {
+  let previousDoubleClick;
+
+  beforeEach(() => {
+    previousDoubleClick = lumine.config.get("tree-view.dirDoubleClick");
+    lumine.config.set("tree-view.dirDoubleClick", true);
+  });
+
+  afterEach(() => {
+    lumine.config.set("tree-view.dirDoubleClick", previousDoubleClick);
+  });
+
+  function fixture() {
+    const entry = {
+      kind: "directory",
+      getPath: () => "/root/src",
+      toggleExpansion: jasmine.createSpy("toggleExpansion"),
+    };
+    const row = document.createElement("li");
+    row.classList.add("entry", "directory");
+    row.treeEntry = entry;
+    const disclosure = document.createElement("span");
+    disclosure.classList.add("tree-view-disclosure");
+    const name = document.createElement("span");
+    name.classList.add("name");
+    row.append(disclosure, name);
+
+    const treeView = {
+      treeEntryForElement: TreeView.prototype.treeEntryForElement,
+      selectEntry: jasmine.createSpy("selectEntry"),
+      openExternalService: null,
+    };
+    return { treeView, entry, disclosure, name };
+  }
+
+  function click(treeView, target, detail) {
+    TreeView.prototype.entryClicked.call(treeView, {
+      target,
+      detail,
+      altKey: false,
+      offsetX: 999,
+    });
+  }
+
+  it("toggles an explicit disclosure on its first click regardless of coordinates", () => {
+    const { treeView, entry, disclosure } = fixture();
+
+    click(treeView, disclosure, 1);
+    click(treeView, disclosure, 2);
+
+    expect(treeView.selectEntry).toHaveBeenCalledOnceWith(entry);
+    expect(entry.toggleExpansion).toHaveBeenCalledOnceWith(false);
+  });
+
+  it("keeps ordinary directory names on double-click behavior", () => {
+    const { treeView, entry, name } = fixture();
+
+    click(treeView, name, 1);
+    expect(treeView.selectEntry).toHaveBeenCalledOnceWith(entry);
+    expect(entry.toggleExpansion).not.toHaveBeenCalled();
+
+    click(treeView, name, 2);
+    expect(entry.toggleExpansion).toHaveBeenCalledOnceWith(false);
   });
 });
 
@@ -367,6 +434,13 @@ describe("TreeView construction", () => {
     expect(section.element.nextElementSibling).toBe(
       treeView.elementForTreeEntry(treeView.roots[0]),
     );
+    expect(
+      treeView.elementForTreeEntry(section.root).querySelectorAll(".tree-view-indent-guide").length,
+    ).toBe(0);
+    expect(
+      treeView.elementForTreeEntry(section.entries[0]).querySelectorAll(".tree-view-indent-guide")
+        .length,
+    ).toBe(1);
   });
 
   describe("when a root section stops showing its entries", () => {
@@ -913,6 +987,24 @@ describe("TreeView row model and sticky headers", () => {
     return treeView;
   }
 
+  it("ends a nested guide column before the ancestor's next sibling", () => {
+    const treeView = stickyHarness();
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const source = entry(treeView, "source", "directory", root);
+    entry(treeView, "nested.js", "file", source);
+    entry(treeView, "sibling.js", "file", root);
+    layout(treeView, [root]);
+
+    const views = treeView.visibleRows.map((row) => {
+      const view = new TreeRowView(treeView, row.kind);
+      view.bind(row);
+      return view;
+    });
+
+    expect(views.map((view) => view.indentGuides.children.length)).toEqual([0, 1, 2, 1]);
+    for (const view of views) view.destroy();
+  });
+
   it("keeps the root stable from the first scroll position and derives nested stickies from offsets", () => {
     const treeView = stickyHarness();
     const root = entry(treeView, "root", "directory", null, { projectRoot: true });
@@ -965,6 +1057,12 @@ describe("TreeView row model and sticky headers", () => {
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
 
     expect(treeView.stickyHeaderList.children.length).toBe(2);
+    expect(
+      Array.from(
+        treeView.stickyHeaderList.children,
+        (row) => row.querySelectorAll(".tree-view-indent-guide").length,
+      ),
+    ).toEqual([0, 1]);
     expect(treeView.stickyHeaderList.children[1].style.top).toBe("-1px");
     expect(treeView.stickyHeaderList.children[0].style.zIndex).toBe("2");
     expect(treeView.stickyHeaderList.children[1].style.zIndex).toBe("1");
@@ -1206,34 +1304,56 @@ describe("TreeView row model and sticky headers", () => {
       --component-padding: 8px;
       --component-icon-padding: 5px;
       --disclosure-arrow-size: 12px;
+      --base-border-color: rgb(180, 180, 180);
       --tree-view-row-inset: 4px;
       --tree-view-row-border-radius: 6px;
     `;
+
+    const indentGuides = (depth) => {
+      const guides = document.createElement("span");
+      guides.classList.add("tree-view-indent-guides");
+      for (let index = 0; index < depth; index++) {
+        const guide = document.createElement("span");
+        guide.classList.add("tree-view-indent-guide");
+        guides.appendChild(guide);
+      }
+      return guides;
+    };
+
+    const disclosure = () => {
+      const element = document.createElement("span");
+      element.classList.add("tree-view-disclosure");
+      return element;
+    };
 
     const viewport = document.createElement("div");
     viewport.classList.add("tree-view-viewport");
     const scroller = document.createElement("div");
     scroller.classList.add("tree-view-scroller");
     const list = document.createElement("ol");
-    list.classList.add("tree-view-root", "list-tree", "has-collapsable-children");
+    list.classList.add("tree-view-root", "list-tree");
     const file = document.createElement("li");
     file.classList.add("file", "entry", "list-item", "tree-view-row", "selected");
     file.style.setProperty("--tree-view-depth", "1");
+    const fileGuides = indentGuides(1);
+    const fileDisclosure = disclosure();
     const fileName = document.createElement("span");
     fileName.classList.add("name");
     fileName.textContent = "styles.css";
-    file.appendChild(fileName);
+    file.append(fileGuides, fileDisclosure, fileName);
 
     const directory = document.createElement("li");
     directory.classList.add("directory", "entry", "list-nested-item", "tree-view-row", "expanded");
     directory.style.setProperty("--tree-view-depth", "1");
+    const directoryGuides = indentGuides(1);
     const directoryRow = document.createElement("div");
     directoryRow.classList.add("header", "list-item");
+    const directoryDisclosure = disclosure();
     const directoryName = document.createElement("span");
     directoryName.classList.add("name");
     directoryName.textContent = "Source";
-    directoryRow.appendChild(directoryName);
-    directory.appendChild(directoryRow);
+    directoryRow.append(directoryDisclosure, directoryName);
+    directory.append(directoryGuides, directoryRow);
 
     const root = document.createElement("li");
     root.classList.add(
@@ -1246,13 +1366,15 @@ describe("TreeView row model and sticky headers", () => {
       "selected",
     );
     root.style.setProperty("--tree-view-depth", "0");
+    const rootGuides = indentGuides(0);
     const rootHeader = document.createElement("div");
     rootHeader.classList.add("header", "list-item", "project-root-header");
+    const rootDisclosure = disclosure();
     const rootName = document.createElement("span");
     rootName.classList.add("name");
     rootName.textContent = "project";
-    rootHeader.appendChild(rootName);
-    root.appendChild(rootHeader);
+    rootHeader.append(rootDisclosure, rootName);
+    root.append(rootGuides, rootHeader);
 
     list.append(root, file, directory);
     scroller.appendChild(list);
@@ -1260,11 +1382,7 @@ describe("TreeView row model and sticky headers", () => {
     const stickyLayer = document.createElement("div");
     stickyLayer.classList.add("tree-view-sticky-header-layer");
     const stickyList = document.createElement("ol");
-    stickyList.classList.add(
-      "tree-view-sticky-header-list",
-      "list-tree",
-      "has-collapsable-children",
-    );
+    stickyList.classList.add("tree-view-sticky-header-list", "list-tree");
     stickyList.style.height = "24px";
     const stickyEntry = document.createElement("li");
     stickyEntry.classList.add(
@@ -1274,13 +1392,15 @@ describe("TreeView row model and sticky headers", () => {
       "selected",
     );
     stickyEntry.style.setProperty("--tree-view-depth", "1");
+    const stickyGuides = indentGuides(1);
     const stickyRow = document.createElement("div");
     stickyRow.classList.add("tree-view-sticky-header-row", "header", "list-item");
+    const stickyDisclosure = disclosure();
     const stickyName = document.createElement("span");
     stickyName.classList.add("name");
     stickyName.textContent = "Source";
-    stickyRow.appendChild(stickyName);
-    stickyEntry.appendChild(stickyRow);
+    stickyRow.append(stickyDisclosure, stickyName);
+    stickyEntry.append(stickyGuides, stickyRow);
     stickyList.appendChild(stickyEntry);
     stickyLayer.appendChild(stickyList);
     viewport.append(scroller, stickyLayer);
@@ -1301,16 +1421,30 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(stickyList).backgroundColor).toBe("rgb(242, 242, 242)");
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(220, 225, 235)");
       const directoryRowStyle = getComputedStyle(directoryRow);
-      const stickyRowStyle = getComputedStyle(stickyRow);
-      const directoryDisclosureLeft =
-        directoryRow.getBoundingClientRect().left + parseFloat(directoryRowStyle.paddingLeft);
-      const stickyDisclosureLeft =
-        stickyRow.getBoundingClientRect().left + parseFloat(stickyRowStyle.paddingLeft);
+      const directoryDisclosureLeft = directoryDisclosure.getBoundingClientRect().left;
+      const stickyDisclosureLeft = stickyDisclosure.getBoundingClientRect().left;
       // The indent lives on the row `li` as padding, not on the header — the
       // header itself starts at the li's content edge.
       expect(getComputedStyle(directory).paddingLeft).toBe("22px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
+      expect(rootGuides.children.length).toBe(0);
+      expect(directoryGuides.children.length).toBe(1);
+      expect(stickyGuides.children.length).toBe(1);
+      expect(getComputedStyle(directoryGuides).left).toBe("11px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("17px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("1px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftColor).toBe(
+        "rgb(180, 180, 180)",
+      );
+      expect(fileName.getBoundingClientRect().left).toBe(
+        directoryName.getBoundingClientRect().left,
+      );
+      const expandedDisclosure = getComputedStyle(directoryDisclosure, "::before").content;
+      directory.classList.replace("expanded", "collapsed");
+      expect(getComputedStyle(directoryDisclosure, "::before").content).not.toBe(
+        expandedDisclosure,
+      );
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)
@@ -1431,7 +1565,7 @@ describe("TreeView row model and sticky headers", () => {
     const scroller = document.createElement("div");
     scroller.classList.add("tree-view-scroller");
     const list = document.createElement("ol");
-    list.classList.add("tree-view-root", "list-tree", "has-collapsable-children");
+    list.classList.add("tree-view-root", "list-tree");
 
     function row(name) {
       const element = document.createElement("li");
@@ -1447,7 +1581,7 @@ describe("TreeView row model and sticky headers", () => {
     // A root section is its own list nested in the tree, and it no longer gets
     // a width written onto it either.
     const section = document.createElement("ol");
-    section.classList.add("recent", "tree-view-special", "list-tree", "has-collapsable-children");
+    section.classList.add("recent", "tree-view-special", "list-tree");
     const sectionRow = row("b.js");
     section.appendChild(sectionRow);
 

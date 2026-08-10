@@ -43,6 +43,37 @@ describe("tree-view entry attributes", () => {
     return view;
   }
 
+  it("renders one always-visible indent guide per ancestor", () => {
+    const view = mount("file", item("nested.js", path.join("/root", "src", "nested.js")), {
+      depth: 2,
+    });
+
+    expect(view.indentGuides.parentElement).toBe(view.element);
+    expect(view.indentGuides.getAttribute("aria-hidden")).toBe("true");
+    expect(view.indentGuides.children.length).toBe(2);
+    expect(
+      Array.from(view.indentGuides.children).every((guide) =>
+        guide.classList.contains("tree-view-indent-guide"),
+      ),
+    ).toBe(true);
+
+    view.entry.depth = 1;
+    view.sync();
+    expect(view.indentGuides.children.length).toBe(1);
+  });
+
+  it("uses the same explicit disclosure carrier for files and directories", () => {
+    const fileView = mount("file", item("file.js", path.join("/root", "file.js")));
+    const directoryView = mount("directory", item("src", path.join("/root", "src")));
+
+    expect(fileView.disclosure.parentElement).toBe(fileView.element);
+    expect(directoryView.disclosure.parentElement).toBe(directoryView.header);
+    expect(fileView.disclosure.classList.contains("tree-view-disclosure")).toBe(true);
+    expect(directoryView.disclosure.classList.contains("tree-view-disclosure")).toBe(true);
+    expect(fileView.disclosure.getAttribute("aria-hidden")).toBe("true");
+    expect(directoryView.disclosure.getAttribute("aria-hidden")).toBe("true");
+  });
+
   describe("a file row", () => {
     it("carries them on the `li`, not on the name span", () => {
       const filePath = path.join("/root", "README.md");
