@@ -1442,9 +1442,13 @@ describe("TreeView row model and sticky headers", () => {
       );
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("1px");
+      expect(getComputedStyle(directoryDisclosure, "::before").backgroundColor).toBe(
+        "rgb(100, 100, 100)",
+      );
       expect(getComputedStyle(fileGuides.firstElementChild).borderLeftColor).toBe(
         "rgb(100, 100, 100)",
       );
+      expect(getComputedStyle(fileGuides).zIndex).toBe("1");
       directory.classList.replace("expanded", "collapsed");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
@@ -1477,7 +1481,7 @@ describe("TreeView row model and sticky headers", () => {
       tree.focus();
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(90, 138, 233)");
       expect(getComputedStyle(fileGuides.firstElementChild).borderLeftColor).toBe(
-        "rgb(180, 180, 180)",
+        "rgb(100, 100, 100)",
       );
     } finally {
       stylesheet.dispose();

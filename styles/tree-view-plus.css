@@ -9,7 +9,7 @@
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
   --tree-view-indent-size: calc(var(--component-icon-size) + var(--component-icon-padding));
-  --tree-view-indent-guide-color: var(--base-border-color);
+  --tree-view-indent-guide-color: var(--text-color-subtle);
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
   --tree-view-root-name-font-size: inherit;
@@ -198,6 +198,7 @@
     top: 0;
     bottom: 0;
     left: calc(var(--component-icon-padding) + var(--component-icon-size) / 2);
+    z-index: 1;
     display: flex;
     pointer-events: none;
   }
@@ -345,10 +346,6 @@
 
   .entry.selected::before {
     background: var(--background-color-selected);
-  }
-
-  &:not(:focus) .entry.selected {
-    --tree-view-indent-guide-color: var(--text-color-subtle);
   }
 
   /* A row is a single `li` with no descendant rows, so hovering it is hovering
