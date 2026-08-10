@@ -1,3 +1,5 @@
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { webUtils } = require("electron");
 const TreeView = require("../lib/tree-view");
@@ -135,9 +137,17 @@ describe("TreeView root updates", () => {
   it("restores multiple selections and focus across separate project roots", async () => {
     const originalProjectPaths = lumine.project.getPaths();
     const firstProjectPath = path.resolve(__dirname, "..");
-    const secondProjectPath = path.resolve(__dirname, "..", "..", "archive-view");
+    // The second root has to be a directory the first one does not contain, and
+    // the only thing guaranteed on disk is this checkout — CI clones this
+    // repository on its own, with no siblings beside it. Build the root instead
+    // of reaching for one. Realpath it: macOS hands out a symlinked tmpdir and
+    // the project reports roots resolved.
+    const secondProjectPath = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-root-")),
+    );
     const firstSelectedPath = path.join(firstProjectPath, "package.json");
     const secondSelectedPath = path.join(secondProjectPath, "package.json");
+    fs.writeFileSync(secondSelectedPath, "{}\n");
     lumine.project.setPaths([firstProjectPath, secondProjectPath]);
     const treeView = new TreeView({});
 
@@ -156,6 +166,8 @@ describe("TreeView root updates", () => {
     } finally {
       treeView.destroy();
       lumine.project.setPaths(originalProjectPaths);
+      // Windows holds a directory open for a moment after the watcher lets go.
+      fs.rmSync(secondProjectPath, { recursive: true, force: true, maxRetries: 3 });
     }
   });
 
