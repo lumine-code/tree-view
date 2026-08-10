@@ -8,7 +8,7 @@
   --tree-view-sticky-background: var(--tree-view-background-color);
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
-  --tree-view-indent-size: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+  --tree-view-indent-size: calc(var(--component-icon-size) + var(--component-icon-padding));
   --tree-view-indent-guide-color: var(--base-border-color);
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
@@ -203,6 +203,7 @@
   }
 
   .tree-view-indent-guide {
+    position: relative;
     box-sizing: border-box;
     width: var(--tree-view-indent-size);
     height: 100%;
@@ -224,20 +225,18 @@
     pointer-events: auto;
   }
 
-  .directory > .tree-view-disclosure::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    box-sizing: border-box;
-  }
-
-  .directory.expanded > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--tree-view-indent-guide-color);
-    transform: translate(-50%, -50%);
+  .directory.expanded > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
+    &::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--tree-view-indent-guide-color);
+      transform: translate(-50%, -50%);
+    }
   }
 
   .directory.collapsed > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
@@ -349,6 +348,10 @@
 
   .entry.selected::before {
     background: var(--background-color-selected);
+  }
+
+  &:not(:focus) .entry.selected {
+    --tree-view-indent-guide-color: var(--text-color-subtle);
   }
 
   /* A row is a single `li` with no descendant rows, so hovering it is hovering

@@ -1305,6 +1305,7 @@ describe("TreeView row model and sticky headers", () => {
       --component-icon-padding: 5px;
       --disclosure-arrow-size: 12px;
       --base-border-color: rgb(180, 180, 180);
+      --text-color-subtle: rgb(100, 100, 100);
       --tree-view-row-inset: 4px;
       --tree-view-row-border-radius: 6px;
     `;
@@ -1426,14 +1427,14 @@ describe("TreeView row model and sticky headers", () => {
       const stickyDisclosureLeft = stickyDisclosure.getBoundingClientRect().left;
       // The indent lives on the row `li` as padding, not on the header — the
       // header itself starts at the li's content edge.
-      expect(getComputedStyle(directory).paddingLeft).toBe("22px");
+      expect(getComputedStyle(directory).paddingLeft).toBe("26px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
       expect(stickyGuides.children.length).toBe(1);
       expect(getComputedStyle(directoryGuides).left).toBe("13px");
-      expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("17px");
+      expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("21px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("1px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftColor).toBe(
         "rgb(180, 180, 180)",
@@ -1441,13 +1442,16 @@ describe("TreeView row model and sticky headers", () => {
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
-      expect(getComputedStyle(directoryDisclosure, "::before").borderRadius).toBe("50%");
+      expect(getComputedStyle(directoryGuides.firstElementChild, "::before").borderRadius).toBe(
+        "50%",
+      );
+      expect(getComputedStyle(fileGuides.firstElementChild).borderLeftColor).toBe(
+        "rgb(100, 100, 100)",
+      );
       directory.classList.replace("expanded", "collapsed");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
-      expect(getComputedStyle(rootDisclosure, "::before").borderTopWidth).toBe("0px");
-      expect(getComputedStyle(rootDisclosure, "::before").backgroundColor).toBe("rgba(0, 0, 0, 0)");
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)
@@ -1473,6 +1477,9 @@ describe("TreeView row model and sticky headers", () => {
 
       tree.focus();
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(90, 138, 233)");
+      expect(getComputedStyle(fileGuides.firstElementChild).borderLeftColor).toBe(
+        "rgb(180, 180, 180)",
+      );
     } finally {
       stylesheet.dispose();
     }
