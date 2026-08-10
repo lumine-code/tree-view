@@ -9,9 +9,9 @@ function repositoryFor({ directoryStatusSummary = null } = {}) {
   return {
     getDirectoryStatusSummary: jasmine
       .createSpy("getDirectoryStatusSummary")
-      .andReturn(directoryStatusSummary),
-    getPathStatusSummary: jasmine.createSpy("getPathStatusSummary").andReturn(null),
-    isPathIgnoredCached: jasmine.createSpy("isPathIgnoredCached").andReturn(false),
+      .and.returnValue(directoryStatusSummary),
+    getPathStatusSummary: jasmine.createSpy("getPathStatusSummary").and.returnValue(null),
+    isPathIgnoredCached: jasmine.createSpy("isPathIgnoredCached").and.returnValue(false),
     getWorkingDirectory() {
       return null;
     },
@@ -31,7 +31,7 @@ function repositoryFor({ directoryStatusSummary = null } = {}) {
 }
 
 function createDirectory(fullPath, repository, { isRoot = false, ignoredNames } = {}) {
-  spyOn(lumine.repositories, "getForPath").andReturn(repository);
+  spyOn(lumine.repositories, "getForPath").and.returnValue(repository);
   return new Directory({
     name: "repository",
     fullPath,
