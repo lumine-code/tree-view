@@ -106,6 +106,22 @@
       "type": "boolean",
       "default": false
     },
+    "treeAppearance": {
+      "title": "Tree Appearance",
+      "description": "Choose how directory hierarchy and expansion controls are displayed.",
+      "type": "string",
+      "enum": [
+        {
+          "value": "guides",
+          "description": "Indent Guides — always-visible rails with integrated directory controls"
+        },
+        {
+          "value": "classic",
+          "description": "Classic — conventional chevrons without indent guides"
+        }
+      ],
+      "default": "guides"
+    },
     "stickyHeaders": {
       "title": "Sticky Directory Headers",
       "description": "Keep project roots and expanded ancestor directories pinned while scrolling.",

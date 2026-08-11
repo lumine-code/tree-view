@@ -1286,6 +1286,16 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.renderStickyHeaderEntries).toHaveBeenCalledWith([]);
   });
 
+  it("switches between guide and classic appearances without rebuilding rows", () => {
+    const treeView = { element: document.createElement("div") };
+
+    TreeView.prototype.setTreeAppearance.call(treeView, "classic");
+    expect(treeView.element.classList.contains("tree-view-classic")).toBe(true);
+
+    TreeView.prototype.setTreeAppearance.call(treeView, "guides");
+    expect(treeView.element.classList.contains("tree-view-classic")).toBe(false);
+  });
+
   it("keeps scrolling and sticky paint in separate surfaces", () => {
     const stylesheet = lumine.themes.requireStylesheet(
       path.join(__dirname, "..", "styles", "tree-view-plus.css"),
@@ -1487,6 +1497,34 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(rootDisclosure, "::before").fontFamily).toContain("Octicons Regular");
       root.classList.replace("expanded", "collapsed");
       expect(getComputedStyle(rootDisclosure, "::before").content).not.toBe(expandedRootContent);
+
+      tree.classList.add("tree-view-classic");
+      expect(getComputedStyle(directory).paddingLeft).toBe("39px");
+      expect(getComputedStyle(directoryGuides).display).toBe("none");
+      expect(getComputedStyle(fileGuides).display).toBe("none");
+      expect(getComputedStyle(directoryDisclosure).left).toBe("22px");
+      expect(getComputedStyle(directoryDisclosure, "::before").fontFamily).toContain(
+        "Octicons Regular",
+      );
+      expect(getComputedStyle(directoryDisclosure, "::before").content).toBe(
+        getComputedStyle(rootDisclosure, "::before").content,
+      );
+      expect(getComputedStyle(directoryDisclosure, "::before").clipPath).toBe("none");
+      expect(stickyRootName.getBoundingClientRect().left).toBe(
+        rootName.getBoundingClientRect().left,
+      );
+      expect(stickyName.getBoundingClientRect().left).toBe(
+        directoryName.getBoundingClientRect().left,
+      );
+      expect(
+        directoryName.getBoundingClientRect().left - rootName.getBoundingClientRect().left,
+      ).toBe(17);
+      const collapsedClassicContent = getComputedStyle(directoryDisclosure, "::before").content;
+      directory.classList.replace("collapsed", "expanded");
+      expect(getComputedStyle(directoryDisclosure, "::before").content).not.toBe(
+        collapsedClassicContent,
+      );
+      expect(getComputedStyle(directoryDisclosure, "::after").content).toBe("none");
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)

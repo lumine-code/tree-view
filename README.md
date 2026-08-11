@@ -69,6 +69,9 @@ Commands available in `.tree-view`:
 
 ## Customization
 
+Choose **Indent Guides** (the default) or **Classic** under the Tree View package settings. Classic
+uses conventional directory chevrons without hierarchy rails.
+
 Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to enlarge the entry text, loosen the row spacing, and restyle the indentation guides:
 
 ```css

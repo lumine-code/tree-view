@@ -294,6 +294,50 @@
     transform: translateY(-50%);
   }
 
+  &.tree-view-classic {
+    --tree-view-indent-size: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+
+    .tree-view-indent-guides {
+      display: none;
+    }
+
+    .tree-view-disclosure {
+      left: calc(
+        var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size)
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .directory > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+      content: "\f0a3"; /* chevron-down */
+      position: static;
+      width: auto;
+      height: auto;
+      background: none;
+      clip-path: none;
+      font-family: "Octicons Regular";
+      font-size: var(--disclosure-arrow-size);
+      font-style: normal;
+      font-weight: normal;
+      line-height: normal;
+      -webkit-font-smoothing: antialiased;
+      text-decoration: none;
+      transform: none;
+      translate: none;
+    }
+
+    .directory > .tree-view-disclosure:not(.tree-view-root-disclosure)::after {
+      content: none;
+    }
+
+    .directory.collapsed > .tree-view-disclosure:not(.tree-view-root-disclosure)::before {
+      content: "\f078"; /* chevron-right */
+      translate: 1px 0;
+    }
+  }
+
   .tree-view-special {
     box-sizing: border-box;
     min-width: 100%;
