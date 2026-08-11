@@ -231,7 +231,7 @@
   }
 
   .tree-view-root-disclosure {
-    left: calc(var(--tree-view-indent-guide-origin) - var(--disclosure-arrow-size) / 2);
+    left: var(--component-icon-padding);
     display: flex;
     align-items: center;
     justify-content: center;
