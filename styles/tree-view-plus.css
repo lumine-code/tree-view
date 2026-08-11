@@ -232,25 +232,24 @@
 
   .tree-view-root-disclosure {
     left: calc(var(--tree-view-indent-guide-origin) - var(--disclosure-arrow-size) / 2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .directory > .tree-view-root-disclosure::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 5px;
-    height: 5px;
-    border-right: 1px solid var(--tree-view-indent-guide-color);
-    border-bottom: 1px solid var(--tree-view-indent-guide-color);
-  }
-
-  .directory.expanded > .tree-view-root-disclosure::before {
-    transform: translate(-50%, -65%) rotate(45deg);
+    content: "\f0a3"; /* chevron-down */
+    font-family: "Octicons Regular";
+    font-size: var(--disclosure-arrow-size);
+    font-style: normal;
+    font-weight: normal;
+    -webkit-font-smoothing: antialiased;
+    text-decoration: none;
   }
 
   .directory.collapsed > .tree-view-root-disclosure::before {
-    transform: translate(-65%, -50%) rotate(-45deg);
+    content: "\f078"; /* chevron-right */
+    translate: 1px 0;
   }
 
   .directory > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
