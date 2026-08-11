@@ -1449,6 +1449,7 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(stickyList).transform).toBe("none");
       expect(getComputedStyle(stickyList).backgroundColor).toBe("rgb(242, 242, 242)");
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(220, 225, 235)");
+      expect(getComputedStyle(stickyGuides).display).toBe("none");
       const directoryRowStyle = getComputedStyle(directoryRow);
       const directoryDisclosureLeft = directoryDisclosure.getBoundingClientRect().left;
       const stickyDisclosureLeft = stickyDisclosure.getBoundingClientRect().left;

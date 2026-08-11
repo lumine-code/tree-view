@@ -478,6 +478,10 @@
     position: relative;
     background: var(--tree-view-sticky-background);
 
+    > .tree-view-indent-guides {
+      display: none;
+    }
+
     &::before {
       display: none;
     }
