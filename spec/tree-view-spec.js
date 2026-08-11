@@ -1429,7 +1429,7 @@ describe("TreeView row model and sticky headers", () => {
       // header itself starts at the li's content edge.
       expect(getComputedStyle(directory).paddingLeft).toBe("43px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
-      expect(getComputedStyle(rootHeader).paddingLeft).toBe("0px");
+      expect(getComputedStyle(rootHeader).paddingLeft).toBe("21px");
       expect(getComputedStyle(rootDisclosure).left).toBe("5px");
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
       expect(rootGuides.children.length).toBe(0);
@@ -1442,9 +1442,9 @@ describe("TreeView row model and sticky headers", () => {
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
-      expect(
-        directoryName.getBoundingClientRect().left - rootName.getBoundingClientRect().left,
-      ).toBe(21);
+      expect(rootName.getBoundingClientRect().left).toBe(
+        directoryName.getBoundingClientRect().left,
+      );
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("1px");
       expect(getComputedStyle(directoryDisclosure, "::before").backgroundColor).toBe(
