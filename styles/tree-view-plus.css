@@ -231,7 +231,30 @@
     padding-left: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
   }
 
-  .directory > .tree-view-root-disclosure::before {
+  .directory.expanded > .tree-view-root-disclosure::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--tree-view-indent-guide-color);
+    transform: translate(-50%, -50%);
+  }
+
+  .directory.expanded > .tree-view-root-disclosure::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: var(--tree-view-indent-guide-color);
+    transform: translateX(-50%);
+  }
+
+  .directory.collapsed > .tree-view-root-disclosure::before {
     content: "";
     position: absolute;
     top: 50%;
@@ -240,13 +263,6 @@
     height: 5px;
     border-right: 1px solid var(--tree-view-indent-guide-color);
     border-bottom: 1px solid var(--tree-view-indent-guide-color);
-  }
-
-  .directory.expanded > .tree-view-root-disclosure::before {
-    transform: translate(-50%, -65%) rotate(45deg);
-  }
-
-  .directory.collapsed > .tree-view-root-disclosure::before {
     transform: translate(-65%, -50%) rotate(-45deg);
   }
 
