@@ -237,10 +237,6 @@
     justify-content: center;
   }
 
-  .directory > .tree-view-root-disclosure + .header {
-    padding-left: var(--tree-view-indent-size);
-  }
-
   .directory > .tree-view-root-disclosure::before {
     content: "\f0a3"; /* chevron-down */
     font-family: "Octicons Regular";
@@ -451,8 +447,8 @@
       padding-left: max(
         0px,
         calc(
-          var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size) -
-            var(--tree-view-row-inset)
+          var(--tree-view-disclosure-gutter) + var(--component-icon-padding) +
+            var(--tree-view-depth) * var(--tree-view-indent-size) - var(--tree-view-row-inset)
         )
       );
       border-radius: var(--tree-view-row-border-radius);

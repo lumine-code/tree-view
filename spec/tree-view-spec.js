@@ -1386,6 +1386,23 @@ describe("TreeView row model and sticky headers", () => {
     const stickyList = document.createElement("ol");
     stickyList.classList.add("tree-view-sticky-header-list", "list-tree");
     stickyList.style.height = "24px";
+    const stickyRootEntry = document.createElement("li");
+    stickyRootEntry.classList.add(
+      "tree-view-sticky-header",
+      "directory",
+      "list-nested-item",
+      "expanded",
+    );
+    stickyRootEntry.style.setProperty("--tree-view-depth", "0");
+    const stickyRootGuides = indentGuides(0);
+    const stickyRootDisclosure = disclosure(0, true);
+    const stickyRootRow = document.createElement("div");
+    stickyRootRow.classList.add("tree-view-sticky-header-row", "header", "list-item");
+    const stickyRootName = document.createElement("span");
+    stickyRootName.classList.add("name");
+    stickyRootName.textContent = "project";
+    stickyRootRow.append(stickyRootName);
+    stickyRootEntry.append(stickyRootGuides, stickyRootDisclosure, stickyRootRow);
     const stickyEntry = document.createElement("li");
     stickyEntry.classList.add(
       "tree-view-sticky-header",
@@ -1403,7 +1420,7 @@ describe("TreeView row model and sticky headers", () => {
     stickyName.textContent = "Source";
     stickyRow.append(stickyName);
     stickyEntry.append(stickyGuides, stickyDisclosure, stickyRow);
-    stickyList.appendChild(stickyEntry);
+    stickyList.append(stickyRootEntry, stickyEntry);
     stickyLayer.appendChild(stickyList);
     viewport.append(scroller, stickyLayer);
     tree.appendChild(viewport);
@@ -1429,9 +1446,15 @@ describe("TreeView row model and sticky headers", () => {
       // header itself starts at the li's content edge.
       expect(getComputedStyle(directory).paddingLeft).toBe("43px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
-      expect(getComputedStyle(rootHeader).paddingLeft).toBe("21px");
+      expect(getComputedStyle(rootHeader).paddingLeft).toBe("0px");
       expect(getComputedStyle(rootDisclosure).left).toBe("5px");
+      expect(stickyRootName.getBoundingClientRect().left).toBe(
+        rootName.getBoundingClientRect().left,
+      );
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
+      expect(stickyName.getBoundingClientRect().left).toBe(
+        directoryName.getBoundingClientRect().left,
+      );
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
       expect(stickyGuides.children.length).toBe(1);
@@ -1442,9 +1465,9 @@ describe("TreeView row model and sticky headers", () => {
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
-      expect(rootName.getBoundingClientRect().left).toBe(
-        directoryName.getBoundingClientRect().left,
-      );
+      expect(
+        directoryName.getBoundingClientRect().left - rootName.getBoundingClientRect().left,
+      ).toBe(21);
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("1px");
       expect(getComputedStyle(directoryDisclosure, "::before").backgroundColor).toBe(
