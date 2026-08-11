@@ -8,10 +8,11 @@
   --tree-view-sticky-background: var(--tree-view-background-color);
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
+  --tree-view-disclosure-gutter: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
   --tree-view-indent-size: calc(var(--component-icon-size) + var(--component-icon-padding));
   --tree-view-indent-guide-color: var(--text-color-subtle);
   --tree-view-indent-guide-origin: calc(
-    var(--component-icon-padding) + var(--component-icon-size) * 3 / 8
+    var(--component-icon-padding) + var(--component-icon-size) / 4
   );
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
@@ -184,7 +185,8 @@
 
   .tree-view-row {
     --tree-view-indent: calc(
-      var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size)
+      var(--tree-view-disclosure-gutter) + var(--component-icon-padding) + var(--tree-view-depth) *
+        var(--tree-view-indent-size)
     );
 
     position: relative;
@@ -200,7 +202,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: var(--tree-view-indent-guide-origin);
+    left: calc(var(--tree-view-disclosure-gutter) + var(--tree-view-indent-guide-origin));
     z-index: 1;
     display: flex;
     pointer-events: none;
@@ -219,42 +221,20 @@
     top: 0;
     bottom: 0;
     left: calc(
-      var(--tree-view-indent-guide-origin) - var(--disclosure-arrow-size) / 2 +
-        var(--tree-view-disclosure-depth) * var(--tree-view-indent-size)
+      var(--tree-view-disclosure-gutter) + var(--tree-view-indent-guide-origin) -
+        var(--disclosure-arrow-size) / 2 + var(--tree-view-disclosure-depth) *
+        var(--tree-view-indent-size)
     );
     z-index: 1;
     width: var(--disclosure-arrow-size);
     pointer-events: auto;
   }
 
-  .directory > .tree-view-root-disclosure + .header {
-    padding-left: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+  .tree-view-root-disclosure {
+    left: calc(var(--tree-view-indent-guide-origin) - var(--disclosure-arrow-size) / 2);
   }
 
-  .directory.expanded > .tree-view-root-disclosure::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--tree-view-indent-guide-color);
-    transform: translate(-50%, -50%);
-  }
-
-  .directory.expanded > .tree-view-root-disclosure::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    bottom: 0;
-    left: 50%;
-    width: 1px;
-    background: var(--tree-view-indent-guide-color);
-    transform: translateX(-50%);
-  }
-
-  .directory.collapsed > .tree-view-root-disclosure::before {
+  .directory > .tree-view-root-disclosure::before {
     content: "";
     position: absolute;
     top: 50%;
@@ -263,6 +243,13 @@
     height: 5px;
     border-right: 1px solid var(--tree-view-indent-guide-color);
     border-bottom: 1px solid var(--tree-view-indent-guide-color);
+  }
+
+  .directory.expanded > .tree-view-root-disclosure::before {
+    transform: translate(-50%, -65%) rotate(45deg);
+  }
+
+  .directory.collapsed > .tree-view-root-disclosure::before {
     transform: translate(-65%, -50%) rotate(-45deg);
   }
 

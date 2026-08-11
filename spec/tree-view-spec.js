@@ -1427,20 +1427,23 @@ describe("TreeView row model and sticky headers", () => {
       const stickyDisclosureLeft = stickyDisclosure.getBoundingClientRect().left;
       // The indent lives on the row `li` as padding, not on the header — the
       // header itself starts at the li's content edge.
-      expect(getComputedStyle(directory).paddingLeft).toBe("26px");
+      expect(getComputedStyle(directory).paddingLeft).toBe("43px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
-      expect(getComputedStyle(rootHeader).paddingLeft).toBe("17px");
+      expect(getComputedStyle(rootHeader).paddingLeft).toBe("0px");
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
       expect(stickyGuides.children.length).toBe(1);
-      expect(getComputedStyle(directoryGuides).left).toBe("11px");
+      expect(getComputedStyle(directoryGuides).left).toBe("26px");
       expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("21px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );
+      expect(
+        directoryName.getBoundingClientRect().left - rootName.getBoundingClientRect().left,
+      ).toBe(21);
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe('""');
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("1px");
       expect(getComputedStyle(directoryDisclosure, "::before").backgroundColor).toBe(
@@ -1456,13 +1459,12 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe("none");
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("8px");
       expect(getComputedStyle(directoryDisclosure, "::before").clipPath).not.toBe("none");
-      expect(getComputedStyle(rootDisclosure, "::before").borderRadius).toBe("50%");
-      expect(getComputedStyle(rootDisclosure, "::before").width).toBe("6px");
-      expect(getComputedStyle(rootDisclosure, "::after").content).toBe('""');
-      expect(getComputedStyle(rootDisclosure, "::after").width).toBe("1px");
-      root.classList.replace("expanded", "collapsed");
-      expect(getComputedStyle(rootDisclosure, "::after").content).toBe("none");
+      const expandedRootTransform = getComputedStyle(rootDisclosure, "::before").transform;
       expect(getComputedStyle(rootDisclosure, "::before").borderRightWidth).toBe("1px");
+      root.classList.replace("expanded", "collapsed");
+      expect(getComputedStyle(rootDisclosure, "::before").transform).not.toBe(
+        expandedRootTransform,
+      );
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)
