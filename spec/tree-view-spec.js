@@ -797,7 +797,7 @@ describe("TreeView construction", () => {
   describe("opening the selected entry in this window", () => {
     beforeEach(() => {
       spyOn(lumine.project, "setState");
-      spyOn(lumine.app, "openWindow");
+      spyOn(lumine.application, "openWindow");
     });
 
     it("hands the folder to the project rather than opening a window", () => {
@@ -808,7 +808,7 @@ describe("TreeView construction", () => {
       treeView.openSelectedEntryInThisWindow();
 
       expect(lumine.project.setState).toHaveBeenCalledWith([root.getPath()]);
-      expect(lumine.app.openWindow).not.toHaveBeenCalled();
+      expect(lumine.application.openWindow).not.toHaveBeenCalled();
     });
 
     // The project resolves a file to the directory holding it, so the command
