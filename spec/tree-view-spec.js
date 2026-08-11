@@ -1457,6 +1457,7 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("8px");
       expect(getComputedStyle(directoryDisclosure, "::before").clipPath).not.toBe("none");
       expect(getComputedStyle(rootDisclosure, "::before").borderRadius).toBe("50%");
+      expect(getComputedStyle(rootDisclosure, "::before").width).toBe("6px");
       expect(getComputedStyle(rootDisclosure, "::after").content).toBe('""');
       expect(getComputedStyle(rootDisclosure, "::after").width).toBe("1px");
       root.classList.replace("expanded", "collapsed");
