@@ -1429,6 +1429,7 @@ describe("TreeView row model and sticky headers", () => {
       // header itself starts at the li's content edge.
       expect(getComputedStyle(directory).paddingLeft).toBe("26px");
       expect(directoryRowStyle.marginLeft).toBe("0px");
+      expect(getComputedStyle(rootHeader).paddingLeft).toBe("17px");
       expect(stickyDisclosureLeft).toBe(directoryDisclosureLeft);
       expect(rootGuides.children.length).toBe(0);
       expect(directoryGuides.children.length).toBe(1);
@@ -1455,6 +1456,12 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(directoryDisclosure, "::after").content).toBe("none");
       expect(getComputedStyle(directoryDisclosure, "::before").height).toBe("8px");
       expect(getComputedStyle(directoryDisclosure, "::before").clipPath).not.toBe("none");
+      const expandedRootTransform = getComputedStyle(rootDisclosure, "::before").transform;
+      expect(getComputedStyle(rootDisclosure, "::before").borderRightWidth).toBe("1px");
+      root.classList.replace("expanded", "collapsed");
+      expect(getComputedStyle(rootDisclosure, "::before").transform).not.toBe(
+        expandedRootTransform,
+      );
       // The root header takes its height from --tree-view-root-header-height
       // (tab height here), not from the generic list line-height — the rule
       // reading the variable loses that fight without the :not(.project-root)

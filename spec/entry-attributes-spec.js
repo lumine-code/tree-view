@@ -78,11 +78,12 @@ describe("tree-view entry attributes", () => {
     expect(directoryView.header.firstElementChild).toBe(directoryView.name);
   });
 
-  it("uses the directory icon area as the disclosure target at depth zero", () => {
+  it("uses a dedicated disclosure slot at depth zero", () => {
     const view = mount("directory", item("root", "/root"));
 
     expect(view.disclosure.classList.contains("tree-view-root-disclosure")).toBe(true);
     expect(view.disclosure.style.getPropertyValue("--tree-view-disclosure-depth")).toBe("0");
+    expect(view.disclosure.nextElementSibling).toBe(view.header);
   });
 
   describe("a file row", () => {

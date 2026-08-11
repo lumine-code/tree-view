@@ -227,6 +227,29 @@
     pointer-events: auto;
   }
 
+  .directory > .tree-view-root-disclosure + .header {
+    padding-left: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+  }
+
+  .directory > .tree-view-root-disclosure::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    border-right: 1px solid var(--tree-view-indent-guide-color);
+    border-bottom: 1px solid var(--tree-view-indent-guide-color);
+  }
+
+  .directory.expanded > .tree-view-root-disclosure::before {
+    transform: translate(-50%, -65%) rotate(45deg);
+  }
+
+  .directory.collapsed > .tree-view-root-disclosure::before {
+    transform: translate(-65%, -50%) rotate(-45deg);
+  }
+
   .directory > .tree-view-indent-guides > .tree-view-indent-guide:last-child {
     border-left: 0;
     background:
