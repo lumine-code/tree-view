@@ -29,19 +29,39 @@ describe("TreeViewPackage teardown", () => {
 
   // The command was in the View menu and in Packages > Tree View but was never
   // registered, and the setting behind it was only read when the tree opened.
+  // Then the side it was read into was `getPreferredLocation`, which the
+  // workspace never asks anything — so the tree was taken out of its dock and
+  // put straight back into it, and the second trip threw "the workspace can
+  // only contain one instance of item".
   it("moves the tree to the other side when tree-view:toggle-side is dispatched", async () => {
     jasmine.attachToDOM(lumine.workspace.getElement());
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
-    spyOn(treeView, "moveToPreferredLocation").and.returnValue(Promise.resolve());
+    const locationOfTree = () => lumine.workspace.paneContainerForItem(treeView).getLocation();
+    spyOn(treeView, "moveToPreferredLocation").and.callThrough();
+    // Nothing awaits the config observer, so the spec waits on the promise it
+    // hands back instead.
+    const sideSettled = () => treeView.moveToPreferredLocation.calls.mostRecent().returnValue;
 
     lumine.config.set("tree-view.showOnRightSide", false);
+    await treeView.show();
+    expect(locationOfTree()).toBe("left");
+
     lumine.commands.dispatch(lumine.workspace.getElement(), "tree-view:toggle-side");
+    await sideSettled();
 
     expect(lumine.config.get("tree-view.showOnRightSide")).toBe(true);
-    expect(treeView.getPreferredLocation()).toBe("right");
-    expect(treeView.moveToPreferredLocation).toHaveBeenCalled();
+    expect(treeView.getDefaultLocation()).toBe("right");
+    expect(locationOfTree()).toBe("right");
+
+    lumine.commands.dispatch(lumine.workspace.getElement(), "tree-view:toggle-side");
+    await sideSettled();
+
+    expect(locationOfTree()).toBe("left");
+    // The same instance made the round trip: a move must not leave a copy
+    // behind or hand the workspace a fresh, empty tree.
+    expect(lumine.workspace.getPaneItems().filter((item) => item === treeView).length).toBe(1);
 
     await treeViewPackage.deactivate();
   });
