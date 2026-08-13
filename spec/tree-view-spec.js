@@ -765,13 +765,52 @@ describe("TreeView construction", () => {
       expect(lumine.clipboard.write).toHaveBeenCalledWith(root.getPath());
     });
 
-    it("copies the path of the entry a multiple selection ended on", async () => {
+    it("copies every selected path, one per line and in row order", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      const file = treeView.selectedEntry();
+      const root = treeView.roots[0];
+
+      treeView.selectEntry(root);
+      treeView.selectMultipleEntries(file);
+      treeView.copySelectedEntryPath();
+
+      expect(lumine.clipboard.write).toHaveBeenCalledWith(`${root.getPath()}\n${__filename}`);
+    });
+
+    it("leaves out the rows a relative path cannot be made of", async () => {
       treeView = new TreeView({});
       await treeView.revealPath(__filename);
       const file = treeView.selectedEntry();
 
+      // The project folder relativizes to nothing, so the line it would
+      // contribute is empty — it drops out rather than copying a blank line.
       treeView.selectEntry(treeView.roots[0]);
       treeView.selectMultipleEntries(file);
+      treeView.copySelectedEntryPath(true);
+
+      expect(lumine.clipboard.write).toHaveBeenCalledWith(
+        path.join("spec", path.basename(__filename)),
+      );
+    });
+
+    it("copies a path on screen twice only once", async () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        iconClass: "icon-history",
+        getEntries: () => [__filename],
+      });
+      await treeView.revealPath(__filename);
+      const projectRow = treeView.selectedEntry();
+
+      // A pinned row and the project row stand for the same file, and the
+      // header for no file at all.
+      treeView.selectEntry(section.root);
+      treeView.selectMultipleEntries(section.entries[0]);
+      treeView.selectMultipleEntries(projectRow);
       treeView.copySelectedEntryPath();
 
       expect(lumine.clipboard.write).toHaveBeenCalledWith(__filename);
@@ -925,6 +964,45 @@ describe("TreeView construction", () => {
       expect(at("Open in This Window")).toBe(at("Add Project Folder") + 2);
       expect(at("Copy Full Path")).toBeGreaterThan(at("Open in This Window"));
       expect(at("Copy Project Path")).toBe(at("Copy Full Path") + 1);
+    });
+
+    // The same four rows core writes flat in the pane menu, spelled the same
+    // way. Core's block is scoped away from dock panes so it never reaches the
+    // tree, which means there is nothing here to collide with and no reason to
+    // hide them behind a submenu the user would have to hunt for.
+    it("writes core's flat split rows, on files only", async () => {
+      openMenu();
+      await treeView.revealPath(__filename);
+      treeView.showFullMenu();
+      const splits = (element) =>
+        lumine.contextMenu
+          .templateForElement(element)
+          .filter((item) => item.label?.startsWith("Split"));
+
+      const fileRow = treeView.elementForTreeEntry(treeView.selectedEntry());
+      expect(splits(fileRow).map((item) => item.label)).toEqual([
+        "Split Up",
+        "Split Down",
+        "Split Left",
+        "Split Right",
+      ]);
+      expect(splits(fileRow).every((item) => item.submenu == null)).toBe(true);
+
+      // A folder cannot be opened into a pane, so it is offered nothing.
+      expect(splits(treeView.elementForTreeEntry(treeView.roots[0]))).toEqual([]);
+    });
+
+    // The commands read the whole selection, so the menu that only appears
+    // for a whole selection has to offer them.
+    it("offers both path items to a multiple selection", () => {
+      openMenu();
+      treeView.showMultiSelectMenu();
+      const shown = labels(treeView.list);
+
+      expect(shown).toContain("Copy Full Path");
+      expect(shown.indexOf("Copy Project Path")).toBe(shown.indexOf("Copy Full Path") + 1);
+      // Still the multi-select menu, not the single-entry one.
+      expect(shown).not.toContain("Rename");
     });
   });
 
@@ -1715,5 +1793,162 @@ describe("TreeView row model and sticky headers", () => {
     } finally {
       stylesheet.dispose();
     }
+  });
+});
+
+describe("TreeView shift-arrow selection", () => {
+  // The rows a range has to cope with: two children inside a folder, and a
+  // sibling of that folder for the range to cross into.
+  function tree() {
+    const treeView = Object.create(TreeView.prototype);
+    treeView.stickyHeadersEnabled = false;
+    treeView.selectedEntries = new Set();
+    treeView.lastFocusedEntry = null;
+    treeView.list = document.createElement("ol");
+    treeView.stickyHeaderList = document.createElement("ol");
+    // Scrolling needs a measured scroller; every assertion here is about which
+    // rows the selection ends up holding.
+    treeView.scrollToEntry = () => {};
+
+    const row = (name, kind, parent) => {
+      const entryPath = path.join("/root", name);
+      const result = new TreeEntry(treeView, {
+        item: {
+          name,
+          path: entryPath,
+          status: null,
+          isPathEqual: (candidate) => candidate === entryPath,
+          contains: () => false,
+        },
+        kind,
+        parent,
+        projectRoot: parent == null,
+      });
+      result.isExpanded = kind === "directory";
+      if (parent) parent.children.push(result);
+      return result;
+    };
+
+    const root = row("root", "directory", null);
+    const source = row("source", "directory", root);
+    const rows = [root, source, row("a.js", "file", source), row("b.js", "file", source)];
+    rows.push(row("readme.md", "file", root));
+    rows.forEach((entry, index) => {
+      entry.index = index;
+      entry.top = index * 24;
+      entry.height = 24;
+    });
+    treeView.visibleRows = rows;
+    treeView.roots = [root];
+    return treeView;
+  }
+
+  const selected = (treeView) => treeView.getSelectedEntries().map((row) => row.name);
+
+  it("grows the range from the row the last plain move landed on", () => {
+    const treeView = tree();
+    const source = treeView.visibleRows[1];
+    treeView.selectEntry(source);
+
+    treeView.extendSelection(1);
+    expect(selected(treeView)).toEqual(["source", "a.js"]);
+    treeView.extendSelection(1);
+    expect(selected(treeView)).toEqual(["source", "a.js", "b.js"]);
+    expect(treeView.lastFocusedEntry).toBe(source);
+  });
+
+  it("shrinks the range when the direction reverses", () => {
+    const treeView = tree();
+    treeView.selectEntry(treeView.visibleRows[1]);
+    treeView.extendSelection(1);
+    treeView.extendSelection(1);
+
+    treeView.extendSelection(-1);
+    expect(selected(treeView)).toEqual(["source", "a.js"]);
+    treeView.extendSelection(-1);
+    expect(selected(treeView)).toEqual(["source"]);
+
+    // Past the anchor the range opens up on the other side rather than
+    // stopping there.
+    treeView.extendSelection(-1);
+    expect(selected(treeView)).toEqual(["root", "source"]);
+  });
+
+  it("crosses a folder boundary the way the rows look on screen", () => {
+    const treeView = tree();
+    treeView.selectEntry(treeView.visibleRows[3]);
+
+    treeView.extendSelection(1);
+
+    expect(selected(treeView)).toEqual(["b.js", "readme.md"]);
+  });
+
+  it("keeps the range as it is at the end of the tree", () => {
+    const treeView = tree();
+    treeView.selectEntry(treeView.visibleRows[3]);
+    treeView.extendSelection(1);
+
+    treeView.extendSelection(1);
+
+    expect(selected(treeView)).toEqual(["b.js", "readme.md"]);
+  });
+
+  it("starts a fresh range after a plain move", () => {
+    const treeView = tree();
+    treeView.selectEntry(treeView.visibleRows[1]);
+    treeView.extendSelection(1);
+
+    treeView.moveDown();
+    expect(selected(treeView)).toEqual(["b.js"]);
+
+    treeView.extendSelection(-1);
+    expect(selected(treeView)).toEqual(["a.js", "b.js"]);
+  });
+
+  it("switches the context menu to its multi-select form and back", () => {
+    const treeView = tree();
+    treeView.selectEntry(treeView.visibleRows[1]);
+
+    treeView.extendSelection(1);
+    expect(treeView.list).toHaveClass("multi-select");
+
+    treeView.extendSelection(-1);
+    expect(treeView.list).toHaveClass("full-menu");
+  });
+
+  it("sweeps from a project root into the rows under it", () => {
+    const treeView = tree();
+    const [root, source] = treeView.visibleRows;
+    // A root has no parent and its children do: the range used to be refused
+    // outright, so shift-clicking down from a root selected nothing at all.
+    treeView.selectEntry(root);
+
+    treeView.selectContinuousEntries(source);
+
+    expect(selected(treeView)).toEqual(["root", "source"]);
+    expect(treeView.lastFocusedEntry).toBe(root);
+  });
+
+  it("sweeps back up to the root from a row inside a folder", () => {
+    const treeView = tree();
+    const [root, , aJs] = treeView.visibleRows;
+    treeView.selectEntry(aJs);
+
+    treeView.selectContinuousEntries(root);
+
+    expect(selected(treeView)).toEqual(["root", "source", "a.js"]);
+    expect(treeView.lastFocusedEntry).toBe(aJs);
+  });
+
+  it("keeps the rest of the selection when the sweep is additive", () => {
+    const treeView = tree();
+    const rows = treeView.visibleRows;
+    treeView.selectEntry(rows.at(-1));
+    treeView.selectEntry(rows[1]);
+    treeView.selectedEntries.add(rows.at(-1));
+
+    treeView.selectContinuousEntries(rows[0], false);
+
+    expect(selected(treeView)).toEqual(["root", "source", "readme.md"]);
   });
 });
