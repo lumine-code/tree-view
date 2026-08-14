@@ -15,7 +15,7 @@ Explore and open project files in a tree-like view of your directories.
 
 ## Installation
 
-To install `tree-view` search for _tree-view_ in the Install pane of the Lumine settings or run `lumine --install lumine-code/tree-view`.
+To install `tree-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/tree-view`.
 
 ## Commands
 
@@ -61,17 +61,16 @@ Commands available in `.tree-view`:
 
 ## Services
 
-- **[tree-view.selection](docs/tree-view.selection.md)** (`1.0.0`): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
-- **[tree-view.roots](docs/tree-view.roots.md)** (`1.0.0`): provided to let external packages register virtual root sections above the project folders.
-- **busy-signal** (`^1.0.0`): consumed to report copy and move operations on the busy indicator.
-- **open-external** (`^1.0.0`): consumed to open files with the configured external application.
-- **project-list** (`^1.0.0`): consumed to add a "List projects" button to the empty project view.
-- **recent-list** (`^1.0.0`): consumed to add a "Reopen a project" button to the empty project view.
+- [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
+- [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
+- `busy-signal`: consumed to report copy and move operations on the busy indicator.
+- `open-external`: consumed to open files with the configured external application.
+- `project-list`: consumed to add a "List projects" button to the empty project view.
+- `recent-list`: consumed to add a "Reopen a project" button to the empty project view.
 
 ## Customization
 
-Choose **Indent Guides** (the default) or **Classic** under the Tree View package settings. Classic
-uses conventional directory chevrons without hierarchy rails.
+Choose **Indent Guides** (the default) or **Classic** under the Tree View package settings. Classic uses conventional directory chevrons without hierarchy rails.
 
 Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to enlarge the entry text, loosen the row spacing, and restyle the indentation guides:
 
