@@ -40,6 +40,7 @@ Commands available in `.tree-view`:
 - `tree-view:recursive-collapse-directory`: recursively collapse the selected directory,
 - `tree-view:collapse-all`: collapse all directories,
 - `tree-view:open-selected-entry`: open the selected entry,
+- `tree-view:preview-selected-entry`: open the selected file without moving focus out of the tree,
 - `tree-view:open-selected-entry-right`: open the selected entry in a split to the right,
 - `tree-view:open-selected-entry-left`: open the selected entry in a split to the left,
 - `tree-view:open-selected-entry-up`: open the selected entry in a split above,

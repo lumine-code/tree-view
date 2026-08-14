@@ -35,6 +35,7 @@
     "ctrl-left": "tree-view:recursive-collapse-directory",
     "h": "tree-view:collapse-directory",
     "enter": "tree-view:open-selected-entry",
+    "shift-enter": "tree-view:preview-selected-entry",
     "escape": "tree-view:unfocus",
     "ctrl-shift-c": "tree-view:copy-full-path",
     "f5": "tree-view:duplicate",
