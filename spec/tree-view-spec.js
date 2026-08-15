@@ -1121,7 +1121,7 @@ describe("TreeView row model and sticky headers", () => {
 
   function stickyHarness() {
     const treeView = Object.create(TreeView.prototype);
-    treeView.stickyHeadersEnabled = true;
+    treeView.stickyHeaderMode = "directories";
     treeView.scroller = document.createElement("div");
     // The sticky pipeline reads the cached scroll position, never the element,
     // so scrolling the harness means writing here.
@@ -1264,7 +1264,7 @@ describe("TreeView row model and sticky headers", () => {
 
   it("updates immediately on scroll instead of waiting for another animation frame", () => {
     const treeView = {
-      stickyHeadersEnabled: true,
+      stickyHeaderMode: "directories",
       stickyHeaderUpdateFrame: 42,
       updateStickyHeaderOverlay: jasmine.createSpy("updateStickyHeaderOverlay"),
     };
@@ -1382,7 +1382,7 @@ describe("TreeView row model and sticky headers", () => {
 
   it("keeps every visible row mounted while scrolling", () => {
     const treeView = stickyHarness();
-    treeView.stickyHeadersEnabled = false;
+    treeView.stickyHeaderMode = "none";
     treeView.stickyHeaderLayer = document.createElement("div");
     treeView.stickyHeaderList = document.createElement("ol");
     treeView.stickyHeaderLayer.appendChild(treeView.stickyHeaderList);
@@ -1422,13 +1422,36 @@ describe("TreeView row model and sticky headers", () => {
       renderStickyHeaderEntries: jasmine.createSpy("renderStickyHeaderEntries"),
     };
 
-    TreeView.prototype.setStickyHeadersEnabled.call(treeView, true);
+    TreeView.prototype.setStickyHeaderMode.call(treeView, "directories");
     expect(treeView.element.classList.contains("sticky-headers")).toBe(true);
     expect(treeView.scheduleStickyHeadersUpdate).toHaveBeenCalled();
 
-    TreeView.prototype.setStickyHeadersEnabled.call(treeView, false);
+    TreeView.prototype.setStickyHeaderMode.call(treeView, "roots");
+    expect(treeView.element.classList.contains("sticky-headers")).toBe(true);
+
+    TreeView.prototype.setStickyHeaderMode.call(treeView, "none");
     expect(treeView.element.classList.contains("sticky-headers")).toBe(false);
     expect(treeView.renderStickyHeaderEntries).toHaveBeenCalledWith([]);
+  });
+
+  it("pins only the project root in the roots mode", () => {
+    const treeView = stickyHarness();
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const source = entry(treeView, "source", "directory", root);
+    entry(treeView, "button.js", "file", source);
+    layout(treeView, [root]);
+
+    treeView.scrollPosition.top = 1;
+    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual([
+      "root",
+      "source",
+    ]);
+
+    treeView.stickyHeaderMode = "roots";
+    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
+
+    treeView.stickyHeaderMode = "none";
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
   });
 
   it("switches between guide and classic appearances without rebuilding rows", () => {
@@ -1848,7 +1871,7 @@ describe("TreeView shift-arrow selection", () => {
   // sibling of that folder for the range to cross into.
   function tree() {
     const treeView = Object.create(TreeView.prototype);
-    treeView.stickyHeadersEnabled = false;
+    treeView.stickyHeaderMode = "none";
     treeView.selectedEntries = new Set();
     treeView.lastFocusedEntry = null;
     treeView.list = document.createElement("ol");

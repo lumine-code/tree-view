@@ -120,13 +120,27 @@
           "description": "Classic — conventional chevrons without indent guides"
         }
       ],
-      "default": "guides"
+      "default": "classic"
     },
     "stickyHeaders": {
       "title": "Sticky Directory Headers",
-      "description": "Keep project roots and expanded ancestor directories pinned while scrolling.",
-      "type": "boolean",
-      "default": true
+      "description": "Choose which directories stay pinned above the tree while scrolling.",
+      "type": "string",
+      "enum": [
+        {
+          "value": "none",
+          "description": "None — nothing is pinned while scrolling"
+        },
+        {
+          "value": "roots",
+          "description": "Roots — pin the project root only"
+        },
+        {
+          "value": "directories",
+          "description": "Directories — pin the project root and every expanded ancestor directory"
+        }
+      ],
+      "default": "none"
     },
     "hideVcsIgnoredFiles": {
       "title": "Hide VCS Ignored Files",

@@ -7,7 +7,7 @@ Explore and open project files in a tree-like view of your directories.
 - **Configurable click behavior**: open files and expand folders on single or double click.
 - **Open externally**: alt-click a file to open it in an external program through the `open-external` service.
 - **Flexible sorting**: choose locale-aware or natural sort, list folders before files, and group entries by base name.
-- **Sticky navigation**: keep project roots and expanded ancestor directories visible while scrolling.
+- **Sticky navigation**: optionally keep the project root, or the root and every expanded ancestor directory, visible while scrolling.
 - **Native clipboard**: copy or cut entries across windows and external applications while preserving platform-specific duplicate names.
 - **Responsive file operations**: copy and move entries in a separate process with a cancellable operation queue.
 - **Debounced file watching**: rapid file creation and deletion is batched so the tree does not reload excessively.
@@ -70,7 +70,7 @@ Commands available in `.tree-view`:
 
 ## Customization
 
-Choose **Indent Guides** (the default) or **Classic** under the Tree View package settings. Classic uses conventional directory chevrons without hierarchy rails.
+Choose **Classic** (the default) or **Indent Guides** under the Tree View package settings. Classic uses conventional directory chevrons without hierarchy rails.
 
 Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to enlarge the entry text, loosen the row spacing, and restyle the indentation guides:
 
