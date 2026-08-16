@@ -1262,6 +1262,52 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
   });
 
+  it("keeps the cached offset inside the range the scroller can reach", () => {
+    const treeView = stickyHarness();
+    const first = entry(treeView, "first", "directory", null, { projectRoot: true });
+    entry(treeView, "one.js", "file", first);
+    const second = entry(treeView, "second", "directory", null, { projectRoot: true });
+    entry(treeView, "two.js", "file", second);
+    layout(treeView, [first, second]);
+    treeView.scrollportHeight = 24;
+
+    // Paging down at the end asks for more than there is. The element stops
+    // where it already was and reports no scroll, so an unclamped cache would
+    // keep the overshoot and name a row the tree is nowhere near.
+    treeView.setScrollTop(1000);
+
+    expect(treeView.scrollPosition.top).toBe(88);
+    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
+  });
+
+  it("takes the offset back from the scroller once the scrollport is real again", () => {
+    const treeView = stickyHarness();
+    const first = entry(treeView, "first", "directory", null, { projectRoot: true });
+    entry(treeView, "one.js", "file", first);
+    const second = entry(treeView, "second", "directory", null, { projectRoot: true });
+    entry(treeView, "two.js", "file", second);
+    layout(treeView, [first, second]);
+    treeView.updateStickyHeaderOverlay = jasmine.createSpy("updateStickyHeaderOverlay");
+
+    // What a dock hiding its item leaves behind: the scroll box was destroyed
+    // and rebuilt at the top, and no scroll event announced it.
+    treeView.scrollPosition = { top: second.top, left: 0 };
+    let scrollportHeight = 0;
+    Object.defineProperty(treeView.scroller, "clientHeight", {
+      configurable: true,
+      get: () => scrollportHeight,
+    });
+    treeView.refreshViewportMetrics();
+
+    expect(treeView.scrollPosition.top).toBe(second.top);
+
+    scrollportHeight = 80;
+    treeView.refreshViewportMetrics();
+
+    expect(treeView.scrollPosition.top).toBe(0);
+    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["first"]);
+  });
+
   it("updates immediately on scroll instead of waiting for another animation frame", () => {
     const treeView = {
       stickyHeaderMode: "directories",
