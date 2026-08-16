@@ -952,7 +952,7 @@ describe("TreeView construction", () => {
       const packagePath = path.resolve(__dirname, "..");
       pack = lumine.packages.loadPackage(packagePath);
       expect(pack.path).toBe(packagePath);
-      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view-plus.json"));
+      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view.json"));
       disposable = lumine.contextMenu.add(menu["context-menu"]);
 
       treeView = new TreeView({});
