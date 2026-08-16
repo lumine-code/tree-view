@@ -107,6 +107,39 @@ describe("TreeView dialogs", () => {
   });
 
   describe("MoveDialog", () => {
+    function selectionOf(source) {
+      const dialog = track(new MoveDialog(source, {}));
+      dialog.attach();
+      return dialog.miniEditor.getSelectedText();
+    }
+
+    it("selects the base name and leaves the last extension alone", () => {
+      expect(selectionOf(fixture("old.txt"))).toBe("old");
+      expect(selectionOf(fixture("dialog.spec.js"))).toBe("dialog.spec");
+      expect(selectionOf(fixture("archive.tar.gz"))).toBe("archive.tar");
+    });
+
+    it("selects the whole name when there is no extension to preserve", () => {
+      expect(selectionOf(fixture("Makefile"))).toBe("Makefile");
+      expect(selectionOf(fixture(".gitignore"))).toBe(".gitignore");
+
+      const directory = path.join(projectPath, "v1.2");
+      fs.mkdirSync(directory);
+      expect(selectionOf(directory)).toBe("v1.2");
+    });
+
+    it("selects the base name only, not the directory prefix", () => {
+      const source = fixture(`nested${path.sep}old.txt`);
+      const dialog = track(new MoveDialog(source, {}));
+      dialog.attach();
+
+      expect(dialog.miniEditor.getText()).toBe(`nested${path.sep}old.txt`);
+      expect(dialog.miniEditor.getSelectedBufferRange()).toEqual([
+        [0, `nested${path.sep}`.length],
+        [0, `nested${path.sep}old`.length],
+      ]);
+    });
+
     it("moves the entry and reports the move", async () => {
       const source = fixture("old.txt", "content");
       let moved = null;
