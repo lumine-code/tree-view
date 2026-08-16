@@ -188,4 +188,80 @@ describe("TreeView dialogs", () => {
       expect(lumine.workspace.open).not.toHaveBeenCalled();
     });
   });
+
+  describe("tree-view:select-name", () => {
+    function selectName(dialog) {
+      lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:select-name");
+      return dialog.miniEditor.getSelectedText();
+    }
+
+    it("cycles between the whole name and the base name", () => {
+      const dialog = track(new MoveDialog(fixture("dialog.spec.js"), {}));
+      dialog.attach();
+      expect(dialog.miniEditor.getSelectedText()).toBe("dialog.spec");
+
+      expect(selectName(dialog)).toBe("dialog.spec.js");
+      expect(selectName(dialog)).toBe("dialog.spec");
+      expect(selectName(dialog)).toBe("dialog.spec.js");
+    });
+
+    it("never reaches past the last separator into the directory prefix", () => {
+      const dialog = track(new MoveDialog(fixture(`nested${path.sep}old.txt`), {}));
+      dialog.attach();
+
+      expect(selectName(dialog)).toBe("old.txt");
+      expect(selectName(dialog)).toBe("old");
+    });
+
+    it("stays on the whole name when there is no extension to leave out", () => {
+      const directory = path.join(projectPath, "v1.2");
+      fs.mkdirSync(directory);
+      const dialog = track(new CopyDialog(directory, { onCopy: () => {} }));
+      dialog.attach();
+
+      expect(selectName(dialog)).toBe("v1.2");
+      expect(selectName(dialog)).toBe("v1.2");
+    });
+
+    it("selects the name typed into an add dialog", () => {
+      const file = track(new AddDialog(projectPath, true));
+      file.attach();
+      file.miniEditor.insertText("new.txt");
+      expect(selectName(file)).toBe("new.txt");
+      expect(selectName(file)).toBe("new");
+
+      const folder = track(new AddDialog(projectPath, false));
+      folder.attach();
+      folder.miniEditor.insertText("v1.2");
+      expect(selectName(folder)).toBe("v1.2");
+      expect(selectName(folder)).toBe("v1.2");
+    });
+
+    it("resolves its keystroke at the mini editor the dialog focuses", () => {
+      const keymapPath = path.join(__dirname, "..", "keymaps", "tree-view-plus.json");
+      lumine.keymaps.loadKeymap(keymapPath);
+      try {
+        const dialog = track(new MoveDialog(fixture("old.txt"), {}));
+        dialog.attach();
+
+        const bindings = lumine.keymaps.findKeyBindings({
+          target: dialog.miniEditor.element,
+          command: "tree-view:select-name",
+        });
+        expect(bindings.map((binding) => binding.keystrokes)).toEqual(["f2"]);
+      } finally {
+        lumine.keymaps.removeBindingsFromSource(keymapPath);
+      }
+    });
+
+    it("is the item action the dialog offers", () => {
+      const dialog = track(new MoveDialog(fixture("old.txt"), {}));
+      dialog.attach();
+
+      const actions = dialog.inputDialogView.itemActions();
+      expect(actions.map((action) => action.command)).toEqual(["tree-view:select-name"]);
+      expect(actions[0].name).toBe("Select Name");
+      expect(actions[0].description).toContain("base name");
+    });
+  });
 });

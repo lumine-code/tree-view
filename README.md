@@ -59,6 +59,10 @@ Commands available in `.tree-view`:
 - `tree-view:toggle-ignored-names`: toggle visibility of ignored names,
 - `tree-view:remove-project-folder`: remove the selected project folder.
 
+Commands available in `.tree-view-dialog`:
+
+- `tree-view:select-name`: select the whole name in the add, move and duplicate dialogs, or the base name when the whole name is already selected.
+
 ## Services
 
 - [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.

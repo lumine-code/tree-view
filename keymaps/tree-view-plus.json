@@ -58,6 +58,8 @@
   },
   ".tree-view-dialog lumine-text-editor[mini]": {
     "enter": "core:confirm",
-    "escape": "core:cancel"
+    "escape": "core:cancel",
+    // The key that opens the rename dialog goes on cycling what it selected.
+    "f2": "tree-view:select-name"
   }
 }
