@@ -164,68 +164,27 @@ describe("TreeView dialogs", () => {
       return track(new CopyDialog(source, { onCopy: onCopy || (() => {}) }));
     }
 
-    it("binds the open-after-copy checkbox to the tree-view.openAfterCopy config", () => {
-      lumine.config.set("tree-view.openAfterCopy", true);
+    it("renders no checkboxes", () => {
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
 
-      const checkbox = dialog.inputDialogView.element.querySelector(".input-checkbox");
-      expect(checkbox.checked).toBe(true);
-
-      checkbox.checked = false;
-      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-      expect(lumine.config.get("tree-view.openAfterCopy")).toBe(false);
+      expect(dialog.inputDialogView.element.querySelector(".input-dialog-checkboxes")).toBeNull();
     });
 
-    it("does not offer to open a copied directory", () => {
-      const source = path.join(projectPath, "source");
-      fs.mkdirSync(source);
-      const dialog = makeCopyDialog(source);
-      dialog.attach();
-
-      expect(dialog.inputDialogView.element.querySelector(".input-checkbox")).toBeNull();
-    });
-
-    it("reflects an external config change in the checkbox", async () => {
-      lumine.config.set("tree-view.openAfterCopy", false);
-      const dialog = makeCopyDialog(fixture("a.txt", "hi"));
-      dialog.attach();
-      expect(dialog.inputDialogView.element.querySelector(".input-checkbox").checked).toBe(false);
-
-      lumine.config.set("tree-view.openAfterCopy", true);
-      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
-      expect(dialog.inputDialogView.element.querySelector(".input-checkbox").checked).toBe(true);
-    });
-
-    it("opens the duplicate when openAfterCopy is enabled", async () => {
-      lumine.config.set("tree-view.openAfterCopy", true);
-      // Run the copy callback synchronously so the open decision is testable
-      // without depending on real async filesystem timing.
+    it("duplicates the entry and reports the copy without opening it", async () => {
+      // Run the copy callback synchronously so the decision not to open is
+      // testable without depending on real async filesystem timing.
       spyOn(fsCompat, "copy").and.callFake((source, destination, callback) => callback());
       spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
 
-      const dialog = makeCopyDialog(fixture("a.txt", "hi"));
+      let copied = null;
+      const dialog = makeCopyDialog(fixture("a.txt", "hi"), (event) => (copied = event));
       dialog.attach();
       dialog.miniEditor.setText("b.txt");
       await dialog.onConfirm(dialog.miniEditor.getText());
 
       expect(fsCompat.copy).toHaveBeenCalled();
-      expect(lumine.workspace.open).toHaveBeenCalledWith(path.join(projectPath, "b.txt"), {
-        activatePane: true,
-      });
-    });
-
-    it("does not open the duplicate when openAfterCopy is disabled", async () => {
-      lumine.config.set("tree-view.openAfterCopy", false);
-      spyOn(fsCompat, "copy").and.callFake((source, destination, callback) => callback());
-      spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
-
-      const dialog = makeCopyDialog(fixture("a.txt", "hi"));
-      dialog.attach();
-      dialog.miniEditor.setText("b.txt");
-      await dialog.onConfirm(dialog.miniEditor.getText());
-
-      expect(fsCompat.copy).toHaveBeenCalled();
+      expect(copied.newPath).toBe(path.join(projectPath, "b.txt"));
       expect(lumine.workspace.open).not.toHaveBeenCalled();
     });
   });
