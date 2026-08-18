@@ -989,7 +989,7 @@ describe("TreeView construction", () => {
       const packagePath = path.resolve(__dirname, "..");
       pack = lumine.packages.loadPackage(packagePath);
       expect(pack.path).toBe(packagePath);
-      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("tree-view.json"));
+      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("main.json"));
       disposable = lumine.contextMenu.add(menu["context-menu"]);
 
       treeView = new TreeView({});
@@ -1549,7 +1549,7 @@ describe("TreeView row model and sticky headers", () => {
 
   it("keeps scrolling and sticky paint in separate surfaces", () => {
     const stylesheet = lumine.themes.requireStylesheet(
-      path.join(__dirname, "..", "styles", "tree-view.css"),
+      path.join(__dirname, "..", "styles", "main.css"),
     );
     const tree = document.createElement("div");
     tree.classList.add("tree-view");
@@ -1812,7 +1812,7 @@ describe("TreeView row model and sticky headers", () => {
 
   it("joins adjacent rounded selections into continuous areas", () => {
     const stylesheet = lumine.themes.requireStylesheet(
-      path.join(__dirname, "..", "styles", "tree-view.css"),
+      path.join(__dirname, "..", "styles", "main.css"),
     );
     const tree = document.createElement("div");
     tree.classList.add("tree-view");
@@ -1881,7 +1881,7 @@ describe("TreeView row model and sticky headers", () => {
   // fed back into the list width can only ever grow.
   it("follows a long row's width back down when the row goes away", () => {
     const stylesheet = lumine.themes.requireStylesheet(
-      path.join(__dirname, "..", "styles", "tree-view.css"),
+      path.join(__dirname, "..", "styles", "main.css"),
     );
     const tree = document.createElement("div");
     tree.classList.add("tree-view");

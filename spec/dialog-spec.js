@@ -238,7 +238,7 @@ describe("TreeView dialogs", () => {
     });
 
     it("resolves its keystroke at the mini editor the dialog focuses", () => {
-      const keymapPath = path.join(__dirname, "..", "keymaps", "tree-view.json");
+      const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
       lumine.keymaps.loadKeymap(keymapPath);
       try {
         const dialog = track(new MoveDialog(fixture("old.txt"), {}));
