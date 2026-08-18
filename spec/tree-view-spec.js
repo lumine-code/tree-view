@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { webUtils } = require("electron");
+const { Disposable } = require("lumine");
 const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
 const TreeRowView = require("../lib/tree-row-view");
@@ -282,6 +283,69 @@ describe("TreeView root updates", () => {
       lumine.project.setPaths(originalProjectPaths);
       lumine.config.set("core.ignoredNames", originalIgnoredNames);
       lumine.config.set("tree-view.hideIgnoredNames", originalHideIgnoredNames);
+    }
+  });
+});
+
+describe("TreeView repository changes", () => {
+  // The registry scans each project root for nested checkouts after startup and
+  // emits one event per checkout it finds. Answering those with `updateRoots`
+  // threw the tree back to the top once per debounce window: a rebuilt root
+  // loads its children asynchronously, so the content collapses to a couple of
+  // rows in between and the scroller clamps the offset away before they arrive.
+  it("hands a new repository to the entries instead of rebuilding the roots", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    lumine.project.setPaths([projectPath]);
+    const treeView = new TreeView({});
+
+    try {
+      await treeView.revealPath(path.join(__dirname, path.basename(__filename)));
+      const rootDirectory = treeView.roots[0].directory;
+      const rowsBefore = treeView.visibleRows.slice();
+      treeView.scrollPosition.top = 240;
+      spyOn(treeView, "updateRoots").and.callThrough();
+      spyOn(rootDirectory, "repositoryChanged").and.callThrough();
+
+      treeView.repositoriesChanged();
+
+      expect(treeView.updateRoots).not.toHaveBeenCalled();
+      expect(rootDirectory.repositoryChanged).toHaveBeenCalled();
+      // The same objects, not equal ones: nothing was torn down, so nothing had
+      // to be rebuilt and no offset had to be restored.
+      expect(treeView.roots[0].directory).toBe(rootDirectory);
+      expect(treeView.visibleRows).toEqual(rowsBefore);
+      expect(treeView.scrollPosition.top).toBe(240);
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("routes a registered repository to repositoriesChanged, never to updateRoots", () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    lumine.project.setPaths([path.resolve(__dirname, "..")]);
+    spyOn(lumine.repositories, "onDidAddRepository").and.callThrough();
+    const treeView = new TreeView({});
+
+    try {
+      spyOn(treeView, "updateRoots").and.callThrough();
+      spyOn(treeView, "repositoriesChanged").and.callThrough();
+      // `observeRepositories` delegates to `onDidAddRepository`, so the tree has
+      // two subscribers here and the registry notifies both.
+      const notified = lumine.repositories.onDidAddRepository.calls
+        .all()
+        .map((call) => call.args[0]);
+      const repository = { onDidDestroy: () => new Disposable() };
+
+      for (const notify of notified) notify(repository);
+      advanceClock(50);
+
+      expect(treeView.repositoriesChanged).toHaveBeenCalled();
+      expect(treeView.updateRoots).not.toHaveBeenCalled();
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
     }
   });
 });

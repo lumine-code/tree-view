@@ -5,13 +5,22 @@ const path = require("path");
 
 const Directory = require("../lib/directory");
 
-function repositoryFor({ directoryStatusSummary = null } = {}) {
+function repositoryFor({
+  directoryStatusSummary = null,
+  pathStatusSummary = null,
+  ignoredPaths = [],
+} = {}) {
+  const statusesCallbacks = [];
   return {
     getDirectoryStatusSummary: jasmine
       .createSpy("getDirectoryStatusSummary")
       .and.returnValue(directoryStatusSummary),
-    getPathStatusSummary: jasmine.createSpy("getPathStatusSummary").and.returnValue(null),
-    isPathIgnoredCached: jasmine.createSpy("isPathIgnoredCached").and.returnValue(false),
+    getPathStatusSummary: jasmine
+      .createSpy("getPathStatusSummary")
+      .and.returnValue(pathStatusSummary),
+    isPathIgnoredCached: jasmine
+      .createSpy("isPathIgnoredCached")
+      .and.callFake((candidate) => ignoredPaths.includes(candidate)),
     getWorkingDirectory() {
       return null;
     },
@@ -21,21 +30,38 @@ function repositoryFor({ directoryStatusSummary = null } = {}) {
     onDidChangeStatus() {
       return new Disposable();
     },
-    onDidChangeStatuses() {
-      return new Disposable();
+    // Recorded rather than ignored: firing the callback back is how a spec
+    // tells a live subscription from one that was disposed with its entry.
+    onDidChangeStatuses(callback) {
+      statusesCallbacks.push(callback);
+      return new Disposable(() => {
+        const index = statusesCallbacks.indexOf(callback);
+        if (index !== -1) statusesCallbacks.splice(index, 1);
+      });
     },
     onDidChangeStatusSnapshot() {
       return new Disposable();
     },
+    notifyStatusesChanged() {
+      for (const callback of statusesCallbacks.slice()) callback();
+    },
+    subscriberCount() {
+      return statusesCallbacks.length;
+    },
   };
 }
 
-function createDirectory(fullPath, repository, { isRoot = false, ignoredNames } = {}) {
+function createDirectory(
+  fullPath,
+  repository,
+  { isRoot = false, ignoredNames, isExpanded = false } = {},
+) {
   spyOn(lumine.repositories, "getForPath").and.returnValue(repository);
   return new Directory({
     name: "repository",
     fullPath,
     isRoot,
+    expansionState: { isExpanded },
     ignoredNames: ignoredNames ?? { matches: () => false },
     useSyncFS: true,
   });
@@ -140,5 +166,113 @@ describe("TreeView Directory decorations and Git status", () => {
     directory.reload();
 
     expect(directory.entries.get("debug.log").ignoredByName).toBe(true);
+  });
+});
+
+// The registry discovers repositories asynchronously — it scans each project
+// root for nested checkouts once the window is up — so an entry is routinely
+// built before the repository it belongs to exists. It used to learn about one
+// only by being thrown away and rebuilt.
+describe("TreeView Directory repositoryChanged", () => {
+  let directory;
+  let temporaryDirectories;
+
+  beforeEach(() => {
+    temporaryDirectories = [];
+  });
+
+  function makeTemporaryDirectory(name) {
+    const directoryPath = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`));
+    temporaryDirectories.push(directoryPath);
+    return directoryPath;
+  }
+
+  afterEach(() => {
+    directory?.destroy();
+    for (const directoryPath of temporaryDirectories) {
+      fs.rmSync(directoryPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  });
+
+  it("adopts a repository that did not exist when the directory was built", () => {
+    const directoryPath = makeTemporaryDirectory("late-repository");
+    directory = createDirectory(directoryPath, null);
+    expect(directory.status).toBeNull();
+
+    const repository = repositoryFor({
+      directoryStatusSummary: { source: "cache", conflicted: false, modified: true, added: false },
+    });
+    lumine.repositories.getForPath.and.returnValue(repository);
+    const statuses = [];
+    directory.onDidStatusChange((status) => statuses.push(status));
+
+    directory.repositoryChanged();
+
+    expect(directory.status).toBe("modified");
+    expect(statuses).toEqual(["modified"]);
+
+    // The subscription is live, so the repository's later reports land too.
+    repository.getDirectoryStatusSummary.and.returnValue(null);
+    repository.notifyStatusesChanged();
+
+    expect(directory.status).toBeNull();
+    expect(statuses).toEqual(["modified", null]);
+  });
+
+  it("subscribes once however often the repository changes", () => {
+    const directoryPath = makeTemporaryDirectory("late-repository-resubscribe");
+    const repository = repositoryFor({ directoryStatusSummary: null });
+    directory = createDirectory(directoryPath, repository);
+    expect(repository.subscriberCount()).toBe(1);
+
+    directory.repositoryChanged();
+    directory.repositoryChanged();
+
+    expect(repository.subscriberCount()).toBe(1);
+  });
+
+  it("hands the repository to the entries it has already loaded", () => {
+    const directoryPath = makeTemporaryDirectory("late-repository-children");
+    const filePath = path.join(directoryPath, "index.js");
+    fs.writeFileSync(filePath, "");
+    directory = createDirectory(directoryPath, null);
+    directory.reload();
+    expect(directory.entries.get("index.js").status).toBeNull();
+
+    const repository = repositoryFor({
+      pathStatusSummary: { source: "cache", conflicted: false, modified: true, added: false },
+    });
+    lumine.repositories.getForPath.and.returnValue(repository);
+
+    directory.repositoryChanged();
+
+    expect(directory.entries.get("index.js").status).toBe("modified");
+  });
+
+  it("re-reads the entries when the new repository ignores one of them", () => {
+    const originalHideVcsIgnoredFiles = lumine.config.get("tree-view.hideVcsIgnoredFiles");
+    const directoryPath = makeTemporaryDirectory("late-repository-ignored");
+    const ignoredPath = path.join(directoryPath, "build.log");
+    fs.writeFileSync(ignoredPath, "");
+    fs.writeFileSync(path.join(directoryPath, "index.js"), "");
+
+    try {
+      lumine.config.set("tree-view.hideVcsIgnoredFiles", true);
+      directory = createDirectory(directoryPath, null, { isExpanded: true });
+      directory.reload();
+      expect(Array.from(directory.entries.keys()).sort()).toEqual(["build.log", "index.js"]);
+
+      const repository = repositoryFor({ ignoredPaths: [ignoredPath] });
+      lumine.repositories.getForPath.and.returnValue(repository);
+      const removed = [];
+      directory.onDidRemoveEntries((entries) => removed.push(...entries));
+
+      directory.repositoryChanged();
+
+      expect(Array.from(directory.entries.keys())).toEqual(["index.js"]);
+      expect(removed.map((entry) => entry.name)).toEqual(["build.log"]);
+    } finally {
+      lumine.config.set("tree-view.hideVcsIgnoredFiles", originalHideVcsIgnoredFiles);
+    }
   });
 });
