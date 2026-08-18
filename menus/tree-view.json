@@ -287,8 +287,12 @@
         "type": "separator"
       },
       {
+        // Core's split/close block is on this same element and is registered
+        // first, so an appended group would sit below it and end the menu.
+        // The pane group belongs at the bottom, so sort ahead of it.
         "label": "Reveal in Tree View",
-        "command": "tree-view:reveal-active-file"
+        "command": "tree-view:reveal-active-file",
+        "beforeGroupContaining": ["pane:split-up-and-copy-active-item"]
       },
       {
         "type": "separator"
