@@ -730,6 +730,43 @@ describe("TreeView construction", () => {
       expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
       expect(treeView.selectedEntry()?.isExpanded).toBe(true);
     });
+
+    it("centres the row when a reveal was asked for", async () => {
+      treeView = new TreeView({});
+      spyOn(treeView, "scrollToEntry");
+
+      await treeView.revealPath(__filename);
+
+      expect(treeView.scrollToEntry.calls.mostRecent().args[1]).toBe(true);
+    });
+
+    it("scrolls to the nearest edge when the caller says so", async () => {
+      treeView = new TreeView({});
+      spyOn(treeView, "scrollToEntry");
+
+      await treeView.revealPath(__filename, { center: false });
+
+      expect(treeView.scrollToEntry.calls.mostRecent().args[1]).toBe(false);
+    });
+  });
+
+  describe("revealing on its own, because auto reveal is on", () => {
+    // The reveal follows the active pane item, so it runs on every tab switch
+    // rather than on a request. Centring there hauls the tree around behind a
+    // user who never asked it to move.
+    it("scrolls no further than it takes to bring the row into view", async () => {
+      treeView = new TreeView({});
+      spyOn(treeView, "revealActiveFile");
+      lumine.config.set("tree-view.autoReveal", true);
+
+      await lumine.workspace.open(__filename);
+
+      expect(treeView.revealActiveFile).toHaveBeenCalledWith({
+        show: false,
+        focus: false,
+        center: false,
+      });
+    });
   });
 
   describe("the selection a package reads", () => {
