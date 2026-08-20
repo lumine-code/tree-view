@@ -339,12 +339,29 @@ describe("TreeView repository changes", () => {
       const rootName = treeView.elementForTreeEntry(treeView.roots[0]).querySelector(".name");
       expect(rootName.classList.contains("icon-repo")).toBe(false);
 
-      // The scan has registered the checkout; the registry can answer now.
-      getForPath.and.callThrough();
+      // The scan has registered a checkout at the project root. A fake stands
+      // in for it because the suite must hold wherever it runs from — the
+      // installed copy under node_modules is not a repository root.
+      const rootPath = treeView.roots[0].getPath();
+      getForPath.and.returnValue({
+        getWorkingDirectory: () => rootPath,
+        isDestroyed: () => false,
+        isSubmodule: () => false,
+        isPathIgnoredCached: () => false,
+        getDirectoryStatusSummary: () => null,
+        getPathStatusSummary: () => null,
+        relativize: (somePath) => (somePath === rootPath ? "" : somePath),
+        onDidChangeStatus: () => new Disposable(),
+        onDidChangeStatuses: () => new Disposable(),
+        onDidChangeStatusSnapshot: () => new Disposable(),
+      });
       treeView.repositoriesChanged();
 
       expect(rootName.classList.contains("icon-repo")).toBe(true);
     } finally {
+      // Restored by hand before teardown: resetting the project paths asks the
+      // registry for repositories again, and it must not be handed the fake.
+      getForPath.and.callThrough();
       treeView.destroy();
       lumine.project.setPaths(originalProjectPaths);
     }
