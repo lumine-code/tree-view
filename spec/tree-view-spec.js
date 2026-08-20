@@ -322,6 +322,34 @@ describe("TreeView repository changes", () => {
     }
   });
 
+  // Icon hints are resolved when a row's icon is applied, and the registry
+  // registers checkouts asynchronously after startup — so every repository
+  // directory wore a plain folder icon until its row was rebuilt by hand
+  // (collapse and re-expand). A clean repository never emits a status change,
+  // so nothing else ever re-rendered the row.
+  it("applies the repository icon to rows bound before their repository was registered", () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    lumine.project.setPaths([projectPath]);
+    // Rows bound while the registry is still scanning see no repository.
+    const getForPath = spyOn(lumine.repositories, "getForPath").and.returnValue(null);
+    const treeView = new TreeView({});
+
+    try {
+      const rootName = treeView.elementForTreeEntry(treeView.roots[0]).querySelector(".name");
+      expect(rootName.classList.contains("icon-repo")).toBe(false);
+
+      // The scan has registered the checkout; the registry can answer now.
+      getForPath.and.callThrough();
+      treeView.repositoriesChanged();
+
+      expect(rootName.classList.contains("icon-repo")).toBe(true);
+    } finally {
+      treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
   it("routes a registered repository to repositoriesChanged, never to updateRoots", () => {
     const originalProjectPaths = lumine.project.getPaths();
     lumine.project.setPaths([path.resolve(__dirname, "..")]);
