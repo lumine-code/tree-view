@@ -61,7 +61,9 @@ Commands available in `.tree-view`:
 
 Commands available in `.tree-view-dialog`:
 
-- `tree-view:select-name`: select the whole name in the add, move and duplicate dialogs, or the base name when the whole name is already selected.
+- `tree-view:select-name`: select the whole name in the add, move and duplicate dialogs, or the base name when the whole name is already selected,
+- `tree-view:confirm`: create, duplicate or move the file and leave it closed, which is what confirming the dialog does,
+- `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path.
 
 ## Services
 

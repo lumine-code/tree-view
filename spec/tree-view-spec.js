@@ -2214,3 +2214,53 @@ describe("TreeView shift-arrow selection", () => {
     expect(selected(treeView)).toEqual(["root", "source", "readme.md"]);
   });
 });
+
+describe("TreeView adding a file", () => {
+  let originalProjectPaths;
+  let projectPath;
+  let treeView;
+
+  beforeEach(() => {
+    originalProjectPaths = lumine.project.getPaths();
+    // Realpath it: macOS hands out a symlinked tmpdir and the project reports
+    // roots resolved.
+    projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-add-")));
+    lumine.project.setPaths([projectPath]);
+    jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
+    spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
+    treeView = new TreeView({});
+  });
+
+  afterEach(() => {
+    treeView?.destroy();
+    lumine.project.setPaths(originalProjectPaths);
+    // Retries because Windows keeps a directory non-empty until the last handle
+    // on a child closes, and `force` swallows only ENOENT.
+    fs.rmSync(projectPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  // The dialog is attached to the workspace rather than handed back, so reach
+  // it the way a keystroke does: through the element and the command.
+  function confirmAddDialog(name, command) {
+    treeView.add(true);
+    const editor = document.querySelector(".tree-view-dialog lumine-text-editor").getModel();
+    editor.setText(name);
+    lumine.commands.dispatch(editor.element, command);
+    return path.join(projectPath, name);
+  }
+
+  it("selects the new file in the tree and leaves it closed", () => {
+    const createdPath = confirmAddDialog("created.txt", "tree-view:confirm");
+
+    expect(fs.existsSync(createdPath)).toBe(true);
+    expect(lumine.workspace.open).not.toHaveBeenCalled();
+    expect(treeView.selectedPaths()).toEqual([createdPath]);
+  });
+
+  it("opens the new file when the confirm is the open variant", () => {
+    const createdPath = confirmAddDialog("opened.txt", "tree-view:confirm-and-open");
+
+    expect(fs.existsSync(createdPath)).toBe(true);
+    expect(lumine.workspace.open).toHaveBeenCalledWith(createdPath);
+  });
+});

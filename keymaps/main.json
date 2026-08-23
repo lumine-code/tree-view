@@ -58,6 +58,10 @@
   },
   ".tree-view-dialog lumine-text-editor[mini]": {
     "enter": "core:confirm",
+    // Confirming leaves the new path closed; this is the variant that opens
+    // it. The add-folder dialog registers no such command, so there it never
+    // resolves and enter stays the only way to confirm.
+    "shift-enter": "tree-view:confirm-and-open",
     "escape": "core:cancel",
     // The key that opens the rename dialog goes on cycling what it selected.
     "f2": "tree-view:select-name"

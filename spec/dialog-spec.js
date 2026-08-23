@@ -54,12 +54,38 @@ describe("TreeView dialogs", () => {
       );
 
       let created = null;
-      dialog.onDidCreateFile((createdPath) => (created = createdPath));
+      dialog.onDidCreateFile((event) => (created = event));
       dialog.miniEditor.setText("newfile.txt");
-      dialog.onConfirm(dialog.miniEditor.getText());
+      dialog.confirm();
 
-      expect(created).toBe(path.join(projectPath, "newfile.txt"));
-      expect(fs.existsSync(created)).toBe(true);
+      expect(created.path).toBe(path.join(projectPath, "newfile.txt"));
+      expect(fs.existsSync(created.path)).toBe(true);
+    });
+
+    it("creates the file without asking for it to be opened", () => {
+      const dialog = track(new AddDialog(projectPath, true));
+      dialog.attach();
+
+      let created = null;
+      dialog.onDidCreateFile((event) => (created = event));
+      dialog.miniEditor.setText("closed.txt");
+      dialog.confirm();
+
+      expect(created.open).toBe(false);
+      expect(fs.existsSync(path.join(projectPath, "closed.txt"))).toBe(true);
+    });
+
+    it("asks for the file to be opened when the confirm is the open variant", () => {
+      const dialog = track(new AddDialog(projectPath, true));
+      dialog.attach();
+
+      let created = null;
+      dialog.onDidCreateFile((event) => (created = event));
+      dialog.miniEditor.setText("opened.txt");
+      lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:confirm-and-open");
+
+      expect(created.open).toBe(true);
+      expect(fs.existsSync(path.join(projectPath, "opened.txt"))).toBe(true);
     });
 
     it("places the caret after the default path for new files and folders", () => {
@@ -83,7 +109,7 @@ describe("TreeView dialogs", () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
       dialog.miniEditor.setText("exists.txt");
-      dialog.onConfirm(dialog.miniEditor.getText());
+      dialog.confirm();
 
       await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
       const status = dialog.inputDialogView.refs.statusMessage;
@@ -96,7 +122,7 @@ describe("TreeView dialogs", () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
       dialog.miniEditor.setText("exists.txt");
-      dialog.onConfirm(dialog.miniEditor.getText());
+      dialog.confirm();
       await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
       expect(dialog.inputDialogView.refs.statusMessage).toBeDefined();
 
@@ -145,17 +171,32 @@ describe("TreeView dialogs", () => {
       let moved = null;
       const dialog = track(
         new MoveDialog(source, {
-          onMove: ({ initialPath, newPath }) => (moved = { initialPath, newPath }),
+          onMove: (event) => (moved = event),
         }),
       );
       dialog.attach();
       dialog.miniEditor.setText("renamed.txt");
-      await dialog.onConfirm(dialog.miniEditor.getText());
+      await dialog.confirm();
 
       const destination = path.join(projectPath, "renamed.txt");
       expect(fs.existsSync(source)).toBe(false);
       expect(fs.existsSync(destination)).toBe(true);
-      expect(moved).toEqual({ initialPath: source, newPath: destination });
+      expect(moved).toEqual({ initialPath: source, newPath: destination, open: false });
+    });
+
+    it("asks for the moved file to be opened when the confirm is the open variant", async () => {
+      const source = fixture("old.txt", "content");
+      let moved = null;
+      const dialog = track(new MoveDialog(source, { onMove: (event) => (moved = event) }));
+      dialog.attach();
+      dialog.miniEditor.setText("renamed.txt");
+      await dialog.confirm({ open: true });
+
+      expect(moved).toEqual({
+        initialPath: source,
+        newPath: path.join(projectPath, "renamed.txt"),
+        open: true,
+      });
     });
   });
 
@@ -185,7 +226,20 @@ describe("TreeView dialogs", () => {
 
       expect(fsCompat.copy).toHaveBeenCalled();
       expect(copied.newPath).toBe(path.join(projectPath, "b.txt"));
+      expect(copied.open).toBe(false);
       expect(lumine.workspace.open).not.toHaveBeenCalled();
+    });
+
+    it("asks for the duplicate to be opened when the confirm is the open variant", async () => {
+      spyOn(fsCompat, "copy").and.callFake((source, destination, callback) => callback());
+
+      let copied = null;
+      const dialog = makeCopyDialog(fixture("a.txt", "hi"), (event) => (copied = event));
+      dialog.attach();
+      dialog.miniEditor.setText("b.txt");
+      await dialog.confirm({ open: true });
+
+      expect(copied.open).toBe(true);
     });
   });
 
@@ -254,14 +308,74 @@ describe("TreeView dialogs", () => {
       }
     });
 
-    it("is the item action the dialog offers", () => {
+    it("is an item action the dialog offers", () => {
       const dialog = track(new MoveDialog(fixture("old.txt"), {}));
       dialog.attach();
 
+      const action = dialog.inputDialogView
+        .itemActions()
+        .find((candidate) => candidate.command === "tree-view:select-name");
+      expect(action.name).toBe("Select Name");
+      expect(action.description).toContain("base name");
+    });
+  });
+
+  describe("confirming with and without opening", () => {
+    // The order the registry reports is the order the command names were first
+    // registered anywhere in the window, so compare the set rather than a list.
+    function actionCommands(dialog) {
+      return dialog.inputDialogView
+        .itemActions()
+        .map((action) => action.command)
+        .sort();
+    }
+
+    it("lists both ways to confirm in the item actions, keystroke or not", () => {
+      const dialog = track(new MoveDialog(fixture("old.txt"), {}));
+      dialog.attach();
+
+      expect(actionCommands(dialog)).toEqual([
+        "tree-view:confirm",
+        "tree-view:confirm-and-open",
+        "tree-view:select-name",
+      ]);
+
       const actions = dialog.inputDialogView.itemActions();
-      expect(actions.map((action) => action.command)).toEqual(["tree-view:select-name"]);
-      expect(actions[0].name).toBe("Select Name");
-      expect(actions[0].description).toContain("base name");
+      const open = actions.find((action) => action.command === "tree-view:confirm-and-open");
+      expect(open.name).toBe("Confirm And Open");
+      expect(open.description).toContain("open the file");
+      const plain = actions.find((action) => action.command === "tree-view:confirm");
+      expect(plain.name).toBe("Confirm");
+      expect(plain.description).toContain("closed");
+    });
+
+    it("offers neither where the dialog names a directory", () => {
+      const folder = track(new AddDialog(projectPath, false));
+      folder.attach();
+      expect(actionCommands(folder)).toEqual(["tree-view:select-name"]);
+
+      const directory = path.join(projectPath, "nested");
+      fs.mkdirSync(directory);
+      const rename = track(new MoveDialog(directory, {}));
+      rename.attach();
+      expect(actionCommands(rename)).toEqual(["tree-view:select-name"]);
+    });
+
+    it("resolves its keystroke at the mini editor the dialog focuses", () => {
+      const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+      lumine.keymaps.loadKeymap(keymapPath);
+      try {
+        const dialog = track(new MoveDialog(fixture("old.txt"), {}));
+        dialog.attach();
+
+        const bindings = lumine.keymaps.findKeyBindings({
+          target: dialog.miniEditor.element,
+          command: "tree-view:confirm-and-open",
+        });
+        expect(bindings.map((binding) => binding.keystrokes)).toEqual(["shift-enter"]);
+      } finally {
+        lumine.keymaps.removeBindingsFromSource(keymapPath);
+      }
     });
   });
 });
