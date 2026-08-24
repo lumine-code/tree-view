@@ -2215,7 +2215,7 @@ describe("TreeView shift-arrow selection", () => {
   });
 });
 
-describe("TreeView adding a file", () => {
+describe("TreeView revealing changed paths", () => {
   let originalProjectPaths;
   let projectPath;
   let treeView;
@@ -2249,18 +2249,126 @@ describe("TreeView adding a file", () => {
     return path.join(projectPath, name);
   }
 
-  it("selects the new file in the tree and leaves it closed", () => {
+  it("reveals the new file in the tree and leaves it closed", async () => {
+    const createdEvent = new Promise((resolve) => treeView.onFileCreated(resolve));
     const createdPath = confirmAddDialog("created.txt", "tree-view:confirm");
+    await createdEvent;
 
     expect(fs.existsSync(createdPath)).toBe(true);
-    expect(lumine.workspace.open).not.toHaveBeenCalled();
+    expect(lumine.workspace.open).not.toHaveBeenCalledWith(createdPath);
     expect(treeView.selectedPaths()).toEqual([createdPath]);
   });
 
-  it("opens the new file when the confirm is the open variant", () => {
+  it("expands a collapsed destination to reveal a nested new file", async () => {
+    const directoryPath = path.join(projectPath, "nested");
+    fs.mkdirSync(directoryPath);
+    const createdEvent = new Promise((resolve) => treeView.onFileCreated(resolve));
+    const createdPath = confirmAddDialog(path.join("nested", "created.txt"), "tree-view:confirm");
+    await createdEvent;
+
+    expect(treeView.treeEntryForPath(directoryPath).isExpanded).toBe(true);
+    expect(treeView.selectedPaths()).toEqual([createdPath]);
+  });
+
+  it("reveals and opens the new file when the confirm is the open variant", async () => {
+    const createdEvent = new Promise((resolve) => treeView.onFileCreated(resolve));
     const createdPath = confirmAddDialog("opened.txt", "tree-view:confirm-and-open");
+    await createdEvent;
 
     expect(fs.existsSync(createdPath)).toBe(true);
+    expect(treeView.selectedPaths()).toEqual([createdPath]);
     expect(lumine.workspace.open).toHaveBeenCalledWith(createdPath);
+  });
+
+  it("reveals a file duplicated through the copy dialog", async () => {
+    const sourcePath = path.join(projectPath, "source.txt");
+    fs.writeFileSync(sourcePath, "content");
+    treeView.treeEntryForPath(sourcePath).reload();
+    await treeView.revealPath(sourcePath);
+    spyOn(treeView, "hasFocus").and.returnValue(true);
+    spyOn(treeView, "revealChangedPath").and.callThrough();
+    const copiedEvent = new Promise((resolve) => treeView.onEntryCopied(resolve));
+
+    treeView.copySelectedEntry();
+    const editor = document.querySelector(".tree-view-dialog lumine-text-editor").getModel();
+    editor.setText("copied.txt");
+    lumine.commands.dispatch(editor.element, "tree-view:confirm");
+    await copiedEvent;
+    await treeView.revealChangedPath.calls.mostRecent().returnValue;
+
+    const copiedPath = path.join(projectPath, "copied.txt");
+    expect(fs.existsSync(copiedPath)).toBe(true);
+    expect(treeView.selectedPaths()).toEqual([copiedPath]);
+  });
+
+  it("reveals a file renamed through the move dialog", async () => {
+    const sourcePath = path.join(projectPath, "source.txt");
+    fs.writeFileSync(sourcePath, "content");
+    treeView.treeEntryForPath(sourcePath).reload();
+    await treeView.revealPath(sourcePath);
+    spyOn(treeView, "hasFocus").and.returnValue(true);
+
+    const dialog = treeView.moveSelectedEntry();
+    dialog.miniEditor.setText("moved.txt");
+    await dialog.confirm();
+
+    const movedPath = path.join(projectPath, "moved.txt");
+    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(fs.existsSync(movedPath)).toBe(true);
+    expect(treeView.selectedPaths()).toEqual([movedPath]);
+  });
+});
+
+describe("TreeView revealing completed file operations", () => {
+  let temporaryPath;
+
+  beforeEach(() => {
+    temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-operation-reveal-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(temporaryPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  function operationTree(result) {
+    return {
+      emitter: { emit: jasmine.createSpy("emit") },
+      fileOperationProcess: {
+        run: jasmine.createSpy("run").and.returnValue(Promise.resolve(result)),
+      },
+      revealChangedPath: jasmine.createSpy("revealChangedPath").and.returnValue(Promise.resolve()),
+    };
+  }
+
+  it("reveals the destination after copying an entry", async () => {
+    const sourcePath = path.join(temporaryPath, "source.txt");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.writeFileSync(sourcePath, "content");
+    fs.mkdirSync(destinationDirectory);
+    const treeView = operationTree({ copied: true });
+
+    expect(
+      await TreeView.prototype.copyEntry.call(treeView, sourcePath, destinationDirectory),
+    ).toBe(true);
+
+    expect(treeView.revealChangedPath).toHaveBeenCalledWith(
+      path.join(destinationDirectory, "source.txt"),
+    );
+  });
+
+  it("reveals the destination after moving an entry", async () => {
+    const sourcePath = path.join(temporaryPath, "source.txt");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.writeFileSync(sourcePath, "content");
+    fs.mkdirSync(destinationDirectory);
+    const treeView = operationTree({ moved: true });
+
+    expect(
+      await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory),
+    ).toBe(true);
+
+    expect(treeView.revealChangedPath).toHaveBeenCalledWith(
+      path.join(destinationDirectory, "source.txt"),
+    );
   });
 });
