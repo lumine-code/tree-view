@@ -874,6 +874,55 @@ describe("TreeView construction", () => {
       expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
     });
 
+    it("lists up to five selected paths in the trash confirmation", async () => {
+      treeView = new TreeView({});
+      const selectedPaths = Array.from({ length: 5 }, (_, index) =>
+        path.join(__dirname, `selected-${index}`),
+      );
+      const selectedEntries = selectedPaths.map((selectedPath) => ({
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => selectedPath,
+      }));
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue(selectedPaths);
+      spyOn(treeView, "getSelectedEntries").and.returnValue(selectedEntries);
+      spyOn(lumine.window, "confirm").and.returnValue(Promise.resolve(1));
+
+      await treeView.removeSelectedEntries();
+
+      expect(lumine.window.confirm).toHaveBeenCalledWith({
+        message: "Are you sure you want to delete the selected items?",
+        detail: `You are deleting:\n${selectedPaths.join("\n")}`,
+        buttons: ["Move to Trash", "Cancel"],
+      });
+    });
+
+    it("shows only the item count above the trash confirmation path limit", async () => {
+      treeView = new TreeView({});
+      const selectedPaths = Array.from({ length: 6 }, (_, index) =>
+        path.join(__dirname, `selected-${index}`),
+      );
+      const selectedEntries = selectedPaths.map((selectedPath) => ({
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => selectedPath,
+      }));
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue(selectedPaths);
+      spyOn(treeView, "getSelectedEntries").and.returnValue(selectedEntries);
+      spyOn(lumine.window, "confirm").and.returnValue(Promise.resolve(1));
+
+      await treeView.removeSelectedEntries();
+
+      expect(lumine.window.confirm).toHaveBeenCalledWith({
+        message: "Are you sure you want to delete 6 items?",
+        buttons: ["Move to Trash", "Cancel"],
+      });
+    });
+
     it("skips the trash confirmation when configured", async () => {
       lumine.config.set("tree-view.confirmDelete", false);
       treeView = new TreeView({});
