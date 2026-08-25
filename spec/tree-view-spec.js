@@ -842,6 +842,17 @@ describe("TreeView construction", () => {
   });
 
   describe("removing a selection that includes pinned rows", () => {
+    let previousConfirmDelete;
+
+    beforeEach(() => {
+      previousConfirmDelete = lumine.config.get("tree-view.confirmDelete");
+      lumine.config.set("tree-view.confirmDelete", true);
+    });
+
+    afterEach(() => {
+      lumine.config.set("tree-view.confirmDelete", previousConfirmDelete);
+    });
+
     it("trashes an ordinary entry through the shell service", async () => {
       treeView = new TreeView({});
       const entry = {
@@ -859,6 +870,29 @@ describe("TreeView construction", () => {
 
       await treeView.removeSelectedEntries();
 
+      expect(lumine.window.confirm).toHaveBeenCalled();
+      expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
+    });
+
+    it("skips the trash confirmation when configured", async () => {
+      lumine.config.set("tree-view.confirmDelete", false);
+      treeView = new TreeView({});
+      const entry = {
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => __filename,
+      };
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue([__filename]);
+      spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
+      spyOn(treeView, "updateRoots");
+      spyOn(lumine.window, "confirm");
+      spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
+
+      await treeView.removeSelectedEntries();
+
+      expect(lumine.window.confirm).not.toHaveBeenCalled();
       expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
     });
 

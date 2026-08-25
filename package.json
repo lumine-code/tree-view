@@ -172,6 +172,12 @@
       "type": "boolean",
       "default": false
     },
+    "confirmDelete": {
+      "title": "Confirm Delete",
+      "description": "Ask for confirmation before moving files and directories to the system trash.",
+      "type": "boolean",
+      "default": true
+    },
     "hiddenOnStartup": {
       "title": "Hidden On Startup",
       "description": "When Lumine is opened, the view is hidden.",
