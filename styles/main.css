@@ -63,16 +63,47 @@
       40%,
       calc(
         var(--tree-view-operation-row-height) + var(--tree-view-operation-row-height) +
-          var(--tree-view-operation-row-height) + 1px
+          var(--tree-view-operation-row-height) + var(--tree-view-operation-row-height) + 1px
       )
     );
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
     border-top: 1px solid var(--base-border-color);
     color: var(--text-color-subtle);
 
     &[hidden] {
       display: none;
+    }
+
+    .tree-view-operation-header {
+      display: flex;
+      box-sizing: border-box;
+      min-width: 0;
+      min-height: var(--tree-view-operation-row-height);
+      flex: 0 0 var(--tree-view-operation-row-height);
+      align-items: center;
+      gap: var(--component-icon-padding);
+      padding: calc(var(--component-padding) / 2) var(--component-padding);
+      border-bottom: 1px solid var(--base-border-color);
+      white-space: nowrap;
+    }
+
+    .tree-view-operation-progress-label {
+      flex: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tree-view-operation-progress {
+      min-width: calc(var(--component-icon-size) * 2);
+      flex: 1;
+      margin: 0;
+    }
+
+    .tree-view-operation-list {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      overflow-y: auto;
     }
 
     .tree-view-operation-row {
@@ -90,13 +121,25 @@
         color: var(--text-color-subtle);
       }
 
-      > .loading-spinner-tiny,
-      > .icon-clock {
+      &.is-cancellable {
+        &:hover,
+        &:focus {
+          color: var(--text-color);
+          background-color: var(--background-color-highlight);
+        }
+
+        &:active {
+          background-color: var(--background-color-selected);
+        }
+      }
+
+      > .tree-view-operation-indicator,
+      > .tree-view-operation-kind {
         flex: none;
         margin: 0;
       }
 
-      > .icon-clock::before {
+      > .tree-view-operation-kind.icon::before {
         margin-right: 0;
       }
     }
@@ -108,7 +151,7 @@
       text-overflow: ellipsis;
     }
 
-    .tree-view-operation-cancel.btn.icon {
+    .tree-view-operation-button.btn.icon {
       display: inline-grid;
       width: calc(var(--component-icon-size) + 4px);
       height: calc(var(--component-icon-size) + 4px);

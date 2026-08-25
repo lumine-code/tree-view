@@ -65,10 +65,55 @@ describe("TreeView file operation process", () => {
 
     const firstCopy = operations.run("copy", sourcePath, firstCopyPath);
     const queuedCopy = operations.run("copy", sourcePath, queuedCopyPath);
+    expect(operations.pauseQueue()).toBe(true);
     expect(operations.cancel(queuedCopy.operationId)).toBe(true);
+    expect(operations.isQueuePaused()).toBe(false);
 
     expect(await queuedCopy).toEqual({ cancelled: true });
     expect(await firstCopy).toEqual({ copied: true });
+    expect(fs.existsSync(queuedCopyPath)).toBe(false);
+  });
+
+  it("pauses before starting the next queued operation and resumes it later", async () => {
+    const sourcePath = path.join(rootPath, "source.bin");
+    const firstCopyPath = path.join(rootPath, "first.bin");
+    const secondCopyPath = path.join(rootPath, "second.bin");
+    fs.writeFileSync(sourcePath, Buffer.alloc(1024 * 1024, 7));
+    operations = new FileOperationProcess();
+
+    const firstCopy = operations.run("copy", sourcePath, firstCopyPath);
+    const secondCopy = operations.run("copy", sourcePath, secondCopyPath);
+    expect(operations.getQueueProgress()).toEqual({ completed: 0, total: 2 });
+    expect(operations.pauseQueue()).toBe(true);
+    expect(operations.isQueuePaused()).toBe(true);
+
+    expect(await firstCopy).toEqual({ copied: true });
+    expect(operations.getOperations().map(({ state }) => state)).toEqual(["queued"]);
+    expect(operations.getQueueProgress()).toEqual({ completed: 1, total: 2 });
+    expect(fs.existsSync(secondCopyPath)).toBe(false);
+
+    expect(operations.resumeQueue()).toBe(true);
+    expect(operations.isQueuePaused()).toBe(false);
+    expect(await secondCopy).toEqual({ copied: true });
+    expect(operations.getQueueProgress()).toEqual({ completed: 2, total: 2 });
+    expect(fs.existsSync(secondCopyPath)).toBe(true);
+  });
+
+  it("clears queued operations without cancelling the running one", async () => {
+    const sourcePath = path.join(rootPath, "source.bin");
+    const runningCopyPath = path.join(rootPath, "running.bin");
+    const queuedCopyPath = path.join(rootPath, "queued.bin");
+    fs.writeFileSync(sourcePath, Buffer.alloc(1024 * 1024, 7));
+    operations = new FileOperationProcess();
+
+    const runningCopy = operations.run("copy", sourcePath, runningCopyPath);
+    const queuedCopy = operations.run("copy", sourcePath, queuedCopyPath);
+
+    expect(operations.clearQueue()).toBe(true);
+    expect(operations.getQueueProgress()).toEqual({ completed: 0, total: 1 });
+    expect(await queuedCopy).toEqual({ cancelled: true });
+    expect(await runningCopy).toEqual({ copied: true });
+    expect(fs.existsSync(runningCopyPath)).toBe(true);
     expect(fs.existsSync(queuedCopyPath)).toBe(false);
   });
 

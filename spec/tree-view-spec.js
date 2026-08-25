@@ -66,6 +66,26 @@ describe("TreeViewPackage teardown", () => {
 
     await treeViewPackage.deactivate();
   });
+
+  it("registers workspace commands for controlling the file operation queue", async () => {
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
+    const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.activate();
+    const treeView = treeViewPackage.getTreeViewInstance();
+    spyOn(treeView, "pauseOperationQueue");
+    spyOn(treeView, "resumeOperationQueue");
+    spyOn(treeView, "clearOperationQueue");
+    const workspaceElement = lumine.workspace.getElement();
+
+    lumine.commands.dispatch(workspaceElement, "tree-view:pause-queue");
+    lumine.commands.dispatch(workspaceElement, "tree-view:resume-queue");
+    lumine.commands.dispatch(workspaceElement, "tree-view:clear-queue");
+
+    expect(treeView.pauseOperationQueue).toHaveBeenCalled();
+    expect(treeView.resumeOperationQueue).toHaveBeenCalled();
+    expect(treeView.clearOperationQueue).toHaveBeenCalled();
+    await treeViewPackage.deactivate();
+  });
 });
 
 describe("TreeView.entryForPath", () => {
@@ -517,7 +537,8 @@ describe("TreeView construction", () => {
     expect(treeView.operationStatus.hidden).toBe(true);
     advanceClock(1);
     expect(treeView.operationStatus.hidden).toBe(false);
-    expect(treeView.operationStatus.textContent).toContain("Copying second.bin");
+    expect(treeView.operationStatus.textContent).toContain("second.bin");
+    expect(treeView.operationStatus.textContent).not.toContain("Copying");
   });
 
   it("never shows the panel when the whole queue finishes within its delay", () => {
@@ -539,7 +560,7 @@ describe("TreeView construction", () => {
     advanceClock(100);
 
     expect(treeView.operationStatus.hidden).toBe(true);
-    expect(treeView.operationStatus.childElementCount).toBe(0);
+    expect(treeView.operationList.childElementCount).toBe(0);
   });
 
   it("renders the current operation and queue with cancel buttons", () => {
@@ -563,25 +584,61 @@ describe("TreeView construction", () => {
       },
       {
         id: 2,
-        operation: "copy",
+        operation: "move",
         sourcePath: nextPath,
         destinationPath: nextPath + ".copy",
         state: "queued",
       },
     ]);
+    spyOn(treeView.fileOperationProcess, "getQueueProgress").and.returnValue({
+      completed: 0,
+      total: 2,
+    });
     spyOn(treeView.fileOperationProcess, "cancel").and.returnValue(true);
+    const dispatch = spyOn(lumine.commands, "dispatch");
 
     treeView.showOperationStatus();
 
     const rows = treeView.operationStatus.querySelectorAll(".tree-view-operation-row");
     expect(rows.length).toBe(2);
-    expect(rows[0].textContent).toContain("Copying large.bin");
-    expect(rows[1].textContent).toContain("Next · Copy · next.bin");
-    expect(rows[0].querySelector("button")).toHaveClass("tree-view-operation-cancel");
-    rows[0].querySelector("button").click();
-    rows[1].querySelector("button").click();
+    expect(rows[0].textContent).toContain("large.bin");
+    expect(rows[0].textContent).not.toContain("Copying");
+    expect(rows[0].querySelector(".tree-view-operation-indicator")).toHaveClass(
+      "loading-spinner-tiny",
+    );
+    expect(rows[0].lastElementChild).toHaveClass("tree-view-operation-indicator");
+    expect(rows[0].querySelector(".tree-view-operation-kind")).toHaveClass("icon-clippy");
+    expect(rows[1].textContent).toBe("next.bin");
+    expect(rows[1].querySelector(".tree-view-operation-indicator")).toBeNull();
+    expect(rows[1].querySelector(".tree-view-operation-kind")).toHaveClass("icon-diff-renamed");
+    expect(treeView.operationProgressLabel.textContent).toBe("0 / 2");
+    expect(treeView.operationProgress.max).toBe(2);
+    expect(treeView.operationProgress.value).toBe(0);
+
+    const pauseButton = treeView.operationPauseButton;
+    const clearButton = treeView.operationClearButton;
+    expect(pauseButton).toHaveClass("icon-playback-pause");
+    expect(clearButton).toHaveClass("icon-trashcan");
+    pauseButton.click();
+    clearButton.click();
+    expect(dispatch).toHaveBeenCalledWith(lumine.workspace.getElement(), "tree-view:pause-queue");
+    expect(dispatch).toHaveBeenCalledWith(lumine.workspace.getElement(), "tree-view:clear-queue");
+
+    expect(treeView.operationStatus.querySelector(".tree-view-operation-cancel")).toBeNull();
+    expect(rows[0]).toHaveClass("is-cancellable");
+    expect(rows[0].getAttribute("role")).toBe("button");
+    rows[0].click();
+    rows[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     expect(treeView.fileOperationProcess.cancel).toHaveBeenCalledWith(1);
     expect(treeView.fileOperationProcess.cancel).toHaveBeenCalledWith(2);
+
+    treeView.fileOperationProcess.queuePaused = true;
+    treeView.renderOperationStatus();
+    const resumeButton = treeView.operationPauseButton;
+    expect(resumeButton).toBe(pauseButton);
+    expect(resumeButton).toHaveClass("icon-playback-play");
+    resumeButton.click();
+    expect(dispatch).toHaveBeenCalledWith(lumine.workspace.getElement(), "tree-view:resume-queue");
   });
 
   it("keeps editor path tracking isolated between queued moves", () => {
