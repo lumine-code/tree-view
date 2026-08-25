@@ -52,10 +52,20 @@
   }
 
   .tree-view-operation-status {
+    --tree-view-operation-row-height: calc(
+      var(--component-icon-size) + 4px + var(--component-padding)
+    );
+
     display: flex;
     box-sizing: border-box;
     min-width: 0;
-    max-height: min(40%, 200px);
+    max-height: min(
+      40%,
+      calc(
+        var(--tree-view-operation-row-height) + var(--tree-view-operation-row-height) +
+          var(--tree-view-operation-row-height) + 1px
+      )
+    );
     flex-direction: column;
     overflow-y: auto;
     border-top: 1px solid var(--base-border-color);
@@ -67,7 +77,10 @@
 
     .tree-view-operation-row {
       display: flex;
+      box-sizing: border-box;
       min-width: 0;
+      min-height: var(--tree-view-operation-row-height);
+      flex: 0 0 var(--tree-view-operation-row-height);
       align-items: center;
       gap: var(--component-icon-padding);
       padding: calc(var(--component-padding) / 2) var(--component-padding);

@@ -483,6 +483,65 @@ describe("TreeView construction", () => {
     expect(provider.dispose).toHaveBeenCalled();
   });
 
+  it("uses one visibility delay across every job in a queue", () => {
+    treeView = new TreeView({});
+    const first = {
+      id: 1,
+      operation: "copy",
+      sourcePath: path.join("root", "first.bin"),
+      destinationPath: path.join("target", "first.bin"),
+      state: "running",
+    };
+    const second = {
+      id: 2,
+      operation: "copy",
+      sourcePath: path.join("root", "second.bin"),
+      destinationPath: path.join("target", "second.bin"),
+      state: "queued",
+    };
+    let operations = [first, second];
+    spyOn(treeView.fileOperationProcess, "getOperations").and.callFake(() => operations);
+
+    treeView.beginOperationStatus(first);
+    treeView.fileOperationQueueChanged(operations);
+    advanceClock(100);
+    expect(treeView.operationStatus.hidden).toBe(true);
+
+    operations = [second];
+    treeView.finishOperationStatus();
+    second.state = "running";
+    treeView.beginOperationStatus(second);
+    treeView.fileOperationQueueChanged(operations);
+
+    advanceClock(149);
+    expect(treeView.operationStatus.hidden).toBe(true);
+    advanceClock(1);
+    expect(treeView.operationStatus.hidden).toBe(false);
+    expect(treeView.operationStatus.textContent).toContain("Copying second.bin");
+  });
+
+  it("never shows the panel when the whole queue finishes within its delay", () => {
+    treeView = new TreeView({});
+    const first = { id: 1, operation: "copy", sourcePath: path.join("root", "first.bin") };
+    const second = { id: 2, operation: "copy", sourcePath: path.join("root", "second.bin") };
+    let operations = [first, second];
+    spyOn(treeView.fileOperationProcess, "getOperations").and.callFake(() => operations);
+
+    treeView.beginOperationStatus(first);
+    treeView.fileOperationQueueChanged(operations);
+    advanceClock(100);
+    operations = [second];
+    treeView.finishOperationStatus();
+    treeView.beginOperationStatus(second);
+    advanceClock(100);
+    operations = [];
+    treeView.finishOperationStatus();
+    advanceClock(100);
+
+    expect(treeView.operationStatus.hidden).toBe(true);
+    expect(treeView.operationStatus.childElementCount).toBe(0);
+  });
+
   it("renders the current operation and queue with cancel buttons", () => {
     treeView = new TreeView({});
     const sourcePath = path.join("root", "large.bin");

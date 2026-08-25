@@ -82,7 +82,7 @@ describe("TreeView file operation process", () => {
 
     const conflicts = [];
     operations = new FileOperationProcess({
-      onConflict(conflict) {
+      async onConflict(conflict) {
         conflicts.push(conflict);
         return "replace";
       },
