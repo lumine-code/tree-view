@@ -842,16 +842,36 @@ describe("TreeView construction", () => {
   });
 
   describe("removing a selection that includes pinned rows", () => {
-    let previousConfirmDelete;
+    let previousConfirmDelete, previousCloseDeletedFileTabs;
 
     beforeEach(() => {
       previousConfirmDelete = lumine.config.get("tree-view.confirmDelete");
+      previousCloseDeletedFileTabs = lumine.config.get("core.closeDeletedFileTabs");
       lumine.config.set("tree-view.confirmDelete", true);
     });
 
     afterEach(() => {
       lumine.config.set("tree-view.confirmDelete", previousConfirmDelete);
+      lumine.config.set("core.closeDeletedFileTabs", previousCloseDeletedFileTabs);
     });
+
+    const prepareOpenEditorRemoval = async () => {
+      const editor = await lumine.workspace.open(__filename);
+      treeView = new TreeView({});
+      const entry = {
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => __filename,
+      };
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue([__filename]);
+      spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
+      spyOn(treeView, "updateRoots");
+      spyOn(lumine.window, "confirm").and.returnValue(Promise.resolve(0));
+      spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
+      return editor;
+    };
 
     it("trashes an ordinary entry through the shell service", async () => {
       treeView = new TreeView({});
@@ -872,6 +892,24 @@ describe("TreeView construction", () => {
 
       expect(lumine.window.confirm).toHaveBeenCalled();
       expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
+    });
+
+    it("keeps its editor open when closing deleted file tabs is disabled", async () => {
+      lumine.config.set("core.closeDeletedFileTabs", false);
+      const editor = await prepareOpenEditorRemoval();
+
+      await treeView.removeSelectedEntries();
+
+      expect(editor.isDestroyed()).toBe(false);
+    });
+
+    it("closes its unmodified editor when configured", async () => {
+      lumine.config.set("core.closeDeletedFileTabs", true);
+      const editor = await prepareOpenEditorRemoval();
+
+      await treeView.removeSelectedEntries();
+
+      expect(editor.isDestroyed()).toBe(true);
     });
 
     it("lists up to five selected paths in the trash confirmation", async () => {
