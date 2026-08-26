@@ -894,22 +894,13 @@ describe("TreeView construction", () => {
       expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
     });
 
-    it("keeps its editor open when closing deleted file tabs is disabled", async () => {
-      lumine.config.set("core.closeDeletedFileTabs", false);
-      const editor = await prepareOpenEditorRemoval();
-
-      await treeView.removeSelectedEntries();
-
-      expect(editor.isDestroyed()).toBe(false);
-    });
-
-    it("closes its unmodified editor when configured", async () => {
+    it("leaves editor closing to the workspace file-state observer", async () => {
       lumine.config.set("core.closeDeletedFileTabs", true);
       const editor = await prepareOpenEditorRemoval();
 
       await treeView.removeSelectedEntries();
 
-      expect(editor.isDestroyed()).toBe(true);
+      expect(editor.isDestroyed()).toBe(false);
     });
 
     it("lists up to five selected paths in the trash confirmation", async () => {
