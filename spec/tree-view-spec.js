@@ -2007,8 +2007,9 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(stickyList).contain).toBe("paint");
       expect(getComputedStyle(stickyList).transform).toBe("none");
       expect(getComputedStyle(stickyList).backgroundColor).toBe("rgb(242, 242, 242)");
+      expect(getComputedStyle(stickyList).boxShadow).toContain("rgb(180, 180, 180)");
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(220, 225, 235)");
-      expect(getComputedStyle(stickyGuides).display).toBe("none");
+      expect(getComputedStyle(stickyGuides).display).toBe("flex");
       const directoryRowStyle = getComputedStyle(directoryRow);
       const directoryDisclosureLeft = directoryDisclosure.getBoundingClientRect().left;
       const stickyDisclosureLeft = stickyDisclosure.getBoundingClientRect().left;
@@ -2032,6 +2033,8 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(directoryGuides.firstElementChild).width).toBe("21px");
       expect(getComputedStyle(directoryGuides.firstElementChild).borderLeftWidth).toBe("0px");
       expect(getComputedStyle(directoryGuides.firstElementChild).backgroundImage).not.toBe("none");
+      expect(getComputedStyle(stickyGuides.firstElementChild).borderLeftWidth).toBe("0px");
+      expect(getComputedStyle(stickyGuides.firstElementChild).backgroundImage).not.toBe("none");
       expect(fileName.getBoundingClientRect().left).toBe(
         directoryName.getBoundingClientRect().left,
       );

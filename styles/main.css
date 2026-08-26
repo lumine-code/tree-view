@@ -528,15 +528,12 @@
     contain: paint;
     isolation: isolate;
     background: var(--tree-view-sticky-background);
+    box-shadow: inset 0 -1px var(--base-border-color);
   }
 
   .tree-view-sticky-header {
     position: relative;
     background: var(--tree-view-sticky-background);
-
-    > .tree-view-indent-guides {
-      display: none;
-    }
 
     &::before {
       display: none;
