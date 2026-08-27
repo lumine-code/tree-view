@@ -237,8 +237,7 @@
     "TreeView": "getTreeViewInstance"
   },
   "dependencies": {
-    "natural-compare-lite": "^1.4.0",
-    "picomatch": "^4.0.5"
+    "natural-compare-lite": "^1.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
