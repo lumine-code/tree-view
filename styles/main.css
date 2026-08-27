@@ -400,10 +400,9 @@
     overflow: visible;
   }
 
-  .tree-view-metrics-probe {
-    position: absolute !important;
-    top: 0;
-    left: 0;
+  .tree-view-row-metrics {
+    position: absolute;
+    inset: 0 auto auto 0;
     visibility: hidden;
     pointer-events: none;
   }

@@ -1506,6 +1506,27 @@ describe("TreeView row model and sticky headers", () => {
     return treeView;
   }
 
+  it("updates row heights only when the metric probes change", () => {
+    const treeView = stickyHarness();
+    treeView.rowMetrics = { isConnected: true };
+    treeView.regularRowHeight = 24;
+    treeView.rootRowHeight = 32;
+    treeView.regularRowMetricsProbe = {
+      getBoundingClientRect: jasmine.createSpy().and.returnValue({ height: 24 }),
+    };
+    treeView.rootHeaderMetricsProbe = {
+      getBoundingClientRect: jasmine.createSpy().and.returnValue({ height: 32 }),
+    };
+
+    expect(treeView.measureRowHeights()).toBe(false);
+
+    treeView.regularRowMetricsProbe.getBoundingClientRect.and.returnValue({ height: 28 });
+    treeView.rootHeaderMetricsProbe.getBoundingClientRect.and.returnValue({ height: 36 });
+    expect(treeView.measureRowHeights()).toBe(true);
+    expect(treeView.regularRowHeight).toBe(28);
+    expect(treeView.rootRowHeight).toBe(36);
+  });
+
   it("ends a nested guide column before the ancestor's next sibling", () => {
     const treeView = stickyHarness();
     const root = entry(treeView, "root", "directory", null, { projectRoot: true });
