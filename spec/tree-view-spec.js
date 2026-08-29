@@ -1440,6 +1440,43 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("opening files into the tiled layout", () => {
+    beforeEach(async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      spyOn(treeView, "selectedEntry").and.returnValue({
+        kind: "file",
+        getPath: () => __filename,
+      });
+    });
+
+    it("splits a tiled pane when the center's active pane is detached", () => {
+      const center = lumine.workspace.getCenter();
+      const tiledPane = center.getTiledPanes()[0];
+      const item = { getTitle: () => "Tiled item", element: document.createElement("div") };
+      tiledPane.addItem(item);
+      const destination = { id: "destination" };
+      spyOn(tiledPane, "split").and.returnValue(destination);
+      spyOn(center, "getActivePane").and.returnValue({ isDetached: () => true });
+      spyOn(lumine.workspace, "openURIInPane").and.resolveTo();
+
+      treeView.openSelectedEntryRight();
+
+      expect(tiledPane.split).toHaveBeenCalledOnceWith("horizontal", "after");
+      expect(lumine.workspace.openURIInPane).toHaveBeenCalledOnceWith(__filename, destination);
+    });
+
+    it("indexes only tiled panes for the numbered open commands", () => {
+      const panes = lumine.workspace.getCenter().getTiledPanes();
+      const secondPane = panes[0].splitRight();
+      spyOn(lumine.workspace, "open").and.resolveTo();
+
+      treeView.openSelectedEntryInPane(1);
+
+      expect(lumine.workspace.open).toHaveBeenCalledOnceWith(__filename, { pane: secondPane });
+    });
+  });
+
   describe("the context menu of a project folder", () => {
     let pack, disposable;
 
