@@ -452,6 +452,88 @@ describe("TreeView OS file drops", () => {
   });
 });
 
+describe("TreeView workspace file drags", () => {
+  const FILE_PATHS_TYPE = "application/x-lumine-file-paths";
+
+  function dragEntries(entries) {
+    const rows = new Map();
+    const container = document.createElement("ol");
+    for (const entry of entries) {
+      const row = document.createElement("li");
+      row.classList.add("entry", entry.kind);
+      row.textContent = path.basename(entry.getPath());
+      rows.set(entry, row);
+      container.appendChild(row);
+    }
+    jasmine.attachToDOM(container);
+
+    const data = {};
+    const dataTransfer = {
+      effectAllowed: "uninitialized",
+      setData(key, value) {
+        data[key] = `${value}`;
+      },
+      getData(key) {
+        return data[key] ?? "";
+      },
+      setDragImage: jasmine.createSpy("setDragImage"),
+    };
+    const selectedEntries = new Set(entries);
+    const treeView = {
+      rootDragAndDrop: { canDragStart: () => false },
+      treeEntryForElement: () => entries[0],
+      getSelectedEntries: () => entries,
+      selectedEntries,
+      elementForTreeEntry: (entry) => rows.get(entry),
+    };
+    const event = {
+      target: rows.get(entries[0]),
+      dataTransfer,
+      stopPropagation: jasmine.createSpy("stopPropagation"),
+    };
+
+    TreeView.prototype.onDragStart.call(treeView, event);
+    return { dataTransfer, event };
+  }
+
+  it("publishes selected files as an ordered, serializable cross-window payload", () => {
+    const firstPath = path.join(__dirname, "tree-view-spec.js");
+    const secondPath = path.resolve(__dirname, "..", "package.json");
+    const directoryPath = __dirname;
+    const entries = [
+      { kind: "file", parent: null, getPath: () => firstPath },
+      { kind: "directory", parent: null, getPath: () => directoryPath },
+      { kind: "file", parent: null, getPath: () => secondPath },
+    ];
+
+    const { dataTransfer, event } = dragEntries(entries);
+
+    expect(JSON.parse(dataTransfer.getData("initialPaths"))).toEqual([
+      firstPath,
+      directoryPath,
+      secondPath,
+    ]);
+    expect(JSON.parse(dataTransfer.getData(FILE_PATHS_TYPE))).toEqual([firstPath, secondPath]);
+    expect(dataTransfer.effectAllowed).toBe("copyMove");
+    expect(dataTransfer.getData("text/plain")).toBe([firstPath, secondPath].join("\n"));
+    expect(dataTransfer.getData("text/uri-list")).toContain("tree-view-spec.js");
+    expect(dataTransfer.setDragImage).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+  });
+
+  it("keeps directory-only drags internal to the tree view", () => {
+    const directoryPath = __dirname;
+    const { dataTransfer } = dragEntries([
+      { kind: "directory", parent: null, getPath: () => directoryPath },
+    ]);
+
+    expect(JSON.parse(dataTransfer.getData("initialPaths"))).toEqual([directoryPath]);
+    expect(dataTransfer.getData(FILE_PATHS_TYPE)).toBe("");
+    expect(dataTransfer.getData("text/plain")).toBe("");
+    expect(dataTransfer.getData("text/uri-list")).toBe("");
+  });
+});
+
 describe("TreeView construction", () => {
   let originalProjectPaths;
   let treeView;
