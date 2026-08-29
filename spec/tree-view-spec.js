@@ -1,6 +1,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const { webUtils } = require("electron");
 const { Disposable } = require("lumine");
 const TreeView = require("../lib/tree-view");
@@ -453,8 +454,6 @@ describe("TreeView OS file drops", () => {
 });
 
 describe("TreeView workspace file drags", () => {
-  const FILE_PATHS_TYPE = "application/x-lumine-file-paths";
-
   function dragEntries(entries) {
     const rows = new Map();
     const container = document.createElement("ol");
@@ -496,10 +495,12 @@ describe("TreeView workspace file drags", () => {
     return { dataTransfer, event };
   }
 
-  it("publishes selected files as an ordered, serializable cross-window payload", () => {
+  it("publishes selected files through the workspace drop protocol", () => {
     const firstPath = path.join(__dirname, "tree-view-spec.js");
     const secondPath = path.resolve(__dirname, "..", "package.json");
     const directoryPath = __dirname;
+    const windowId = lumine.window.getId();
+    const write = spyOn(lumine.workspaceDrops, "write").and.callThrough();
     const entries = [
       { kind: "file", parent: null, getPath: () => firstPath },
       { kind: "directory", parent: null, getPath: () => directoryPath },
@@ -513,22 +514,40 @@ describe("TreeView workspace file drags", () => {
       directoryPath,
       secondPath,
     ]);
-    expect(JSON.parse(dataTransfer.getData(FILE_PATHS_TYPE))).toEqual([firstPath, secondPath]);
+    expect(write).toHaveBeenCalledWith(dataTransfer, {
+      kind: "tree-entries",
+      effect: "copyMove",
+      allowedLocations: ["center"],
+      source: { windowId },
+      items: [
+        { type: "file", path: firstPath },
+        { type: "directory", path: directoryPath },
+        { type: "file", path: secondPath },
+      ],
+    });
     expect(dataTransfer.effectAllowed).toBe("copyMove");
     expect(dataTransfer.getData("text/plain")).toBe([firstPath, secondPath].join("\n"));
-    expect(dataTransfer.getData("text/uri-list")).toContain("tree-view-spec.js");
+    const uriList = dataTransfer.getData("text/uri-list").split("\r\n");
+    expect(uriList).toEqual([pathToFileURL(firstPath).href, pathToFileURL(secondPath).href]);
     expect(dataTransfer.setDragImage).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
   });
 
   it("keeps directory-only drags internal to the tree view", () => {
     const directoryPath = __dirname;
+    const write = spyOn(lumine.workspaceDrops, "write").and.callThrough();
     const { dataTransfer } = dragEntries([
       { kind: "directory", parent: null, getPath: () => directoryPath },
     ]);
 
     expect(JSON.parse(dataTransfer.getData("initialPaths"))).toEqual([directoryPath]);
-    expect(dataTransfer.getData(FILE_PATHS_TYPE)).toBe("");
+    expect(write).toHaveBeenCalledWith(dataTransfer, {
+      kind: "tree-entries",
+      effect: "copyMove",
+      allowedLocations: ["center"],
+      source: { windowId: lumine.window.getId() },
+      items: [{ type: "directory", path: directoryPath }],
+    });
     expect(dataTransfer.getData("text/plain")).toBe("");
     expect(dataTransfer.getData("text/uri-list")).toBe("");
   });
@@ -1114,14 +1133,34 @@ describe("TreeView construction", () => {
       });
       treeView.rebuildVisibleRows();
       const header = treeView.elementForTreeEntry(section.root);
+      const data = {};
+      const dataTransfer = {
+        get items() {
+          return Object.keys(data).map((type) => ({ kind: "string", type }));
+        },
+        setData(type, value) {
+          data[type] = `${value}`;
+        },
+        getData(type) {
+          return data[type] ?? "";
+        },
+        clearData(type) {
+          delete data[type];
+        },
+      };
+      lumine.workspaceDrops.write(dataTransfer, {
+        kind: "tree-entries",
+        effect: "copyMove",
+        allowedLocations: ["center"],
+        source: { windowId: lumine.window.getId() },
+        items: [{ type: "file", path: "/dropped.js" }],
+      });
+      dataTransfer.setData("initialPaths", JSON.stringify(["/dropped.js"]));
       const event = {
         target: header,
         preventDefault() {},
         stopPropagation() {},
-        dataTransfer: {
-          items: [{ type: "lumine-tree-view-event", kind: "string" }],
-          getData: (key) => (key === "initialPaths" ? JSON.stringify(["/dropped.js"]) : "true"),
-        },
+        dataTransfer,
       };
 
       await treeView.onDrop(event);
