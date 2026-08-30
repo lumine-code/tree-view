@@ -4,6 +4,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const { webUtils } = require("electron");
 const { Disposable } = require("lumine");
+const Directory = require("../lib/directory");
 const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
 const TreeRowView = require("../lib/tree-row-view");
@@ -1170,14 +1171,100 @@ describe("TreeView construction", () => {
   });
 
   describe("revealing a path", () => {
-    it("waits for each folder on the way, so it reaches a collapsed subtree", async () => {
+    it("reveals the whole collapsed path before its directory watchers settle", async () => {
       treeView = new TreeView({});
       const target = path.join(__dirname, path.basename(__filename));
-      treeView.roots[0].collapse();
+      const projectPath = path.resolve(__dirname, "..");
+      await treeView.roots[0].expand();
+      treeView.roots[0].collapse(true);
 
-      await treeView.revealPath(target);
+      let releaseWatch;
+      const watchGate = new Promise((resolve) => {
+        releaseWatch = resolve;
+      });
+      const watchedPaths = [];
+      spyOn(Directory.prototype, "watch").and.callFake(function () {
+        watchedPaths.push(this.path);
+        return watchGate;
+      });
+      spyOn(treeView, "scrollToEntry");
 
-      expect(treeView.selectedEntry()?.getPath()).toBe(target);
+      const revealPromise = treeView.revealPath(target, { show: false, focus: false });
+      const settled = jasmine.createSpy("settled");
+      revealPromise.then(settled, settled);
+
+      try {
+        await flushMicrotasks();
+
+        expect(watchedPaths).toEqual([projectPath, __dirname]);
+        expect(treeView.entryForPath(target)).toBeDefined();
+        expect(treeView.selectedEntry()?.getPath()).toBe(target);
+        expect(treeView.scrollToEntry).toHaveBeenCalledWith(treeView.selectedEntry(), true);
+        expect(settled).not.toHaveBeenCalled();
+      } finally {
+        releaseWatch();
+        await Promise.allSettled([revealPromise]);
+      }
+      await revealPromise;
+
+      expect(settled).toHaveBeenCalled();
+    });
+
+    it("leaves the last reveal selected when two watcher sets settle in reverse order", async () => {
+      treeView = new TreeView({});
+      await treeView.roots[0].expand();
+
+      const firstDirectoryPath = __dirname;
+      const firstTarget = path.join(firstDirectoryPath, path.basename(__filename));
+      const secondDirectoryPath = path.resolve(__dirname, "..", "lib");
+      const secondTarget = path.join(secondDirectoryPath, "tree-view.js");
+      let releaseFirstWatch;
+      let releaseSecondWatch;
+      const firstWatchGate = new Promise((resolve) => {
+        releaseFirstWatch = resolve;
+      });
+      const secondWatchGate = new Promise((resolve) => {
+        releaseSecondWatch = resolve;
+      });
+      const watchedPaths = [];
+      spyOn(Directory.prototype, "watch").and.callFake(function () {
+        watchedPaths.push(this.path);
+        if (this.path === firstDirectoryPath) return firstWatchGate;
+        if (this.path === secondDirectoryPath) return secondWatchGate;
+        return Promise.resolve();
+      });
+      spyOn(treeView, "scrollToEntry");
+
+      const firstReveal = treeView.revealPath(firstTarget, { show: false, focus: false });
+      const secondReveal = treeView.revealPath(secondTarget, { show: false, focus: false });
+      const firstSettled = jasmine.createSpy("first settled");
+      const secondSettled = jasmine.createSpy("second settled");
+      firstReveal.then(firstSettled, firstSettled);
+      secondReveal.then(secondSettled, secondSettled);
+
+      try {
+        await flushMicrotasks();
+
+        expect(watchedPaths).toEqual([firstDirectoryPath, secondDirectoryPath]);
+        expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
+        expect(firstSettled).not.toHaveBeenCalled();
+        expect(secondSettled).not.toHaveBeenCalled();
+
+        releaseSecondWatch();
+        await flushMicrotasks();
+
+        expect(secondSettled).toHaveBeenCalled();
+        expect(firstSettled).not.toHaveBeenCalled();
+        expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
+      } finally {
+        releaseSecondWatch();
+        releaseFirstWatch();
+        await Promise.allSettled([firstReveal, secondReveal]);
+      }
+      await Promise.all([firstReveal, secondReveal]);
+
+      expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
+      expect(treeView.scrollToEntry.calls.mostRecent().args[0].getPath()).toBe(secondTarget);
     });
 
     it("selects a directory it reveals rather than only expanding it", async () => {
