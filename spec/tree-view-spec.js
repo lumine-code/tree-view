@@ -344,11 +344,9 @@ describe("TreeView repository changes", () => {
     }
   });
 
-  // Icon hints are resolved when a row's icon is applied, and the registry
-  // registers checkouts asynchronously after startup — so every repository
-  // directory wore a plain folder icon until its row was rebuilt by hand
-  // (collapse and re-expand). A clean repository never emits a status change,
-  // so nothing else ever re-rendered the row.
+  // Repository discovery is asynchronous, so a row can bind before its path is
+  // known as a checkout. The central icon registry must repaint that existing
+  // row without tree-view rebuilding or explicitly refreshing it.
   it("applies the repository icon to rows bound before their repository was registered", () => {
     const originalProjectPaths = lumine.project.getPaths();
     const projectPath = path.resolve(__dirname, "..");
@@ -377,8 +375,15 @@ describe("TreeView repository changes", () => {
         onDidChangeStatuses: () => new Disposable(),
         onDidChangeStatusSnapshot: () => new Disposable(),
       });
-      treeView.repositoriesChanged();
-
+      lumine.repositories.emitter.emit("did-change", {
+        version: 1,
+        added: [],
+        removed: [],
+        updated: [],
+        rootsAdded: [],
+        rootsRemoved: [],
+        routingChangedPrefixes: [rootPath],
+      });
       expect(rootName.classList.contains("icon-repo")).toBe(true);
     } finally {
       // Restored by hand before teardown: resetting the project paths asks the
