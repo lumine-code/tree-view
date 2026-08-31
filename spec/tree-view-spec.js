@@ -328,11 +328,15 @@ describe("TreeView repository changes", () => {
       treeView.scrollPosition.top = 240;
       spyOn(treeView, "updateRoots").and.callThrough();
       spyOn(rootDirectory, "repositoryChanged").and.callThrough();
+      const refreshIconSpies = Array.from(treeView.rowViews.values()).map((view) =>
+        spyOn(view, "refreshIcon").and.callThrough(),
+      );
 
       treeView.repositoriesChanged();
 
       expect(treeView.updateRoots).not.toHaveBeenCalled();
       expect(rootDirectory.repositoryChanged).toHaveBeenCalled();
+      for (const refreshIcon of refreshIconSpies) expect(refreshIcon).not.toHaveBeenCalled();
       // The same objects, not equal ones: nothing was torn down, so nothing had
       // to be rebuilt and no offset had to be restored.
       expect(treeView.roots[0].directory).toBe(rootDirectory);
@@ -347,34 +351,45 @@ describe("TreeView repository changes", () => {
   // Repository discovery is asynchronous, so a row can bind before its path is
   // known as a checkout. The central icon registry must repaint that existing
   // row without tree-view rebuilding or explicitly refreshing it.
-  it("applies the repository icon to rows bound before their repository was registered", () => {
+  it("centrally repaints repository and submodule rows bound before routing changed", async () => {
     const originalProjectPaths = lumine.project.getPaths();
     const projectPath = path.resolve(__dirname, "..");
+    const submodulePath = __dirname;
     lumine.project.setPaths([projectPath]);
     // Rows bound while the registry is still scanning see no repository.
     const getForPath = spyOn(lumine.repositories, "getForPath").and.returnValue(null);
     const treeView = new TreeView({});
 
     try {
-      const rootName = treeView.elementForTreeEntry(treeView.roots[0]).querySelector(".name");
+      await treeView.revealPath(submodulePath);
+      const rootEntry = treeView.roots[0];
+      const submoduleEntry = treeView.treeEntryForPath(submodulePath);
+      const rootView = treeView.rowViews.get(rootEntry);
+      const submoduleView = treeView.rowViews.get(submoduleEntry);
+      const rootName = rootView.name;
+      const submoduleName = submoduleView.name;
       expect(rootName.classList.contains("icon-repo")).toBe(false);
+      expect(submoduleName.classList.contains("icon-file-submodule")).toBe(false);
+      spyOn(rootView, "refreshIcon").and.callThrough();
+      spyOn(submoduleView, "refreshIcon").and.callThrough();
 
       // The scan has registered a checkout at the project root. A fake stands
       // in for it because the suite must hold wherever it runs from — the
       // installed copy under node_modules is not a repository root.
-      const rootPath = treeView.roots[0].getPath();
+      const rootPath = rootEntry.getPath();
       getForPath.and.returnValue({
         getWorkingDirectory: () => rootPath,
         isDestroyed: () => false,
-        isSubmodule: () => false,
+        isSubmodule: (somePath) => somePath === submodulePath,
         isPathIgnoredCached: () => false,
         getDirectoryStatusSummary: () => null,
         getPathStatusSummary: () => null,
-        relativize: (somePath) => (somePath === rootPath ? "" : somePath),
+        relativize: (somePath) => path.relative(rootPath, somePath),
         onDidChangeStatus: () => new Disposable(),
         onDidChangeStatuses: () => new Disposable(),
         onDidChangeStatusSnapshot: () => new Disposable(),
       });
+      jasmine.useRealClock();
       lumine.repositories.emitter.emit("did-change", {
         version: 1,
         added: [],
@@ -384,7 +399,14 @@ describe("TreeView repository changes", () => {
         rootsRemoved: [],
         routingChangedPrefixes: [rootPath],
       });
-      expect(rootName.classList.contains("icon-repo")).toBe(true);
+      await conditionPromise(
+        () =>
+          rootName.classList.contains("icon-repo") &&
+          submoduleName.classList.contains("icon-file-submodule"),
+        "central repository icon repaint",
+      );
+      expect(rootView.refreshIcon).not.toHaveBeenCalled();
+      expect(submoduleView.refreshIcon).not.toHaveBeenCalled();
     } finally {
       // Restored by hand before teardown: resetting the project paths asks the
       // registry for repositories again, and it must not be handed the fake.
