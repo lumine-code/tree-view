@@ -111,7 +111,7 @@ describe("TreeView dialogs", () => {
       dialog.miniEditor.setText("exists.txt");
       dialog.confirm();
 
-      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
+      await lumine.views.getNextUpdatePromise();
       const status = dialog.inputDialogView.refs.statusMessage;
       expect(status.textContent).toContain("already exists");
       expect(status.classList.contains("text-error")).toBe(true);
@@ -123,11 +123,11 @@ describe("TreeView dialogs", () => {
       dialog.attach();
       dialog.miniEditor.setText("exists.txt");
       dialog.confirm();
-      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
+      await lumine.views.getNextUpdatePromise();
       expect(dialog.inputDialogView.refs.statusMessage).toBeDefined();
 
       dialog.miniEditor.setText("fresh.txt");
-      await dialog.inputDialogView.constructor.getScheduler().getNextUpdatePromise();
+      await lumine.views.getNextUpdatePromise();
       expect(dialog.inputDialogView.refs.statusMessage).toBeUndefined();
     });
   });
