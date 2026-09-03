@@ -20,7 +20,7 @@ describe("TreeView dialogs", () => {
   afterEach(() => {
     for (const dialog of dialogs) {
       try {
-        dialog.inputDialogView.destroy();
+        dialog.inputDialogHost.destroy();
       } catch {
         // already destroyed by a confirm/cancel
       }
@@ -47,9 +47,9 @@ describe("TreeView dialogs", () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
 
-      const header = dialog.inputDialogView.getElement().querySelector("label.icon");
+      const header = dialog.inputDialog.getElement().querySelector("label.icon");
       expect(header.textContent).toContain("file");
-      expect(dialog.inputDialogView.getInfoMessage()).toContain("relative to the project root");
+      expect(dialog.inputDialog.getInfoMessage()).toContain("relative to the project root");
 
       let created = null;
       dialog.onDidCreateFile((event) => (created = event));
@@ -98,7 +98,7 @@ describe("TreeView dialogs", () => {
         expect(dialog.miniEditor.getText()).toBe(initialText);
         expect(dialog.miniEditor.getSelectedText()).toBe("");
         expect(dialog.miniEditor.getCursorBufferPosition()).toEqual([0, initialText.length]);
-        dialog.inputDialogView.destroy();
+        dialog.inputDialogHost.destroy();
       }
     });
 
@@ -110,7 +110,7 @@ describe("TreeView dialogs", () => {
       dialog.confirm();
 
       await lumine.views.getNextUpdatePromise();
-      const status = dialog.inputDialogView.getStatus();
+      const status = dialog.inputDialog.getStatus();
       expect(status.type).toBe("error");
       expect(status.message).toContain("already exists");
     });
@@ -122,11 +122,11 @@ describe("TreeView dialogs", () => {
       dialog.miniEditor.setText("exists.txt");
       dialog.confirm();
       await lumine.views.getNextUpdatePromise();
-      expect(dialog.inputDialogView.getStatus()).not.toBeNull();
+      expect(dialog.inputDialog.getStatus()).not.toBeNull();
 
       dialog.miniEditor.setText("fresh.txt");
       await lumine.views.getNextUpdatePromise();
-      expect(dialog.inputDialogView.getStatus()).toBeNull();
+      expect(dialog.inputDialog.getStatus()).toBeNull();
     });
   });
 
@@ -207,9 +207,7 @@ describe("TreeView dialogs", () => {
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
 
-      expect(
-        dialog.inputDialogView.getElement().querySelector(".input-dialog-checkboxes"),
-      ).toBeNull();
+      expect(dialog.inputDialog.getElement().querySelector(".input-dialog-checkboxes")).toBeNull();
     });
 
     it("duplicates the entry and reports the copy without opening it", async () => {
@@ -312,7 +310,7 @@ describe("TreeView dialogs", () => {
       const dialog = track(new MoveDialog(fixture("old.txt"), {}));
       dialog.attach();
 
-      const action = dialog.inputDialogView
+      const action = dialog.inputDialog
         .getAvailableActions()
         .find((candidate) => candidate.command === "tree-view:select-name");
       expect(action.name).toBe("Select Name");
@@ -322,7 +320,7 @@ describe("TreeView dialogs", () => {
 
   describe("confirming with and without opening", () => {
     function actionCommands(dialog) {
-      return dialog.inputDialogView.getAvailableActions().map((action) => action.command);
+      return dialog.inputDialog.getAvailableActions().map((action) => action.command);
     }
 
     it("lists both ways to confirm in the item actions, keystroke or not", () => {
@@ -335,7 +333,7 @@ describe("TreeView dialogs", () => {
         "tree-view:select-name",
       ]);
 
-      const actions = dialog.inputDialogView.getAvailableActions();
+      const actions = dialog.inputDialog.getAvailableActions();
       const open = actions.find((action) => action.command === "tree-view:confirm-and-open");
       expect(open.name).toBe("Confirm And Open");
       expect(open.description).toContain("open the file");
@@ -348,7 +346,7 @@ describe("TreeView dialogs", () => {
       const folder = track(new AddDialog(projectPath, false));
       folder.attach();
       expect(actionCommands(folder)).toEqual(["tree-view:confirm", "tree-view:select-name"]);
-      expect(folder.inputDialogView.getAvailableActions()[0].primary).toBe(true);
+      expect(folder.inputDialog.getAvailableActions()[0].primary).toBe(true);
 
       const directory = path.join(projectPath, "nested");
       fs.mkdirSync(directory);
