@@ -47,11 +47,9 @@ describe("TreeView dialogs", () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
 
-      const header = dialog.inputDialogView.element.querySelector("label.icon");
+      const header = dialog.inputDialogView.getElement().querySelector("label.icon");
       expect(header.textContent).toContain("file");
-      expect(dialog.inputDialogView.refs.infoMessage.textContent).toContain(
-        "relative to the project root",
-      );
+      expect(dialog.inputDialogView.getInfoMessage()).toContain("relative to the project root");
 
       let created = null;
       dialog.onDidCreateFile((event) => (created = event));
@@ -75,14 +73,14 @@ describe("TreeView dialogs", () => {
       expect(fs.existsSync(path.join(projectPath, "closed.txt"))).toBe(true);
     });
 
-    it("asks for the file to be opened when the confirm is the open variant", () => {
+    it("asks for the file to be opened when the confirm is the open variant", async () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
 
       let created = null;
       dialog.onDidCreateFile((event) => (created = event));
       dialog.miniEditor.setText("opened.txt");
-      lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:confirm-and-open");
+      await lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:confirm-and-open");
 
       expect(created.open).toBe(true);
       expect(fs.existsSync(path.join(projectPath, "opened.txt"))).toBe(true);
@@ -112,9 +110,9 @@ describe("TreeView dialogs", () => {
       dialog.confirm();
 
       await lumine.views.getNextUpdatePromise();
-      const status = dialog.inputDialogView.refs.statusMessage;
-      expect(status.textContent).toContain("already exists");
-      expect(status.classList.contains("text-error")).toBe(true);
+      const status = dialog.inputDialogView.getStatus();
+      expect(status.type).toBe("error");
+      expect(status.message).toContain("already exists");
     });
 
     it("clears the error once the name changes", async () => {
@@ -124,11 +122,11 @@ describe("TreeView dialogs", () => {
       dialog.miniEditor.setText("exists.txt");
       dialog.confirm();
       await lumine.views.getNextUpdatePromise();
-      expect(dialog.inputDialogView.refs.statusMessage).toBeDefined();
+      expect(dialog.inputDialogView.getStatus()).not.toBeNull();
 
       dialog.miniEditor.setText("fresh.txt");
       await lumine.views.getNextUpdatePromise();
-      expect(dialog.inputDialogView.refs.statusMessage).toBeUndefined();
+      expect(dialog.inputDialogView.getStatus()).toBeNull();
     });
   });
 
@@ -209,7 +207,9 @@ describe("TreeView dialogs", () => {
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();
 
-      expect(dialog.inputDialogView.element.querySelector(".input-dialog-checkboxes")).toBeNull();
+      expect(
+        dialog.inputDialogView.getElement().querySelector(".input-dialog-checkboxes"),
+      ).toBeNull();
     });
 
     it("duplicates the entry and reports the copy without opening it", async () => {
@@ -244,51 +244,51 @@ describe("TreeView dialogs", () => {
   });
 
   describe("tree-view:select-name", () => {
-    function selectName(dialog) {
-      lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:select-name");
+    async function selectName(dialog) {
+      await lumine.commands.dispatch(dialog.miniEditor.element, "tree-view:select-name");
       return dialog.miniEditor.getSelectedText();
     }
 
-    it("cycles between the whole name and the base name", () => {
+    it("cycles between the whole name and the base name", async () => {
       const dialog = track(new MoveDialog(fixture("dialog.spec.js"), {}));
       dialog.attach();
       expect(dialog.miniEditor.getSelectedText()).toBe("dialog.spec");
 
-      expect(selectName(dialog)).toBe("dialog.spec.js");
-      expect(selectName(dialog)).toBe("dialog.spec");
-      expect(selectName(dialog)).toBe("dialog.spec.js");
+      expect(await selectName(dialog)).toBe("dialog.spec.js");
+      expect(await selectName(dialog)).toBe("dialog.spec");
+      expect(await selectName(dialog)).toBe("dialog.spec.js");
     });
 
-    it("never reaches past the last separator into the directory prefix", () => {
+    it("never reaches past the last separator into the directory prefix", async () => {
       const dialog = track(new MoveDialog(fixture(`nested${path.sep}old.txt`), {}));
       dialog.attach();
 
-      expect(selectName(dialog)).toBe("old.txt");
-      expect(selectName(dialog)).toBe("old");
+      expect(await selectName(dialog)).toBe("old.txt");
+      expect(await selectName(dialog)).toBe("old");
     });
 
-    it("stays on the whole name when there is no extension to leave out", () => {
+    it("stays on the whole name when there is no extension to leave out", async () => {
       const directory = path.join(projectPath, "v1.2");
       fs.mkdirSync(directory);
       const dialog = track(new CopyDialog(directory, { onCopy: () => {} }));
       dialog.attach();
 
-      expect(selectName(dialog)).toBe("v1.2");
-      expect(selectName(dialog)).toBe("v1.2");
+      expect(await selectName(dialog)).toBe("v1.2");
+      expect(await selectName(dialog)).toBe("v1.2");
     });
 
-    it("selects the name typed into an add dialog", () => {
+    it("selects the name typed into an add dialog", async () => {
       const file = track(new AddDialog(projectPath, true));
       file.attach();
       file.miniEditor.insertText("new.txt");
-      expect(selectName(file)).toBe("new.txt");
-      expect(selectName(file)).toBe("new");
+      expect(await selectName(file)).toBe("new.txt");
+      expect(await selectName(file)).toBe("new");
 
       const folder = track(new AddDialog(projectPath, false));
       folder.attach();
       folder.miniEditor.insertText("v1.2");
-      expect(selectName(folder)).toBe("v1.2");
-      expect(selectName(folder)).toBe("v1.2");
+      expect(await selectName(folder)).toBe("v1.2");
+      expect(await selectName(folder)).toBe("v1.2");
     });
 
     it("resolves its keystroke at the mini editor the dialog focuses", () => {
@@ -313,7 +313,7 @@ describe("TreeView dialogs", () => {
       dialog.attach();
 
       const action = dialog.inputDialogView
-        .itemActions()
+        .getAvailableActions()
         .find((candidate) => candidate.command === "tree-view:select-name");
       expect(action.name).toBe("Select Name");
       expect(action.description).toContain("base name");
@@ -321,13 +321,8 @@ describe("TreeView dialogs", () => {
   });
 
   describe("confirming with and without opening", () => {
-    // The order the registry reports is the order the command names were first
-    // registered anywhere in the window, so compare the set rather than a list.
     function actionCommands(dialog) {
-      return dialog.inputDialogView
-        .itemActions()
-        .map((action) => action.command)
-        .sort();
+      return dialog.inputDialogView.getAvailableActions().map((action) => action.command);
     }
 
     it("lists both ways to confirm in the item actions, keystroke or not", () => {
@@ -340,7 +335,7 @@ describe("TreeView dialogs", () => {
         "tree-view:select-name",
       ]);
 
-      const actions = dialog.inputDialogView.itemActions();
+      const actions = dialog.inputDialogView.getAvailableActions();
       const open = actions.find((action) => action.command === "tree-view:confirm-and-open");
       expect(open.name).toBe("Confirm And Open");
       expect(open.description).toContain("open the file");
@@ -349,16 +344,17 @@ describe("TreeView dialogs", () => {
       expect(plain.description).toContain("closed");
     });
 
-    it("offers neither where the dialog names a directory", () => {
+    it("keeps primary confirmation where the dialog names a directory", () => {
       const folder = track(new AddDialog(projectPath, false));
       folder.attach();
-      expect(actionCommands(folder)).toEqual(["tree-view:select-name"]);
+      expect(actionCommands(folder)).toEqual(["tree-view:confirm", "tree-view:select-name"]);
+      expect(folder.inputDialogView.getAvailableActions()[0].primary).toBe(true);
 
       const directory = path.join(projectPath, "nested");
       fs.mkdirSync(directory);
       const rename = track(new MoveDialog(directory, {}));
       rename.attach();
-      expect(actionCommands(rename)).toEqual(["tree-view:select-name"]);
+      expect(actionCommands(rename)).toEqual(["tree-view:confirm", "tree-view:select-name"]);
     });
 
     it("resolves its keystroke at the mini editor the dialog focuses", () => {
