@@ -43,6 +43,22 @@ describe("TreeView dialogs", () => {
   }
 
   describe("AddDialog", () => {
+    it("does not create a path when a will listener refuses it", async () => {
+      const target = path.join(projectPath, "refused.txt");
+      const willCreate = jasmine.createSpy("willCreate").and.resolveTo(false);
+      const dialog = track(new AddDialog(projectPath, true, { willCreate }));
+      dialog.attach();
+      dialog.miniEditor.setText("refused.txt");
+
+      await dialog.confirm();
+
+      expect(willCreate).toHaveBeenCalledWith({
+        paths: [target],
+        entries: [{ path: target, isDirectory: false }],
+      });
+      expect(fs.existsSync(target)).toBe(false);
+    });
+
     it("renders the prompt in the header and creates a file", () => {
       const dialog = track(new AddDialog(projectPath, true));
       dialog.attach();
@@ -182,6 +198,19 @@ describe("TreeView dialogs", () => {
       expect(moved).toEqual({ initialPath: source, newPath: destination, open: false });
     });
 
+    it("does not move an entry when a will listener refuses it", async () => {
+      const source = fixture("old.txt", "content");
+      const willMove = jasmine.createSpy("willMove").and.resolveTo(false);
+      const dialog = track(new MoveDialog(source, { willMove }));
+      dialog.attach();
+      dialog.miniEditor.setText("renamed.txt");
+
+      await dialog.confirm();
+
+      expect(fs.existsSync(source)).toBe(true);
+      expect(fs.existsSync(path.join(projectPath, "renamed.txt"))).toBe(false);
+    });
+
     it("asks for the moved file to be opened when the confirm is the open variant", async () => {
       const source = fixture("old.txt", "content");
       let moved = null;
@@ -226,6 +255,24 @@ describe("TreeView dialogs", () => {
       expect(copied.newPath).toBe(path.join(projectPath, "b.txt"));
       expect(copied.open).toBe(false);
       expect(lumine.workspace.open).not.toHaveBeenCalled();
+    });
+
+    it("does not copy an entry when a will listener refuses it", async () => {
+      const source = fixture("a.txt", "hi");
+      const copy = jasmine.createSpy("copy");
+      const dialog = track(
+        new CopyDialog(source, {
+          copy,
+          willCopy: jasmine.createSpy("willCopy").and.resolveTo(false),
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("b.txt");
+
+      await dialog.confirm();
+
+      expect(copy).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(projectPath, "b.txt"))).toBe(false);
     });
 
     it("asks for the duplicate to be opened when the confirm is the open variant", async () => {

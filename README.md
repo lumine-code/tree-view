@@ -10,6 +10,7 @@ Explore and open project files in a tree-like view of your directories.
 - **Sticky navigation**: optionally keep the project root, or the root and every expanded ancestor directory, visible while scrolling.
 - **Native clipboard**: copy or cut entries across windows and external applications while preserving platform-specific duplicate names.
 - **Responsive file operations**: copy and move entries in a separate process with a cancellable operation queue.
+- **Language-aware file operations**: let integrations update references before a create, rename, move, copy, or delete proceeds.
 - **Debounced file watching**: rapid file creation and deletion is batched so the tree does not reload excessively.
 - **Virtual root sections**: let external packages inject their own root sections above the project folders.
 
@@ -69,6 +70,7 @@ Commands available in `.tree-view-dialog`:
 
 - [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
 - [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
+- [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, rename and deletion.
 - `busy-signal`: consumed to report copy and move operations on the busy indicator.
 - `open-external`: consumed to open files with the configured external application.
 - `project-list`: consumed to add a "List projects" button to the empty project view.

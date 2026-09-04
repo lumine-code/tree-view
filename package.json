@@ -209,6 +209,12 @@
       "versions": {
         "1.0.0": "provideTreeViewRoots"
       }
+    },
+    "tree-view.file-operations": {
+      "description": "Observe and intercept file operations initiated by the tree view",
+      "versions": {
+        "1.0.0": "provideTreeViewFileOperations"
+      }
     }
   },
   "consumedServices": {
