@@ -27,20 +27,14 @@ function repositoryFor({
     isSubmodule() {
       return false;
     },
-    onDidChangeStatus() {
-      return new Disposable();
-    },
     // Recorded rather than ignored: firing the callback back is how a spec
     // tells a live subscription from one that was disposed with its entry.
-    onDidChangeStatuses(callback) {
+    onDidChangeStatusSnapshot(callback) {
       statusesCallbacks.push(callback);
       return new Disposable(() => {
         const index = statusesCallbacks.indexOf(callback);
         if (index !== -1) statusesCallbacks.splice(index, 1);
       });
-    },
-    onDidChangeStatusSnapshot() {
-      return new Disposable();
     },
     notifyStatusesChanged() {
       for (const callback of statusesCallbacks.slice()) callback();

@@ -385,8 +385,6 @@ describe("TreeView repository changes", () => {
         getDirectoryStatusSummary: () => null,
         getPathStatusSummary: () => null,
         relativize: (somePath) => path.relative(rootPath, somePath),
-        onDidChangeStatus: () => new Disposable(),
-        onDidChangeStatuses: () => new Disposable(),
         onDidChangeStatusSnapshot: () => new Disposable(),
       });
       jasmine.useRealClock();
