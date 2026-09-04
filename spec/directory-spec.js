@@ -4,6 +4,7 @@ const os = require("os");
 const path = require("path");
 
 const Directory = require("../lib/directory");
+const repositoryStatusObserver = require("../lib/repository-status-observer");
 
 function repositoryFor({
   directoryStatusSummary = null,
@@ -167,7 +168,7 @@ describe("TreeView Directory decorations and Git status", () => {
 // root for nested checkouts once the window is up — so an entry is routinely
 // built before the repository it belongs to exists. It used to learn about one
 // only by being thrown away and rebuilt.
-describe("TreeView Directory repositoryChanged", () => {
+describe("TreeView Directory repository routing", () => {
   let directory;
   let temporaryDirectories;
 
@@ -188,7 +189,7 @@ describe("TreeView Directory repositoryChanged", () => {
     }
   });
 
-  it("adopts a repository that did not exist when the directory was built", () => {
+  it("adopts a repository that did not exist when the directory was built", async () => {
     const directoryPath = makeTemporaryDirectory("late-repository");
     directory = createDirectory(directoryPath, null);
     expect(directory.status).toBeNull();
@@ -200,7 +201,8 @@ describe("TreeView Directory repositoryChanged", () => {
     const statuses = [];
     directory.onDidStatusChange((status) => statuses.push(status));
 
-    directory.repositoryChanged();
+    repositoryStatusObserver.repositoriesChanged();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(directory.status).toBe("modified");
     expect(statuses).toEqual(["modified"]);
@@ -208,24 +210,39 @@ describe("TreeView Directory repositoryChanged", () => {
     // The subscription is live, so the repository's later reports land too.
     repository.getDirectoryStatusSummary.and.returnValue(null);
     repository.notifyStatusesChanged();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(directory.status).toBeNull();
     expect(statuses).toEqual(["modified", null]);
   });
 
-  it("subscribes once however often the repository changes", () => {
+  it("subscribes once however often repository routing changes", async () => {
     const directoryPath = makeTemporaryDirectory("late-repository-resubscribe");
     const repository = repositoryFor({ directoryStatusSummary: null });
     directory = createDirectory(directoryPath, repository);
     expect(repository.subscriberCount()).toBe(1);
 
-    directory.repositoryChanged();
-    directory.repositoryChanged();
+    repositoryStatusObserver.repositoriesChanged();
+    repositoryStatusObserver.repositoriesChanged();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(repository.subscriberCount()).toBe(1);
   });
 
-  it("hands the repository to the entries it has already loaded", () => {
+  it("shares one repository subscription with every loaded child", () => {
+    const directoryPath = makeTemporaryDirectory("shared-repository-subscription");
+    fs.writeFileSync(path.join(directoryPath, "first.js"), "");
+    fs.writeFileSync(path.join(directoryPath, "second.js"), "");
+    const repository = repositoryFor({ directoryStatusSummary: null });
+
+    directory = createDirectory(directoryPath, repository);
+    directory.reload();
+
+    expect(directory.entries.size).toBe(2);
+    expect(repository.subscriberCount()).toBe(1);
+  });
+
+  it("hands the repository to the entries it has already loaded", async () => {
     const directoryPath = makeTemporaryDirectory("late-repository-children");
     const filePath = path.join(directoryPath, "index.js");
     fs.writeFileSync(filePath, "");
@@ -238,12 +255,13 @@ describe("TreeView Directory repositoryChanged", () => {
     });
     lumine.repositories.getForPath.and.returnValue(repository);
 
-    directory.repositoryChanged();
+    repositoryStatusObserver.repositoriesChanged();
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(directory.entries.get("index.js").status).toBe("modified");
   });
 
-  it("re-reads the entries when the new repository ignores one of them", () => {
+  it("re-reads the entries when the new repository ignores one of them", async () => {
     const originalHideVcsIgnoredFiles = lumine.config.get("tree-view.hideVcsIgnoredFiles");
     const directoryPath = makeTemporaryDirectory("late-repository-ignored");
     const ignoredPath = path.join(directoryPath, "build.log");
@@ -261,7 +279,8 @@ describe("TreeView Directory repositoryChanged", () => {
       const removed = [];
       directory.onDidRemoveEntries((entries) => removed.push(...entries));
 
-      directory.repositoryChanged();
+      repositoryStatusObserver.repositoriesChanged();
+      await new Promise((resolve) => setImmediate(resolve));
 
       expect(Array.from(directory.entries.keys())).toEqual(["index.js"]);
       expect(removed.map((entry) => entry.name)).toEqual(["build.log"]);

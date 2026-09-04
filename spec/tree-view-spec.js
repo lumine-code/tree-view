@@ -9,6 +9,7 @@ const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
 const TreeRowView = require("../lib/tree-row-view");
 const TreeViewPackage = require("../lib/tree-view-package");
+const repositoryStatusObserver = require("../lib/repository-status-observer");
 
 describe("TreeViewPackage teardown", () => {
   // Nothing fires onDidActivateInitialPackages in a spec run, and deactivate
@@ -315,7 +316,7 @@ describe("TreeView repository changes", () => {
   // threw the tree back to the top once per debounce window: a rebuilt root
   // loads its children asynchronously, so the content collapses to a couple of
   // rows in between and the scroller clamps the offset away before they arrive.
-  it("hands a new repository to the entries instead of rebuilding the roots", async () => {
+  it("queues repository rerouting instead of rebuilding the roots", async () => {
     const originalProjectPaths = lumine.project.getPaths();
     const projectPath = path.resolve(__dirname, "..");
     lumine.project.setPaths([projectPath]);
@@ -327,7 +328,7 @@ describe("TreeView repository changes", () => {
       const rowsBefore = treeView.visibleRows.slice();
       treeView.scrollPosition.top = 240;
       spyOn(treeView, "updateRoots").and.callThrough();
-      spyOn(rootDirectory, "repositoryChanged").and.callThrough();
+      spyOn(repositoryStatusObserver, "repositoriesChanged").and.callThrough();
       const refreshIconSpies = Array.from(treeView.rowViews.values()).map((view) =>
         spyOn(view, "refreshIcon").and.callThrough(),
       );
@@ -335,7 +336,7 @@ describe("TreeView repository changes", () => {
       treeView.repositoriesChanged();
 
       expect(treeView.updateRoots).not.toHaveBeenCalled();
-      expect(rootDirectory.repositoryChanged).toHaveBeenCalled();
+      expect(repositoryStatusObserver.repositoriesChanged).toHaveBeenCalled();
       for (const refreshIcon of refreshIconSpies) expect(refreshIcon).not.toHaveBeenCalled();
       // The same objects, not equal ones: nothing was torn down, so nothing had
       // to be rebuilt and no offset had to be restored.
