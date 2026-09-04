@@ -2876,13 +2876,16 @@ describe("TreeView revealing changed paths", () => {
 });
 
 describe("TreeView revealing completed file operations", () => {
-  let temporaryPath;
+  let duplicateCopyNameStyle, temporaryPath;
 
   beforeEach(() => {
+    duplicateCopyNameStyle = lumine.config.get("tree-view.duplicateCopyNameStyle");
+    lumine.config.set("tree-view.duplicateCopyNameStyle", "windows");
     temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-operation-reveal-"));
   });
 
   afterEach(() => {
+    lumine.config.set("tree-view.duplicateCopyNameStyle", duplicateCopyNameStyle);
     fs.rmSync(temporaryPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
