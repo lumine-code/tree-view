@@ -70,7 +70,7 @@ Commands available in `.tree-view-dialog`:
 
 - [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
 - [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
-- [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, rename and deletion.
+- [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, copying, moving, renaming and deletion.
 - `busy-signal`: consumed to report copy and move operations on the busy indicator.
 - `open-external`: consumed to open files with the configured external application.
 - `project-list`: consumed to add a "List projects" button to the empty project view.

@@ -42,6 +42,12 @@ describe("TreeView dialogs", () => {
     return full;
   }
 
+  function deferred() {
+    let resolve;
+    const promise = new Promise((done) => (resolve = done));
+    return { promise, resolve };
+  }
+
   describe("AddDialog", () => {
     it("does not create a path when a will listener refuses it", async () => {
       const target = path.join(projectPath, "refused.txt");
@@ -57,6 +63,65 @@ describe("TreeView dialogs", () => {
         entries: [{ path: target, isDirectory: false }],
       });
       expect(fs.existsSync(target)).toBe(false);
+    });
+
+    it("does not create a file after the dialog is cancelled while its will listener runs", async () => {
+      const gate = deferred();
+      const target = path.join(projectPath, "cancelled.txt");
+      const dialog = track(new AddDialog(projectPath, true, { willCreate: () => gate.promise }));
+      dialog.attach();
+      dialog.miniEditor.setText("cancelled.txt");
+
+      const confirmation = dialog.confirm();
+      dialog.inputDialogHost.cancel();
+      gate.resolve(true);
+      await confirmation;
+
+      expect(fs.existsSync(target)).toBe(false);
+    });
+
+    it("does not truncate a file created while its will listener runs", async () => {
+      const target = path.join(projectPath, "claimed.txt");
+      const didCreate = jasmine.createSpy("didCreate");
+      const dialog = track(
+        new AddDialog(projectPath, true, {
+          willCreate: () => {
+            fs.writeFileSync(target, "claimed");
+            return true;
+          },
+          didCreate,
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("claimed.txt");
+
+      await dialog.confirm();
+
+      expect(fs.readFileSync(target, "utf8")).toBe("claimed");
+      expect(didCreate).not.toHaveBeenCalled();
+      expect(dialog.inputDialog.getStatus().message).toContain("already exists");
+    });
+
+    it("does not claim a directory created while its will listener runs", async () => {
+      const target = path.join(projectPath, "claimed");
+      const didCreate = jasmine.createSpy("didCreate");
+      const dialog = track(
+        new AddDialog(projectPath, false, {
+          willCreate: () => {
+            fs.mkdirSync(target);
+            return true;
+          },
+          didCreate,
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("claimed");
+
+      await dialog.confirm();
+
+      expect(fs.statSync(target).isDirectory()).toBe(true);
+      expect(didCreate).not.toHaveBeenCalled();
+      expect(dialog.inputDialog.getStatus().message).toContain("already exists");
     });
 
     it("renders the prompt in the header and creates a file", () => {
@@ -211,6 +276,46 @@ describe("TreeView dialogs", () => {
       expect(fs.existsSync(path.join(projectPath, "renamed.txt"))).toBe(false);
     });
 
+    it("does not move an entry after the dialog is cancelled while its will listener runs", async () => {
+      const gate = deferred();
+      const source = fixture("old.txt", "content");
+      const move = jasmine.createSpy("move");
+      const dialog = track(new MoveDialog(source, { move, willMove: () => gate.promise }));
+      dialog.attach();
+      dialog.miniEditor.setText("renamed.txt");
+
+      const confirmation = dialog.confirm();
+      dialog.inputDialogHost.cancel();
+      gate.resolve(true);
+      await confirmation;
+
+      expect(move).not.toHaveBeenCalled();
+      expect(fs.existsSync(source)).toBe(true);
+    });
+
+    it("revalidates the destination after its will listener runs", async () => {
+      const source = fixture("old.txt", "content");
+      const destination = path.join(projectPath, "renamed.txt");
+      const move = jasmine.createSpy("move");
+      const dialog = track(
+        new MoveDialog(source, {
+          move,
+          willMove: () => {
+            fs.writeFileSync(destination, "claimed");
+            return true;
+          },
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("renamed.txt");
+
+      await dialog.confirm();
+
+      expect(move).not.toHaveBeenCalled();
+      expect(fs.readFileSync(destination, "utf8")).toBe("claimed");
+      expect(fs.existsSync(source)).toBe(true);
+    });
+
     it("asks for the moved file to be opened when the confirm is the open variant", async () => {
       const source = fixture("old.txt", "content");
       let moved = null;
@@ -273,6 +378,66 @@ describe("TreeView dialogs", () => {
 
       expect(copy).not.toHaveBeenCalled();
       expect(fs.existsSync(path.join(projectPath, "b.txt"))).toBe(false);
+    });
+
+    it("does not copy an entry after the dialog is cancelled while its will listener runs", async () => {
+      const gate = deferred();
+      const source = fixture("a.txt", "hi");
+      const copy = jasmine.createSpy("copy");
+      const dialog = track(new CopyDialog(source, { copy, willCopy: () => gate.promise }));
+      dialog.attach();
+      dialog.miniEditor.setText("b.txt");
+
+      const confirmation = dialog.confirm();
+      dialog.inputDialogHost.cancel();
+      gate.resolve(true);
+      await confirmation;
+
+      expect(copy).not.toHaveBeenCalled();
+    });
+
+    it("runs only the first confirm variant while its will listener is pending", async () => {
+      const gate = deferred();
+      const source = fixture("a.txt", "hi");
+      const copy = jasmine.createSpy("copy").and.resolveTo();
+      const onCopy = jasmine.createSpy("onCopy");
+      const dialog = track(new CopyDialog(source, { copy, onCopy, willCopy: () => gate.promise }));
+      dialog.attach();
+      dialog.miniEditor.setText("b.txt");
+
+      const confirmation = dialog.confirm();
+      expect(dialog.confirm({ open: true })).toBe(confirmation);
+      gate.resolve(true);
+      await confirmation;
+
+      expect(copy).toHaveBeenCalledTimes(1);
+      expect(onCopy).toHaveBeenCalledWith({
+        initialPath: source,
+        newPath: path.join(projectPath, "b.txt"),
+        open: false,
+      });
+    });
+
+    it("revalidates the destination after its will listener runs", async () => {
+      const source = fixture("a.txt", "hi");
+      const destination = path.join(projectPath, "b.txt");
+      const copy = jasmine.createSpy("copy");
+      const dialog = track(
+        new CopyDialog(source, {
+          copy,
+          willCopy: () => {
+            fs.writeFileSync(destination, "claimed");
+            return true;
+          },
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("b.txt");
+
+      await dialog.confirm();
+
+      expect(copy).not.toHaveBeenCalled();
+      expect(fs.readFileSync(destination, "utf8")).toBe("claimed");
     });
 
     it("asks for the duplicate to be opened when the confirm is the open variant", async () => {

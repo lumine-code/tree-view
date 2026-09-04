@@ -41,4 +41,13 @@ describe("tree-view.file-operations", () => {
       "onWillRenameFiles",
     ]);
   });
+
+  it("turns a rejected will listener into a controlled veto", async () => {
+    const events = new FileOperationEvents();
+    spyOn(console, "error");
+    events.on("willDelete", () => Promise.reject(new Error("unavailable")));
+
+    expect(await events.will("willDelete", { paths: ["file"] })).toBe(false);
+    expect(console.error).toHaveBeenCalled();
+  });
 });

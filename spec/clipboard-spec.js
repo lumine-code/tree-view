@@ -93,16 +93,19 @@ describe("TreeView clipboard data", () => {
     });
   });
 
-  it("queues every copied path before waiting for the first one", async () => {
+  it("plans every copied path before waiting for the batch", async () => {
     const sourcePaths = [__filename, path.join(__dirname, "tree-view-spec.js")];
     const targetPath = path.resolve("target");
-    const resolvers = [];
+    let resolveBatch;
     const treeView = {
-      copyEntry: jasmine.createSpy("copyEntry").and.callFake(
-        () =>
-          new Promise((resolve) => {
-            resolvers.push(resolve);
-          }),
+      planCopyEntry: jasmine.createSpy("planCopyEntry").and.callFake((initialPath, newPath) => ({
+        initialPath,
+        newPath,
+      })),
+      copyPlans: jasmine.createSpy("copyPlans").and.returnValue(
+        new Promise((resolve) => {
+          resolveBatch = resolve;
+        }),
       ),
     };
 
@@ -113,11 +116,15 @@ describe("TreeView clipboard data", () => {
       targetPath,
     );
 
-    expect(treeView.copyEntry.calls.count()).toBe(2);
-    expect(treeView.copyEntry.calls.argsFor(0)[2].reservedPaths).toBe(
-      treeView.copyEntry.calls.argsFor(1)[2].reservedPaths,
+    expect(treeView.planCopyEntry.calls.count()).toBe(2);
+    expect(treeView.planCopyEntry.calls.argsFor(0)[2].reservedPaths).toBe(
+      treeView.planCopyEntry.calls.argsFor(1)[2].reservedPaths,
     );
-    for (const resolve of resolvers) resolve(true);
+    expect(treeView.copyPlans).toHaveBeenCalledWith([
+      { initialPath: sourcePaths[0], newPath: targetPath },
+      { initialPath: sourcePaths[1], newPath: targetPath },
+    ]);
+    resolveBatch([{ success: true }]);
     expect(await pastePromise).toBe(true);
   });
 });

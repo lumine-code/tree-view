@@ -7,7 +7,7 @@ Observe and intercept file operations initiated by the tree view.
 | Version     | `1.0.0`                                                                     |
 | Provided by | `provideTreeViewFileOperations()`                                           |
 | Consumed by | Integrations that prepare for or observe file creation, rename and deletion |
-| Owner       | `tree-view`                                                                 |
+| Owner       | `tree-view` (bundled)                                                       |
 
 ## Registration
 
@@ -37,9 +37,11 @@ consumeTreeViewFileOperations(fileOperations) {
 
 ## Behavior
 
-Will callbacks run in registration order. The first callback returning `false` cancels the operation. Did callbacks run together after the filesystem operation and a rejection is logged without turning an already completed operation into a failure.
+Will callbacks run in registration order. The first callback returning `false`, throwing, or rejecting cancels the complete operation before any filesystem work begins. Did callbacks run together after the complete batch settles; they receive only paths that actually changed, and a rejection is logged without turning an already completed operation into a failure.
 
 `paths` contains absolute path strings. `entries` carries the same create/delete paths as `{path, isDirectory}` objects, while rename `files` contains `{oldPath, newPath, isDirectory}`. The richer form lets a consumer honor file-only and folder-only filters; `paths` remains the convenient form for consumers that do not care.
+
+A copy is a create operation and a move is a rename operation. A multi-entry paste or drop produces one plural will callback, queues nothing until every listener accepts it, preserves deterministic child-before-parent move order, and produces one plural did callback after all entries settle. When a directory is merged only the child or subtree roots that physically moved are reported; cancelled, skipped, and failed entries never masquerade as completed top-level operations.
 
 ## Teardown
 

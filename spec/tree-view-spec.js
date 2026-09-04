@@ -1103,6 +1103,75 @@ describe("TreeView construction", () => {
       expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
     });
 
+    it("does not trash a replacement that appears while delete is being prepared", async () => {
+      lumine.config.set("tree-view.confirmDelete", false);
+      const temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-delete-"));
+      const selectedPath = path.join(temporaryPath, "selected");
+      fs.writeFileSync(selectedPath, "original");
+      treeView = new TreeView({});
+      const entry = {
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => selectedPath,
+      };
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue([selectedPath]);
+      spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
+      spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
+      treeView.fileOperationEvents = {
+        will: jasmine.createSpy("will").and.callFake(() => {
+          fs.rmSync(selectedPath);
+          fs.mkdirSync(selectedPath);
+          return true;
+        }),
+        did: jasmine.createSpy("did"),
+      };
+
+      await treeView.removeSelectedEntries();
+
+      expect(lumine.shell.trashItem).not.toHaveBeenCalled();
+      expect(fs.statSync(selectedPath).isDirectory()).toBe(true);
+      expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
+      fs.rmSync(temporaryPath, { recursive: true, force: true });
+    });
+
+    it("reports successful deletions once after every selected path settles", async () => {
+      lumine.config.set("tree-view.confirmDelete", false);
+      const temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-delete-"));
+      const paths = ["deleted.txt", "failed.txt"].map((name) => {
+        const filePath = path.join(temporaryPath, name);
+        fs.writeFileSync(filePath, name);
+        return filePath;
+      });
+      treeView = new TreeView({});
+      const entries = paths.map((selectedPath) => ({
+        special: false,
+        specialRoot: false,
+        parent: null,
+        getPath: () => selectedPath,
+      }));
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      spyOn(treeView, "selectedPaths").and.returnValue(paths);
+      spyOn(treeView, "getSelectedEntries").and.returnValue(entries);
+      spyOn(lumine.shell, "trashItem").and.callFake((selectedPath) =>
+        selectedPath === paths[0] ? Promise.resolve() : Promise.reject(new Error("failed")),
+      );
+      treeView.fileOperationEvents = {
+        will: jasmine.createSpy("will").and.resolveTo(true),
+        did: jasmine.createSpy("did").and.resolveTo(),
+      };
+
+      await treeView.removeSelectedEntries();
+
+      expect(treeView.fileOperationEvents.did.calls.count()).toBe(1);
+      expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didDelete", {
+        paths: [paths[0]],
+        entries: [{ path: paths[0], isDirectory: false }],
+      });
+      fs.rmSync(temporaryPath, { recursive: true, force: true });
+    });
+
     it("hands the pinned paths to the section instead of deleting them", async () => {
       const onRemove = jasmine.createSpy("onRemove");
       treeView = new TreeView({});
@@ -2818,13 +2887,14 @@ describe("TreeView revealing completed file operations", () => {
   });
 
   function operationTree(result) {
-    return {
+    return Object.assign(Object.create(TreeView.prototype), {
       emitter: { emit: jasmine.createSpy("emit") },
       fileOperationProcess: {
         run: jasmine.createSpy("run").and.returnValue(Promise.resolve(result)),
       },
       revealChangedPath: jasmine.createSpy("revealChangedPath").and.returnValue(Promise.resolve()),
-    };
+      refreshSpecialRoots: jasmine.createSpy("refreshSpecialRoots"),
+    });
   }
 
   it("reveals the destination after copying an entry", async () => {
@@ -2857,5 +2927,373 @@ describe("TreeView revealing completed file operations", () => {
     expect(treeView.revealChangedPath).toHaveBeenCalledWith(
       path.join(destinationDirectory, "source.txt"),
     );
+  });
+
+  it("preflights a copy batch once before enqueueing any entry", async () => {
+    const firstDirectory = path.join(temporaryPath, "first");
+    const secondDirectory = path.join(temporaryPath, "second");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.mkdirSync(firstDirectory);
+    fs.mkdirSync(secondDirectory);
+    fs.mkdirSync(destinationDirectory);
+    const firstPath = path.join(firstDirectory, "same.txt");
+    const secondPath = path.join(secondDirectory, "same.txt");
+    fs.writeFileSync(firstPath, "first");
+    fs.writeFileSync(secondPath, "second");
+    let release;
+    const will = jasmine
+      .createSpy("will")
+      .and.returnValue(new Promise((resolve) => (release = resolve)));
+    const did = jasmine.createSpy("did").and.resolveTo();
+    const treeView = operationTree({ copied: true });
+    treeView.fileOperationEvents = { will, did };
+
+    const copying = TreeView.prototype.pastePaths.call(
+      treeView,
+      [firstPath, secondPath],
+      "copy",
+      destinationDirectory,
+    );
+    await Promise.resolve();
+
+    expect(will.calls.count()).toBe(1);
+    expect(will.calls.mostRecent().args[1].paths).toEqual([
+      path.join(destinationDirectory, "same.txt"),
+      path.join(destinationDirectory, "same - Copy.txt"),
+    ]);
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+
+    release(true);
+    await copying;
+
+    expect(treeView.fileOperationProcess.run.calls.count()).toBe(2);
+    expect(did.calls.count()).toBe(1);
+    expect(did.calls.mostRecent().args[1].paths).toEqual([
+      path.join(destinationDirectory, "same.txt"),
+      path.join(destinationDirectory, "same - Copy.txt"),
+    ]);
+  });
+
+  it("does not enqueue any copy when a batch preflight vetoes it", async () => {
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.mkdirSync(destinationDirectory);
+    const paths = ["first.txt", "second.txt"].map((name) => {
+      const filePath = path.join(temporaryPath, name);
+      fs.writeFileSync(filePath, name);
+      return filePath;
+    });
+    const treeView = operationTree({ copied: true });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(false),
+      did: jasmine.createSpy("did"),
+    };
+
+    await TreeView.prototype.pastePaths.call(treeView, paths, "copy", destinationDirectory);
+
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
+  });
+
+  it("classifies a copied directory symlink consistently in will and did payloads", async () => {
+    const targetPath = path.join(temporaryPath, "target");
+    const sourcePath = path.join(temporaryPath, "link");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.mkdirSync(targetPath);
+    fs.mkdirSync(destinationDirectory);
+    fs.symlinkSync(targetPath, sourcePath, process.platform === "win32" ? "junction" : "dir");
+    const destinationPath = path.join(destinationDirectory, "link");
+    const treeView = operationTree({
+      copied: true,
+      creates: [{ path: destinationPath, isDirectory: false }],
+    });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    await TreeView.prototype.copyEntry.call(treeView, sourcePath, destinationDirectory);
+
+    const payload = {
+      paths: [destinationPath],
+      entries: [{ path: destinationPath, isDirectory: false }],
+    };
+    expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willCreate", payload);
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didCreate", payload);
+  });
+
+  it("reports only completed copies once after the whole batch settles", async () => {
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.mkdirSync(destinationDirectory);
+    const paths = ["first.txt", "second.txt"].map((name) => {
+      const filePath = path.join(temporaryPath, name);
+      fs.writeFileSync(filePath, name);
+      return filePath;
+    });
+    const treeView = operationTree({ copied: true });
+    treeView.fileOperationProcess.run.and.callFake((operation, sourcePath, destinationPath) =>
+      sourcePath === paths[0]
+        ? Promise.resolve({
+            copied: true,
+            creates: [{ path: destinationPath, isDirectory: false }],
+          })
+        : Promise.reject(new Error("failed")),
+    );
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    await TreeView.prototype.pastePaths.call(treeView, paths, "copy", destinationDirectory);
+
+    expect(treeView.fileOperationEvents.did.calls.count()).toBe(1);
+    expect(treeView.fileOperationEvents.did.calls.mostRecent().args[1].paths).toEqual([
+      path.join(destinationDirectory, "first.txt"),
+    ]);
+  });
+
+  it("reports the concrete renames from a partial directory move", async () => {
+    const sourcePath = path.join(temporaryPath, "source");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    fs.mkdirSync(sourcePath);
+    fs.mkdirSync(destinationDirectory);
+    const concreteRename = {
+      oldPath: path.join(sourcePath, "moved.txt"),
+      newPath: path.join(destinationDirectory, "source", "moved.txt"),
+      isDirectory: false,
+    };
+    const treeView = operationTree({
+      skipped: true,
+      partial: true,
+      renames: [concreteRename],
+    });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    expect(
+      await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory),
+    ).toBe(true);
+
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
+      files: [concreteRename],
+    });
+  });
+
+  it("preflights and reports the same concrete renames for a full directory merge", async () => {
+    const sourcePath = path.join(temporaryPath, "source");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const destinationPath = path.join(destinationDirectory, "source");
+    const sourceChildPath = path.join(sourcePath, "existing", "child.txt");
+    const destinationChildPath = path.join(destinationPath, "existing", "child.txt");
+    const sourceSubtreePath = path.join(sourcePath, "subtree");
+    const destinationSubtreePath = path.join(destinationPath, "subtree");
+    fs.mkdirSync(path.dirname(sourceChildPath), { recursive: true });
+    fs.mkdirSync(path.dirname(destinationChildPath), { recursive: true });
+    fs.mkdirSync(sourceSubtreePath);
+    fs.writeFileSync(sourceChildPath, "child");
+    fs.writeFileSync(path.join(sourceSubtreePath, "nested.txt"), "nested");
+    const treeView = operationTree();
+    spyOn(treeView, "resolveFileOperationConflict").and.resolveTo("replace");
+    treeView.fileOperationProcess.run.and.callFake(
+      (_operation, _initialPath, _newPath, { executionPlan }) =>
+        Promise.resolve({ moved: true, renames: executionPlan.renames }),
+    );
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory);
+
+    const expectedFiles = [
+      { oldPath: sourceChildPath, newPath: destinationChildPath, isDirectory: false },
+      { oldPath: sourceSubtreePath, newPath: destinationSubtreePath, isDirectory: true },
+    ];
+    expect(treeView.resolveFileOperationConflict).not.toHaveBeenCalled();
+    expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
+      files: expectedFiles,
+    });
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
+      files: expectedFiles,
+    });
+    expect(treeView.fileOperationEvents.did.calls.mostRecent().args[1].files).toEqual(
+      treeView.fileOperationEvents.will.calls.mostRecent().args[1].files,
+    );
+  });
+
+  it("does not start or mutate a directory merge when any conflict is cancelled", async () => {
+    const sourcePath = path.join(temporaryPath, "source");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const destinationPath = path.join(destinationDirectory, "source");
+    fs.mkdirSync(sourcePath);
+    fs.mkdirSync(destinationPath, { recursive: true });
+    for (const name of ["a-conflict.txt", "b-fresh.txt", "z-conflict.txt"]) {
+      fs.writeFileSync(path.join(sourcePath, name), `source ${name}`);
+    }
+    for (const name of ["a-conflict.txt", "z-conflict.txt"]) {
+      fs.writeFileSync(path.join(destinationPath, name), `destination ${name}`);
+    }
+    const treeView = operationTree({ moved: true });
+    spyOn(treeView, "resolveFileOperationConflict").and.callFake(({ sourcePath: conflictPath }) =>
+      conflictPath.endsWith("z-conflict.txt") ? "cancel" : "replace",
+    );
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    expect(
+      await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory),
+    ).toBe(false);
+
+    expect(treeView.resolveFileOperationConflict.calls.count()).toBe(2);
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    expect(treeView.fileOperationEvents.will).not.toHaveBeenCalled();
+    expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
+    expect(fs.readFileSync(path.join(sourcePath, "a-conflict.txt"), "utf8")).toBe(
+      "source a-conflict.txt",
+    );
+    expect(fs.readFileSync(path.join(destinationPath, "a-conflict.txt"), "utf8")).toBe(
+      "destination a-conflict.txt",
+    );
+    expect(fs.readFileSync(path.join(sourcePath, "b-fresh.txt"), "utf8")).toBe(
+      "source b-fresh.txt",
+    );
+    expect(fs.existsSync(path.join(destinationPath, "b-fresh.txt"))).toBe(false);
+    expect(fs.readFileSync(path.join(sourcePath, "z-conflict.txt"), "utf8")).toBe(
+      "source z-conflict.txt",
+    );
+    expect(fs.readFileSync(path.join(destinationPath, "z-conflict.txt"), "utf8")).toBe(
+      "destination z-conflict.txt",
+    );
+  });
+
+  it("excludes skipped conflicts from the preflight and completed rename payloads", async () => {
+    const sourcePath = path.join(temporaryPath, "source");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const destinationPath = path.join(destinationDirectory, "source");
+    const sourceFreshPath = path.join(sourcePath, "fresh.txt");
+    const destinationFreshPath = path.join(destinationPath, "fresh.txt");
+    const sourceConflictPath = path.join(sourcePath, "conflict.txt");
+    const destinationConflictPath = path.join(destinationPath, "conflict.txt");
+    fs.mkdirSync(sourcePath);
+    fs.mkdirSync(destinationPath, { recursive: true });
+    fs.writeFileSync(sourceFreshPath, "fresh");
+    fs.writeFileSync(sourceConflictPath, "source conflict");
+    fs.writeFileSync(destinationConflictPath, "destination conflict");
+    const treeView = operationTree();
+    spyOn(treeView, "resolveFileOperationConflict").and.resolveTo("skip");
+    treeView.fileOperationProcess.run.and.callFake(
+      (_operation, _initialPath, _newPath, { executionPlan }) => {
+        for (const rename of executionPlan.renames) fs.renameSync(rename.oldPath, rename.newPath);
+        return Promise.resolve({ skipped: true, partial: true, renames: executionPlan.renames });
+      },
+    );
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory);
+
+    const expectedFiles = [
+      { oldPath: sourceFreshPath, newPath: destinationFreshPath, isDirectory: false },
+    ];
+    expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
+      files: expectedFiles,
+    });
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
+      files: expectedFiles,
+    });
+    expect(
+      treeView.fileOperationProcess.run.calls.mostRecent().args[3].executionPlan.renames,
+    ).toEqual(expectedFiles);
+    expect(fs.existsSync(sourceFreshPath)).toBe(false);
+    expect(fs.readFileSync(destinationFreshPath, "utf8")).toBe("fresh");
+    expect(fs.readFileSync(sourceConflictPath, "utf8")).toBe("source conflict");
+    expect(fs.readFileSync(destinationConflictPath, "utf8")).toBe("destination conflict");
+  });
+
+  it("preflights nested move selections once in deterministic child-first order", async () => {
+    const parentPath = path.join(temporaryPath, "parent");
+    const childPath = path.join(parentPath, "child.txt");
+    const siblingPath = path.join(parentPath, "sibling.txt");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const destinationParentPath = path.join(destinationDirectory, "parent");
+    fs.mkdirSync(parentPath);
+    fs.mkdirSync(destinationParentPath, { recursive: true });
+    fs.writeFileSync(childPath, "child");
+    fs.writeFileSync(siblingPath, "sibling");
+    const treeView = operationTree();
+    treeView.fileOperationProcess.run.and.callFake(
+      (_operation, _initialPath, _newPath, { executionPlan }) =>
+        Promise.resolve({ moved: true, renames: executionPlan.renames }),
+    );
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+
+    await TreeView.prototype.pastePaths.call(
+      treeView,
+      [parentPath, childPath],
+      "cut",
+      destinationDirectory,
+    );
+
+    const expectedFiles = [
+      {
+        oldPath: childPath,
+        newPath: path.join(destinationDirectory, "child.txt"),
+        isDirectory: false,
+      },
+      {
+        oldPath: siblingPath,
+        newPath: path.join(destinationParentPath, "sibling.txt"),
+        isDirectory: false,
+      },
+    ];
+    expect(treeView.fileOperationEvents.will.calls.count()).toBe(1);
+    expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
+      files: expectedFiles,
+    });
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
+      files: expectedFiles,
+    });
+    expect(
+      treeView.fileOperationProcess.run.calls
+        .allArgs()
+        .flatMap((args) => args[3].executionPlan.renames),
+    ).toEqual(expectedFiles);
+  });
+
+  it("rejects concrete destination collisions before the will callback", async () => {
+    const mergedSourcePath = path.join(temporaryPath, "merged", "group");
+    const mergedChildPath = path.join(mergedSourcePath, "same.txt");
+    const directSourcePath = path.join(temporaryPath, "direct", "same.txt");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const mergedDestinationPath = path.join(destinationDirectory, "group");
+    fs.mkdirSync(mergedSourcePath, { recursive: true });
+    fs.mkdirSync(path.dirname(directSourcePath), { recursive: true });
+    fs.mkdirSync(mergedDestinationPath, { recursive: true });
+    fs.writeFileSync(mergedChildPath, "merged");
+    fs.writeFileSync(directSourcePath, "direct");
+    const treeView = operationTree({ moved: true });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+    const plans = [
+      treeView.planMoveEntry(mergedSourcePath, destinationDirectory),
+      treeView.planMoveEntry(directSourcePath, mergedDestinationPath),
+    ];
+
+    await treeView.movePlans(plans);
+
+    expect(treeView.fileOperationEvents.will).not.toHaveBeenCalled();
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    expect(fs.readFileSync(mergedChildPath, "utf8")).toBe("merged");
+    expect(fs.readFileSync(directSourcePath, "utf8")).toBe("direct");
   });
 });
