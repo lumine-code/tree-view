@@ -1622,6 +1622,34 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("expanding the selected entry", () => {
+    beforeEach(() => {
+      spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
+    });
+
+    it("leaves a selected file closed", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      const selectedFile = treeView.selectedEntry();
+
+      lumine.commands.dispatch(treeView.element, "tree-view:expand-item");
+
+      expect(treeView.selectedEntry()).toBe(selectedFile);
+      expect(lumine.workspace.open).not.toHaveBeenCalled();
+    });
+
+    it("still delegates a selected directory to its expand behavior", () => {
+      treeView = new TreeView({});
+      const root = treeView.roots[0];
+      treeView.selectEntry(root);
+      spyOn(treeView, "expandDirectory").and.callThrough();
+
+      lumine.commands.dispatch(treeView.element, "tree-view:expand-item");
+
+      expect(treeView.expandDirectory).toHaveBeenCalled();
+    });
+  });
+
   describe("the context menu of a project folder", () => {
     let pack, disposable;
 
