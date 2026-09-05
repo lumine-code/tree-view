@@ -1960,6 +1960,59 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
   });
 
+  it("removes sticky rows when the whole tree fits in the viewport", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderLayer = document.createElement("div");
+    treeView.stickyHeaderList = document.createElement("ol");
+    treeView.stickyHeaderLayer.appendChild(treeView.stickyHeaderList);
+    treeView.stickyHeaderEntries = [];
+    treeView.contentWidth = 300;
+    treeView.scrollportWidth = 300;
+
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    entry(treeView, "one.js", "file", root);
+    layout(treeView, [root]);
+
+    treeView.scrollportHeight = 24;
+    treeView.updateStickyHeaderOverlay();
+    expect(treeView.stickyHeaderEntries).toEqual([root]);
+    expect(treeView.stickyHeaderLayer.hidden).toBe(false);
+
+    treeView.scrollportHeight = treeView.rowTops.at(-1);
+    treeView.updateStickyHeaderOverlay();
+    expect(treeView.stickyHeaderEntries).toEqual([]);
+    expect(treeView.stickyHeaderList.children.length).toBe(0);
+    expect(treeView.stickyHeaderLayer.hidden).toBe(true);
+  });
+
+  it("joins a selected sticky header to the selected list row below it", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderLayer = document.createElement("div");
+    treeView.stickyHeaderList = document.createElement("ol");
+    treeView.stickyHeaderLayer.appendChild(treeView.stickyHeaderList);
+    treeView.stickyHeaderEntries = [];
+    treeView.contentWidth = 300;
+    treeView.scrollportWidth = 300;
+    treeView.scrollportHeight = 40;
+
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const source = entry(treeView, "source", "directory", root);
+    entry(treeView, "one.js", "file", source);
+    const readme = entry(treeView, "readme.md", "file", root);
+    layout(treeView, [root]);
+    treeView.scrollPosition.top = 33;
+    treeView.selectedEntries.add(source);
+    treeView.selectedEntries.add(readme);
+
+    treeView.updateStickyHeaderOverlay();
+    expect(treeView.stickyHeaderEntries).toEqual([root, source]);
+    expect(treeView.stickyHeaderList).toHaveClass("selection-continues-below");
+
+    treeView.selectedEntries.delete(readme);
+    treeView.updateStickyHeaderOverlay();
+    expect(treeView.stickyHeaderList).not.toHaveClass("selection-continues-below");
+  });
+
   it("keeps the cached offset inside the range the scroller can reach", () => {
     const treeView = stickyHarness();
     const first = entry(treeView, "first", "directory", null, { projectRoot: true });
@@ -2534,6 +2587,10 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(firstSticky.header).borderBottomLeftRadius).toBe("0px");
       expect(getComputedStyle(lastSticky.header).borderTopLeftRadius).toBe("0px");
       expect(getComputedStyle(lastSticky.header).borderBottomLeftRadius).toBe("6px");
+
+      stickyList.classList.add("selection-continues-below");
+      expect(getComputedStyle(lastSticky.header).borderBottomLeftRadius).toBe("0px");
+      expect(getComputedStyle(stickyList).boxShadow).toBe("none");
     } finally {
       tree.remove();
       stylesheet.dispose();

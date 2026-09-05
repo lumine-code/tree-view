@@ -528,6 +528,10 @@
     isolation: isolate;
     background: var(--tree-view-sticky-background);
     box-shadow: inset 0 -1px var(--base-border-color);
+
+    &.selection-continues-below {
+      box-shadow: none;
+    }
   }
 
   .tree-view-sticky-header {
@@ -580,6 +584,13 @@
 
   &:focus .tree-view-sticky-header.selected > .tree-view-sticky-header-row {
     background: var(--button-background-color-selected);
+  }
+
+  .tree-view-sticky-header-list.selection-continues-below
+    > .tree-view-sticky-header:last-child.selected:not(.drag-over)
+    > .tree-view-sticky-header-row {
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
   }
 
   /* Drag and Drop */
