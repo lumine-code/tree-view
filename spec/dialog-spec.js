@@ -7,27 +7,29 @@ const MoveDialog = require("../lib/move-dialog");
 const CopyDialog = require("../lib/copy-dialog");
 
 describe("TreeView dialogs", () => {
+  let originalProjectPaths;
   let projectPath;
   let dialogs;
 
   beforeEach(() => {
+    originalProjectPaths = lumine.project.getPaths();
     projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-dialog-")));
     lumine.project.setPaths([projectPath]);
     jasmine.attachToDOM(lumine.views.getView(lumine.workspace));
     dialogs = [];
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     for (const dialog of dialogs) {
       try {
-        dialog.inputDialogHost.destroy();
+        await dialog.inputDialogHost.destroy();
       } catch {
         // already destroyed by a confirm/cancel
       }
     }
-    // Retries because Windows keeps a directory non-empty until the last handle on a child
-    // closes, and `force` swallows only ENOENT.
-    fs.rmSync(projectPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    lumine.project.setPaths(originalProjectPaths);
+    await lumine.fileWatchClient.settlePendingTeardown();
+    fs.rmSync(projectPath, { recursive: true, force: true });
   });
 
   function track(dialog) {

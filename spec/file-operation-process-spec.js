@@ -11,11 +11,10 @@ describe("TreeView file operation process", () => {
     rootPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-operation-")));
   });
 
-  afterEach(() => {
-    operations?.destroy();
-    // Retries because Windows keeps a directory non-empty until the last handle on a child
-    // closes, and `force` swallows only ENOENT.
-    fs.rmSync(rootPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  afterEach(async () => {
+    await operations?.destroy();
+    await lumine.fileWatchClient.settlePendingTeardown();
+    fs.rmSync(rootPath, { recursive: true, force: true });
   });
 
   it("copies and moves queued files outside the renderer", async () => {

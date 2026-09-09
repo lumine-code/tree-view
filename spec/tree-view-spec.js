@@ -275,10 +275,10 @@ describe("TreeView root updates", () => {
       );
       expect(treeView.selectedEntry()?.getPath()).toBe(firstSelectedPath);
     } finally {
-      treeView.destroy();
+      await treeView.destroy();
       lumine.project.setPaths(originalProjectPaths);
-      // Windows holds a directory open for a moment after the watcher lets go.
-      fs.rmSync(secondProjectPath, { recursive: true, force: true, maxRetries: 3 });
+      await lumine.fileWatchClient.settlePendingTeardown();
+      fs.rmSync(secondProjectPath, { recursive: true, force: true });
     }
   });
 
@@ -2901,12 +2901,11 @@ describe("TreeView revealing changed paths", () => {
     treeView = new TreeView({});
   });
 
-  afterEach(() => {
-    treeView?.destroy();
+  afterEach(async () => {
+    await treeView?.destroy();
     lumine.project.setPaths(originalProjectPaths);
-    // Retries because Windows keeps a directory non-empty until the last handle
-    // on a child closes, and `force` swallows only ENOENT.
-    fs.rmSync(projectPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    await lumine.fileWatchClient.settlePendingTeardown();
+    fs.rmSync(projectPath, { recursive: true, force: true });
   });
 
   // The dialog is attached to the workspace rather than handed back, so reach
