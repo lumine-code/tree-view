@@ -353,6 +353,8 @@ describe("TreeView repository changes", () => {
   // known as a checkout. The central icon registry must repaint that existing
   // row without tree-view rebuilding or explicitly refreshing it.
   it("centrally repaints repository and submodule rows bound before routing changed", async () => {
+    // Start real timers before discovery can queue an icon invalidation.
+    jasmine.useRealClock();
     const originalProjectPaths = lumine.project.getPaths();
     const projectPath = path.resolve(__dirname, "..");
     const submodulePath = __dirname;
@@ -388,7 +390,6 @@ describe("TreeView repository changes", () => {
         relativize: (somePath) => path.relative(rootPath, somePath),
         onDidChangeStatusSnapshot: () => new Disposable(),
       });
-      jasmine.useRealClock();
       lumine.repositories.emitter.emit("did-change", {
         version: 1,
         added: [],
