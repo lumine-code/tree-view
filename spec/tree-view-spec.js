@@ -1103,25 +1103,33 @@ describe("TreeView construction", () => {
     });
 
     it("skips the trash confirmation when configured", async () => {
-      lumine.config.set("tree-view.confirmDelete", false);
-      treeView = new TreeView({});
-      const entry = {
-        special: false,
-        specialRoot: false,
-        parent: null,
-        getPath: () => __filename,
-      };
-      spyOn(treeView, "hasFocus").and.returnValue(true);
-      spyOn(treeView, "selectedPaths").and.returnValue([__filename]);
-      spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
-      spyOn(treeView, "updateRoots");
-      spyOn(lumine.window, "confirm");
-      spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
+      const temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-confirm-delete-"));
+      const selectedPath = path.join(temporaryPath, "selected.txt");
+      try {
+        // The selected file belongs to this spec, independent of the loaded test program.
+        fs.writeFileSync(selectedPath, "selected");
+        lumine.config.set("tree-view.confirmDelete", false);
+        treeView = new TreeView({});
+        const entry = {
+          special: false,
+          specialRoot: false,
+          parent: null,
+          getPath: () => selectedPath,
+        };
+        spyOn(treeView, "hasFocus").and.returnValue(true);
+        spyOn(treeView, "selectedPaths").and.returnValue([selectedPath]);
+        spyOn(treeView, "getSelectedEntries").and.returnValue([entry]);
+        spyOn(treeView, "updateRoots");
+        spyOn(lumine.window, "confirm");
+        spyOn(lumine.shell, "trashItem").and.returnValue(Promise.resolve());
 
-      await treeView.removeSelectedEntries();
+        await treeView.removeSelectedEntries();
 
-      expect(lumine.window.confirm).not.toHaveBeenCalled();
-      expect(lumine.shell.trashItem).toHaveBeenCalledWith(__filename);
+        expect(lumine.window.confirm).not.toHaveBeenCalled();
+        expect(lumine.shell.trashItem).toHaveBeenCalledWith(selectedPath);
+      } finally {
+        fs.rmSync(temporaryPath, { recursive: true, force: true });
+      }
     });
 
     it("does not trash a replacement that appears while delete is being prepared", async () => {
