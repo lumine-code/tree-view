@@ -769,28 +769,49 @@ describe("TreeView construction", () => {
     expect(dispatch).toHaveBeenCalledWith(lumine.workspace.getElement(), "tree-view:resume-queue");
   });
 
-  it("keeps editor path tracking isolated between queued moves", () => {
+  it("keeps document retargeting isolated between queued moves", async () => {
     treeView = new TreeView({});
-    const firstPath = path.join("root", "first.txt");
-    const secondPath = path.join("root", "second.txt");
-    const firstBuffer = { setPath: jasmine.createSpy("firstSetPath") };
-    const secondBuffer = { setPath: jasmine.createSpy("secondSetPath") };
-    const editors = [
-      { getPath: () => firstPath, getBuffer: () => firstBuffer },
-      { getPath: () => secondPath, getBuffer: () => secondBuffer },
-    ];
-    spyOn(lumine.workspace, "getTextEditors").and.returnValue(editors);
-
-    treeView.emitter.emit("will-move-entry", { initialPath: firstPath });
-    treeView.emitter.emit("will-move-entry", { initialPath: secondPath });
-    treeView.emitter.emit("entry-moved", {
-      initialPath: firstPath,
-      newPath: path.join("root", "moved-first.txt"),
-    });
-
-    expect(firstBuffer.setPath).toHaveBeenCalledWith(path.join("root", "moved-first.txt"));
-    expect(secondBuffer.setPath).not.toHaveBeenCalled();
-    expect(treeView.editorsToMove.has(secondPath)).toBe(true);
+    const first = { path: path.resolve("root", "first.txt") };
+    const second = { path: path.resolve("root", "second.txt") };
+    const firstRename = {
+      oldPath: first.path,
+      newPath: path.resolve("root", "moved-first.txt"),
+      isDirectory: false,
+    };
+    const secondRename = {
+      oldPath: second.path,
+      newPath: path.resolve("root", "moved-second.txt"),
+      isDirectory: false,
+    };
+    const registrations = [first, second].map((owner) =>
+      lumine.workspace.registerFileDocument({
+        owner,
+        getPath: () => owner.path,
+        setPath: (nextPath) => {
+          owner.path = nextPath;
+        },
+      }),
+    );
+    const completions = new Map();
+    spyOn(treeView.fileOperationProcess, "run").and.callFake(
+      (_kind, source) =>
+        new Promise((resolve) => {
+          completions.set(source, resolve);
+        }),
+    );
+    try {
+      const firstMove = treeView.runFileMove(first.path, firstRename.newPath);
+      const secondMove = treeView.runFileMove(second.path, secondRename.newPath);
+      completions.get(firstRename.oldPath)({ renames: [firstRename] });
+      await firstMove;
+      expect(first.path).toBe(firstRename.newPath);
+      expect(second.path).toBe(secondRename.oldPath);
+      completions.get(secondRename.oldPath)({ renames: [secondRename] });
+      await secondMove;
+      expect(second.path).toBe(secondRename.newPath);
+    } finally {
+      registrations.forEach((registration) => registration.dispose());
+    }
   });
 
   it("keeps registered root sections before mounted project rows", () => {
