@@ -803,10 +803,12 @@ describe("TreeView construction", () => {
     try {
       const firstMove = treeView.runFileMove(first.path, firstRename.newPath);
       const secondMove = treeView.runFileMove(second.path, secondRename.newPath);
+      await conditionPromise(() => completions.has(firstRename.oldPath));
       completions.get(firstRename.oldPath)({ renames: [firstRename] });
       await firstMove;
       expect(first.path).toBe(firstRename.newPath);
       expect(second.path).toBe(secondRename.oldPath);
+      await conditionPromise(() => completions.has(secondRename.oldPath));
       completions.get(secondRename.oldPath)({ renames: [secondRename] });
       await secondMove;
       expect(second.path).toBe(secondRename.newPath);
