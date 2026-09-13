@@ -51,12 +51,15 @@ describe("TreeViewPackage teardown", () => {
     lumine.config.set("tree-view.showOnRightSide", false);
     await treeView.show();
     expect(locationOfTree()).toBe("left");
+    expect(treeView.getDefaultLocation()).toBe("left");
+    expect(treeView.getAllowedLocations()).toEqual(["left", "right"]);
 
     lumine.commands.dispatch(lumine.workspace.getElement(), "tree-view:toggle-side");
     await sideSettled();
 
     expect(lumine.config.get("tree-view.showOnRightSide")).toBe(true);
     expect(treeView.getDefaultLocation()).toBe("right");
+    expect(treeView.getAllowedLocations()).toEqual(["right", "left"]);
     expect(locationOfTree()).toBe("right");
 
     lumine.commands.dispatch(lumine.workspace.getElement(), "tree-view:toggle-side");
