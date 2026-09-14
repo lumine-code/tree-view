@@ -612,6 +612,42 @@ describe("TreeView construction", () => {
     expect(treeView.fileOperationProcess.childProcess).toBeUndefined();
   });
 
+  it("selects every visible row when Select All is used in the tree", () => {
+    treeView = new TreeView({});
+    treeView.addSpecialRoot({
+      name: "Recent",
+      className: "recent",
+      entryClassName: "recent-entry",
+      iconClass: "icon-history",
+      getEntries: () => [__filename],
+    });
+    const previouslyFocused = treeView.visibleRows.at(-1);
+    treeView.selectEntry(previouslyFocused);
+
+    lumine.commands.dispatch(treeView.element, "core:select-all");
+
+    expect(treeView.getSelectedEntries()).toEqual(treeView.visibleRows);
+    expect(treeView.selectedEntry()).toBe(previouslyFocused);
+    expect(treeView.list).toHaveClass("multi-select");
+  });
+
+  it("binds the platform Select All shortcut in the tree", () => {
+    treeView = new TreeView({});
+    const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+    lumine.keymaps.loadKeymap(keymapPath);
+
+    try {
+      const bindings = lumine.keymaps.findKeyBindings({
+        target: treeView.element,
+        command: "core:select-all",
+      });
+      const keystroke = process.platform === "darwin" ? "cmd-a" : "ctrl-a";
+      expect(bindings.map((binding) => binding.keystrokes)).toContain(keystroke);
+    } finally {
+      lumine.keymaps.removeBindingsFromSource(keymapPath);
+    }
+  });
+
   it("reports long-running cross-volume moves through the busy service", () => {
     treeView = new TreeView({});
     const provider = {

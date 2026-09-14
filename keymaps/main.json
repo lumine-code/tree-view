@@ -4,6 +4,7 @@
     "cmdorctrl-shift-\\": "tree-view:reveal-active-file"
   },
   ".tree-view": {
+    "cmdorctrl-a": "core:select-all",
     "ctrl-f": "tree-view:expand-item",
     "ctrl-b": "tree-view:collapse-directory",
     "cmdorctrl-c": "tree-view:copy",
