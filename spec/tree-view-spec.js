@@ -1646,6 +1646,68 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("opening the selected entry in a new window", () => {
+    beforeEach(() => spyOn(lumine.application, "openWindow"));
+
+    it("preserves the project roots when opening a file", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+
+      treeView.openSelectedEntryInNewWindow();
+
+      expect(lumine.application.openWindow).toHaveBeenCalledWith({
+        pathsToOpen: [...lumine.project.getPaths(), __filename],
+        newWindow: true,
+        devMode: lumine.devMode,
+        safeMode: lumine.safeMode,
+      });
+    });
+
+    it("opens a directory as a project of its own", () => {
+      treeView = new TreeView({});
+      const root = treeView.roots[0];
+      treeView.selectEntry(root);
+
+      treeView.openSelectedEntryInNewWindow();
+
+      expect(lumine.application.openWindow).toHaveBeenCalledWith({
+        pathsToOpen: [root.getPath()],
+        newWindow: true,
+        devMode: lumine.devMode,
+        safeMode: lumine.safeMode,
+      });
+    });
+
+    it("opens a nested directory without carrying the current project roots", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__dirname);
+
+      treeView.openSelectedEntryInNewWindow();
+
+      expect(lumine.application.openWindow).toHaveBeenCalledWith({
+        pathsToOpen: [__dirname],
+        newWindow: true,
+        devMode: lumine.devMode,
+        safeMode: lumine.safeMode,
+      });
+    });
+
+    it("does nothing for an entry that owns no path", () => {
+      treeView = new TreeView({});
+      const section = treeView.addSpecialRoot({
+        name: "Recent",
+        className: "recent",
+        entryClassName: "recent-entry",
+        getEntries: () => [__filename],
+      });
+      treeView.selectEntry(section.root);
+
+      treeView.openSelectedEntryInNewWindow();
+
+      expect(lumine.application.openWindow).not.toHaveBeenCalled();
+    });
+  });
+
   describe("previewing the selected entry", () => {
     beforeEach(() => {
       lumine.config.set("tree-view.alwaysOpenExisting", false);
