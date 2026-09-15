@@ -1442,6 +1442,18 @@ describe("TreeView construction", () => {
       expect(treeView.selectedEntry()?.isExpanded).toBe(true);
     });
 
+    it("leaves a directory closed when revealing it after a file operation", async () => {
+      treeView = new TreeView({});
+      await treeView.roots[0].expand();
+      treeView.roots[0].collapse(true);
+
+      await treeView.revealChangedPath(__dirname);
+
+      expect(treeView.roots[0].isExpanded).toBe(true);
+      expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
+      expect(treeView.selectedEntry()?.isExpanded).toBe(false);
+    });
+
     it("centres the row when a reveal was asked for", async () => {
       treeView = new TreeView({});
       spyOn(treeView, "scrollToEntry");
