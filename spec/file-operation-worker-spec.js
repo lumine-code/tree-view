@@ -25,11 +25,20 @@ describe("TreeView file operation worker results", () => {
     const destinationPath = path.join(rootPath, "destination");
     fs.mkdirSync(sourcePath);
     fs.writeFileSync(path.join(sourcePath, "file.txt"), "contents");
+    const cp = fs.promises.cp.bind(fs.promises);
+    let entriesDuringCopy;
+    spyOn(fs.promises, "cp").and.callFake(async (...args) => {
+      entriesDuringCopy = fs.readdirSync(rootPath);
+      return cp(...args);
+    });
 
     expect(await copyPath(sourcePath, destinationPath, 1)).toEqual({
       copied: true,
       creates: [{ path: destinationPath, isDirectory: true }],
     });
+    expect(entriesDuringCopy).toContain(path.basename(destinationPath));
+    expect(entriesDuringCopy.some((name) => name.includes(".lumine-copy-"))).toBe(false);
+    expect(fs.readdirSync(rootPath).some((name) => name.includes(".lumine-copy-"))).toBe(false);
   });
 
   it("cleans a partial destination and reports no creation when copying fails", async () => {
@@ -79,7 +88,7 @@ describe("TreeView file operation worker results", () => {
     expect(resultError).toBe(failure);
     expect(resultError.partial).toBe(true);
     expect(resultError.creates).toEqual([]);
-    expect(resultError.cleanupPath).toContain(".lumine-copy-");
+    expect(resultError.cleanupPath).toBe(destinationPath);
     expect(fs.existsSync(resultError.cleanupPath)).toBe(true);
   });
 
@@ -91,6 +100,7 @@ describe("TreeView file operation worker results", () => {
     const failure = new Error("copy failed");
     spyOn(fs.promises, "cp").and.callFake(async (_sourcePath, copiedPath) => {
       fs.writeFileSync(copiedPath, "partial");
+      fs.rmSync(destinationPath, { recursive: true });
       fs.mkdirSync(destinationPath);
       fs.writeFileSync(path.join(destinationPath, "external.txt"), "external");
       throw failure;
@@ -108,32 +118,28 @@ describe("TreeView file operation worker results", () => {
     expect(fs.readFileSync(path.join(destinationPath, "external.txt"), "utf8")).toBe("external");
   });
 
-  it("publishes a staged file without replacing a destination that wins the final race", async () => {
+  it("does not replace a destination that wins the file creation race", async () => {
     const sourcePath = path.join(rootPath, "source.txt");
     const destinationPath = path.join(rootPath, "destination.txt");
     fs.writeFileSync(sourcePath, "source");
-    spyOn(fs.promises, "link").and.callFake(async (_stagingPath, publishedPath) => {
-      fs.writeFileSync(publishedPath, "external");
-      const error = new Error("already exists");
-      error.code = "EEXIST";
-      throw error;
+    const open = fs.promises.open.bind(fs.promises);
+    spyOn(fs.promises, "open").and.callFake(async (openedPath, flags, mode) => {
+      if (openedPath === destinationPath) fs.writeFileSync(destinationPath, "external");
+      return open(openedPath, flags, mode);
     });
 
     await expectAsync(copyPath(sourcePath, destinationPath, 5)).toBeRejectedWithError(
-      /already exists/,
+      /EEXIST|file already exists/,
     );
 
     expect(fs.readFileSync(sourcePath, "utf8")).toBe("source");
     expect(fs.readFileSync(destinationPath, "utf8")).toBe("external");
   });
 
-  it("falls back to an exclusive copy when the destination cannot create hardlinks", async () => {
+  it("copies a file directly to its destination", async () => {
     const sourcePath = path.join(rootPath, "source.txt");
     const destinationPath = path.join(rootPath, "destination.txt");
     fs.writeFileSync(sourcePath, "source");
-    const failure = new Error("hardlinks unsupported");
-    failure.code = "EPERM";
-    spyOn(fs.promises, "link").and.rejectWith(failure);
 
     expect(await copyPath(sourcePath, destinationPath, 6)).toEqual({
       copied: true,
