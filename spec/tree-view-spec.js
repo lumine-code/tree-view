@@ -1041,7 +1041,7 @@ describe("TreeView construction", () => {
       lumine.config.set("tree-view.confirmDelete", true);
     });
 
-    afterEach(() => {
+    afterEach(async () => {
       lumine.config.set("tree-view.confirmDelete", previousConfirmDelete);
       lumine.config.set("core.closeDeletedFileTabs", previousCloseDeletedFileTabs);
     });
@@ -1817,9 +1817,9 @@ describe("TreeView construction", () => {
         .filter((item) => item.visible !== false)
         .map((item) => item.label);
 
-    afterEach(() => {
+    afterEach(async () => {
       disposable?.dispose();
-      if (pack) lumine.packages.unloadPackage(pack.name);
+      if (pack) await lumine.packages.unloadPackage(pack.name);
       disposable = pack = null;
     });
 
