@@ -612,6 +612,19 @@ describe("TreeView construction", () => {
     expect(treeView.fileOperationProcess.childProcess).toBeUndefined();
   });
 
+  it("lets pane drops fall through the tree boundary to create a dock split", () => {
+    const addTarget = spyOn(lumine.workspaceDrops, "addTarget").and.callThrough();
+    treeView = new TreeView({});
+
+    const registration = addTarget.calls.all().find((call) => call.args[0] === treeView.element);
+    expect(registration?.args[1]).toEqual(
+      jasmine.objectContaining({
+        surface: "tree-view",
+        allowPaneFallback: true,
+      }),
+    );
+  });
+
   it("selects every visible row when Select All is used in the tree", () => {
     treeView = new TreeView({});
     treeView.addSpecialRoot({
