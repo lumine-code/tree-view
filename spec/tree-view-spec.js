@@ -21,6 +21,12 @@ describe("TreeViewPackage teardown", () => {
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
 
+    // Activation publishes commands and service facades, but the tree itself
+    // can be expensive to construct for a project with many root entries. It
+    // is created when the initial package batch opens it, or sooner when a
+    // command, deserializer or service actually asks for it.
+    expect(treeViewPackage.treeView).toBeUndefined();
+
     await Promise.race([
       treeViewPackage.deactivate(),
       new Promise((_resolve, reject) =>
