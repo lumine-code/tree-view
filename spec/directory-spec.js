@@ -289,3 +289,93 @@ describe("TreeView Directory repository routing", () => {
     }
   });
 });
+
+describe("TreeView Directory watch lifecycle", () => {
+  let directory;
+  let directoryPath;
+
+  function abortError() {
+    return Object.assign(new Error(`File observation cancelled: ${directoryPath}`), {
+      name: "AbortError",
+      code: "ABORT_ERR",
+      path: directoryPath,
+    });
+  }
+
+  function createPendingWatcher() {
+    let resolveReady;
+    let rejectReady;
+    const watcher = {
+      ready: new Promise((resolve, reject) => {
+        resolveReady = resolve;
+        rejectReady = reject;
+      }),
+      dispose: jasmine.createSpy("dispose watcher"),
+      onDidChange: () => new Disposable(),
+      onDidInvalidate: () => new Disposable(),
+      onDidError: () => new Disposable(),
+    };
+    return { watcher, resolveReady, rejectReady };
+  }
+
+  beforeEach(() => {
+    directoryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-watch-"));
+  });
+
+  afterEach(() => {
+    directory?.destroy();
+    fs.rmSync(directoryPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  it("silences cancellation when destroyed while its watcher is becoming ready", async () => {
+    const { watcher, rejectReady } = createPendingWatcher();
+    watcher.dispose.and.callFake(() => rejectReady(abortError()));
+    spyOn(lumine.fileWatchClient, "watchDirectory").and.returnValue(watcher);
+    spyOn(console, "error");
+    directory = createDirectory(directoryPath, repositoryFor());
+
+    const watching = directory.watch();
+    await Promise.resolve();
+    expect(lumine.fileWatchClient.watchDirectory).toHaveBeenCalledWith(directoryPath, undefined);
+
+    directory.destroy();
+    directory = null;
+    await watching;
+
+    expect(watcher.dispose).toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("silences cancellation from the current watcher and releases it", async () => {
+    const { watcher, rejectReady } = createPendingWatcher();
+    spyOn(lumine.fileWatchClient, "watchDirectory").and.returnValue(watcher);
+    spyOn(console, "error");
+    directory = createDirectory(directoryPath, repositoryFor());
+
+    const watching = directory.watch();
+    await Promise.resolve();
+    rejectReady(abortError());
+    await watching;
+
+    expect(watcher.dispose).toHaveBeenCalled();
+    expect(directory.watchSubscription).toBeNull();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("reports a failure from the current watcher and releases it", async () => {
+    const { watcher, rejectReady } = createPendingWatcher();
+    spyOn(lumine.fileWatchClient, "watchDirectory").and.returnValue(watcher);
+    spyOn(console, "error");
+    directory = createDirectory(directoryPath, repositoryFor());
+    const error = new Error("watch failed");
+
+    const watching = directory.watch();
+    await Promise.resolve();
+    rejectReady(error);
+    await watching;
+
+    expect(watcher.dispose).toHaveBeenCalled();
+    expect(directory.watchSubscription).toBeNull();
+    expect(console.error).toHaveBeenCalledOnceWith(error);
+  });
+});
