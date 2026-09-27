@@ -139,6 +139,107 @@ describe("TreeViewPackage teardown", () => {
       fs.rmSync(projectParent, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
+
+  it("does not paint the default tree before restoring the active dock item", async () => {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
+
+    let activateInitialPackages;
+    spyOn(lumine.packages, "onDidActivateInitialPackages").and.callFake((callback) => {
+      activateInitialPackages = callback;
+      return new Disposable();
+    });
+
+    let finishWindowLoad;
+    spyOn(lumine.window, "whenLoaded").and.returnValue(
+      new Promise((resolve) => (finishWindowLoad = resolve)),
+    );
+
+    const treeViewPackage = new TreeViewPackage();
+    const gitItem = {
+      element: document.createElement("div"),
+      getURI: () => "test://git-dock-item",
+      getDefaultLocation: () => "left",
+      getAllowedLocations: () => ["left", "right"],
+      serialize: () => ({ deserializer: "TreeViewFlickGitItem" }),
+    };
+    const deserializers = lumine.deserializers.add(
+      {
+        name: "TreeView",
+        deserialize: (state) => treeViewPackage.getTreeViewInstance(state),
+      },
+      {
+        name: "TreeViewFlickGitItem",
+        deserialize: () => gitItem,
+      },
+    );
+
+    treeViewPackage.activate();
+    activateInitialPackages();
+    const initialOpen = treeViewPackage.treeViewOpenPromise;
+    await flushMicrotasks();
+
+    const treeView = treeViewPackage.getTreeViewInstance();
+    const dock = lumine.workspace.getLeftDock();
+    const pane = dock.getActivePane();
+    expect(pane.getItems()).toEqual([treeView]);
+    expect(dock.isVisible()).toBe(false);
+
+    pane.addItem(gitItem);
+    pane.activateItem(gitItem);
+    dock.show();
+    const savedWorkspace = lumine.workspace.serialize();
+
+    pane.removeItem(gitItem, true);
+    dock.hide();
+    lumine.workspace.deserialize(savedWorkspace, lumine.deserializers);
+
+    expect(dock.getActivePaneItem()).toBe(gitItem);
+    expect(dock.isVisible()).toBe(true);
+
+    finishWindowLoad();
+    await initialOpen;
+
+    expect(dock.getActivePaneItem()).toBe(gitItem);
+    expect(dock.isVisible()).toBe(true);
+
+    deserializers.dispose();
+    await treeViewPackage.deactivate();
+  });
+
+  it("shows the default tree after startup when no tree was restored", async () => {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
+
+    let activateInitialPackages;
+    spyOn(lumine.packages, "onDidActivateInitialPackages").and.callFake((callback) => {
+      activateInitialPackages = callback;
+      return new Disposable();
+    });
+
+    let finishWindowLoad;
+    spyOn(lumine.window, "whenLoaded").and.returnValue(
+      new Promise((resolve) => (finishWindowLoad = resolve)),
+    );
+
+    const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.activate();
+    activateInitialPackages();
+    const initialOpen = treeViewPackage.treeViewOpenPromise;
+    await flushMicrotasks();
+
+    const treeView = treeViewPackage.getTreeViewInstance();
+    const dock = lumine.workspace.getLeftDock();
+    expect(dock.isVisible()).toBe(false);
+
+    finishWindowLoad();
+    await initialOpen;
+
+    expect(dock.isVisible()).toBe(true);
+    expect(dock.getActivePaneItem()).toBe(treeView);
+
+    await treeViewPackage.deactivate();
+  });
 });
 
 describe("TreeView.entryForPath", () => {
