@@ -98,6 +98,47 @@ describe("TreeViewPackage teardown", () => {
     expect(treeView.clearOperationQueue).toHaveBeenCalled();
     await treeViewPackage.deactivate();
   });
+
+  it("applies workspace state to the instance opened before deserialization", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectParent = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-roots-state-")),
+    );
+    const projectPaths = ["one", "two", "three", "four"].map((name) => {
+      const projectPath = path.join(projectParent, name);
+      fs.mkdirSync(projectPath);
+      return projectPath;
+    });
+    lumine.project.setPaths(projectPaths);
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
+    const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.activate();
+    const treeView = treeViewPackage.getTreeViewInstance();
+    const directoryExpansionStates = {};
+    for (const [index, projectPath] of projectPaths.entries()) {
+      directoryExpansionStates[projectPath] = {
+        isExpanded: index % 2 === 1,
+        entries: [],
+      };
+    }
+
+    try {
+      const restored = treeViewPackage.getTreeViewInstance({
+        deserializer: "TreeView",
+        directoryExpansionStates,
+        selectedPaths: [],
+      });
+      await flushMicrotasks();
+
+      expect(restored).toBe(treeView);
+      expect(restored.roots.map((root) => root.isExpanded)).toEqual([false, true, false, true]);
+    } finally {
+      await treeViewPackage.deactivate();
+      lumine.project.setPaths(originalProjectPaths);
+      await lumine.fileWatchClient.settlePendingTeardown();
+      fs.rmSync(projectParent, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  });
 });
 
 describe("TreeView.entryForPath", () => {
@@ -616,6 +657,47 @@ describe("TreeView construction", () => {
     expect(treeView.operationStatus.parentElement).toBe(treeView.element);
     expect(treeView.operationStatus.hidden).toBe(true);
     expect(treeView.fileOperationProcess.childProcess).toBeUndefined();
+  });
+
+  it("restores the expansion state of project roots and their folders from JSON", async () => {
+    const projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-state-")));
+    const openPath = path.join(projectPath, "open");
+    const nestedPath = path.join(openPath, "nested");
+    const closedPath = path.join(projectPath, "closed");
+    fs.mkdirSync(nestedPath, { recursive: true });
+    fs.mkdirSync(closedPath);
+    lumine.project.setPaths([projectPath]);
+    treeView = new TreeView({});
+
+    try {
+      const root = treeView.roots[0];
+      await root.expand();
+      await treeView.treeEntryForPath(openPath).expand();
+      await treeView.treeEntryForPath(nestedPath).expand();
+      root.collapse();
+
+      const state = JSON.parse(JSON.stringify(treeView.serialize()));
+      expect(state.directoryExpansionStates[projectPath].isExpanded).toBe(false);
+      expect(Array.isArray(state.directoryExpansionStates[projectPath].entries)).toBe(true);
+
+      await treeView.destroy();
+      treeView = new TreeView(state);
+      expect(treeView.roots[0].isExpanded).toBe(false);
+
+      await treeView.roots[0].expand();
+      await conditionPromise(
+        () =>
+          treeView.treeEntryForPath(openPath)?.isExpanded === true &&
+          treeView.treeEntryForPath(nestedPath)?.isExpanded === true,
+        "serialized tree expansion state",
+      );
+      expect(treeView.treeEntryForPath(closedPath).isExpanded).toBe(false);
+    } finally {
+      await treeView?.destroy();
+      treeView = null;
+      await lumine.fileWatchClient.settlePendingTeardown();
+      fs.rmSync(projectPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it("lets pane drops fall through the tree boundary to create a dock split", () => {
