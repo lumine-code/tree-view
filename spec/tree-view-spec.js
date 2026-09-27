@@ -1461,12 +1461,12 @@ describe("TreeView construction", () => {
       expect(treeView.selectedEntry()?.isExpanded).toBe(true);
     });
 
-    it("leaves a directory closed when revealing it after a file operation", async () => {
+    it("leaves a newly created directory closed when revealing it", async () => {
       treeView = new TreeView({});
       await treeView.roots[0].expand();
       treeView.roots[0].collapse(true);
 
-      await treeView.revealChangedPath(__dirname);
+      await treeView.revealCreatedPath(__dirname);
 
       expect(treeView.roots[0].isExpanded).toBe(true);
       expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
@@ -3019,7 +3019,7 @@ describe("TreeView shift-arrow selection", () => {
   });
 });
 
-describe("TreeView revealing changed paths", () => {
+describe("TreeView revealing created paths", () => {
   let originalProjectPaths;
   let projectPath;
   let treeView;
@@ -3083,13 +3083,13 @@ describe("TreeView revealing changed paths", () => {
     expect(lumine.workspace.open).toHaveBeenCalledWith(createdPath);
   });
 
-  it("reveals a file duplicated through the copy dialog", async () => {
+  it("does not reveal a file duplicated through the copy dialog", async () => {
     const sourcePath = path.join(projectPath, "source.txt");
     fs.writeFileSync(sourcePath, "content");
     treeView.treeEntryForPath(sourcePath).reload();
     await treeView.revealPath(sourcePath);
     spyOn(treeView, "hasFocus").and.returnValue(true);
-    spyOn(treeView, "revealChangedPath").and.callThrough();
+    spyOn(treeView, "revealPath").and.callThrough();
     const copiedEvent = new Promise((resolve) => treeView.onEntryCopied(resolve));
 
     treeView.copySelectedEntry();
@@ -3097,18 +3097,18 @@ describe("TreeView revealing changed paths", () => {
     editor.setText("copied.txt");
     lumine.commands.dispatch(editor.element, "tree-view:confirm");
     await copiedEvent;
-    await treeView.revealChangedPath.calls.mostRecent().returnValue;
 
     const copiedPath = path.join(projectPath, "copied.txt");
     expect(fs.existsSync(copiedPath)).toBe(true);
-    expect(treeView.selectedPaths()).toEqual([copiedPath]);
+    expect(treeView.revealPath).not.toHaveBeenCalled();
   });
 
-  it("reveals a file renamed through the move dialog", async () => {
+  it("does not reveal a file renamed through the move dialog", async () => {
     const sourcePath = path.join(projectPath, "source.txt");
     fs.writeFileSync(sourcePath, "content");
     treeView.treeEntryForPath(sourcePath).reload();
     await treeView.revealPath(sourcePath);
+    spyOn(treeView, "revealPath").and.callThrough();
     spyOn(treeView, "hasFocus").and.returnValue(true);
 
     const dialog = treeView.moveSelectedEntry();
@@ -3118,17 +3118,17 @@ describe("TreeView revealing changed paths", () => {
     const movedPath = path.join(projectPath, "moved.txt");
     expect(fs.existsSync(sourcePath)).toBe(false);
     expect(fs.existsSync(movedPath)).toBe(true);
-    expect(treeView.selectedPaths()).toEqual([movedPath]);
+    expect(treeView.revealPath).not.toHaveBeenCalled();
   });
 });
 
-describe("TreeView revealing completed file operations", () => {
+describe("TreeView completed file operations", () => {
   let duplicateCopyNameStyle, temporaryPath;
 
   beforeEach(() => {
     duplicateCopyNameStyle = lumine.config.get("tree-view.duplicateCopyNameStyle");
     lumine.config.set("tree-view.duplicateCopyNameStyle", "windows");
-    temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-operation-reveal-"));
+    temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-operation-"));
   });
 
   afterEach(() => {
@@ -3142,12 +3142,12 @@ describe("TreeView revealing completed file operations", () => {
       fileOperationProcess: {
         run: jasmine.createSpy("run").and.returnValue(Promise.resolve(result)),
       },
-      revealChangedPath: jasmine.createSpy("revealChangedPath").and.returnValue(Promise.resolve()),
+      revealCreatedPath: jasmine.createSpy("revealCreatedPath").and.returnValue(Promise.resolve()),
       refreshSpecialRoots: jasmine.createSpy("refreshSpecialRoots"),
     });
   }
 
-  it("reveals the destination after copying an entry", async () => {
+  it("does not reveal the destination after pasting a copied entry", async () => {
     const sourcePath = path.join(temporaryPath, "source.txt");
     const destinationDirectory = path.join(temporaryPath, "destination");
     fs.writeFileSync(sourcePath, "content");
@@ -3155,15 +3155,18 @@ describe("TreeView revealing completed file operations", () => {
     const treeView = operationTree({ copied: true });
 
     expect(
-      await TreeView.prototype.copyEntry.call(treeView, sourcePath, destinationDirectory),
+      await TreeView.prototype.pastePaths.call(
+        treeView,
+        [sourcePath],
+        "copy",
+        destinationDirectory,
+      ),
     ).toBe(true);
 
-    expect(treeView.revealChangedPath).toHaveBeenCalledWith(
-      path.join(destinationDirectory, "source.txt"),
-    );
+    expect(treeView.revealCreatedPath).not.toHaveBeenCalled();
   });
 
-  it("reveals the destination after moving an entry", async () => {
+  it("does not reveal the destination after pasting a cut entry", async () => {
     const sourcePath = path.join(temporaryPath, "source.txt");
     const destinationDirectory = path.join(temporaryPath, "destination");
     fs.writeFileSync(sourcePath, "content");
@@ -3171,12 +3174,10 @@ describe("TreeView revealing completed file operations", () => {
     const treeView = operationTree({ moved: true });
 
     expect(
-      await TreeView.prototype.moveEntry.call(treeView, sourcePath, destinationDirectory),
+      await TreeView.prototype.pastePaths.call(treeView, [sourcePath], "cut", destinationDirectory),
     ).toBe(true);
 
-    expect(treeView.revealChangedPath).toHaveBeenCalledWith(
-      path.join(destinationDirectory, "source.txt"),
-    );
+    expect(treeView.revealCreatedPath).not.toHaveBeenCalled();
   });
 
   it("preflights a copy batch once before enqueueing any entry", async () => {
