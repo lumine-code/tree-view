@@ -17,7 +17,7 @@ describe("TreeView cross-volume Git moves", () => {
     originalWatchDiscovery = lumine.config.get("git.watchDiscovery");
     originalScanDepth = lumine.config.get("git.scanDepth");
     lumine.config.set("git.watchDiscovery", false);
-    lumine.config.set("git.scanDepth", 0);
+    lumine.config.set("git.scanDepth", 1);
     rootPath = fs.realpathSync.native(
       fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-git-move-")),
     );
