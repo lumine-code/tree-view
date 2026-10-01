@@ -3568,12 +3568,32 @@ describe("TreeView completed file operations", () => {
       did: jasmine.createSpy("did").and.resolveTo(),
     };
 
-    await TreeView.prototype.pastePaths.call(
+    let releaseChild, childStarted;
+    const childReady = new Promise((resolve) => (releaseChild = resolve));
+    const firstTransaction = new Promise((resolve) => (childStarted = resolve));
+    const completed = [];
+    spyOn(lumine.workspace, "beginFileMove").and.callFake((renames) => {
+      const isChild = renames[0].oldPath === childPath;
+      if (isChild) childStarted();
+      return {
+        ready: isChild ? childReady : Promise.resolve(),
+        complete: async () => completed.push(renames[0].oldPath),
+      };
+    });
+    const moving = TreeView.prototype.pastePaths.call(
       treeView,
       [parentPath, childPath],
       "cut",
       destinationDirectory,
     );
+    await firstTransaction;
+    try {
+      expect(lumine.workspace.beginFileMove.calls.count()).toBe(1);
+      expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    } finally {
+      releaseChild();
+    }
+    await moving;
 
     const expectedFiles = [
       {
@@ -3599,6 +3619,7 @@ describe("TreeView completed file operations", () => {
         .allArgs()
         .flatMap((args) => args[3].executionPlan.renames),
     ).toEqual(expectedFiles);
+    expect(completed).toEqual([childPath, siblingPath]);
   });
 
   it("rejects concrete destination collisions before the will callback", async () => {
