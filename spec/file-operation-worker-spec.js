@@ -159,103 +159,190 @@ describe("TreeView file operation worker results", () => {
     });
   });
 
-  it("keeps a complete EXDEV copy when cleanup of the moved source fails partway", async () => {
+  function forceCrossDeviceMove(sourcePath, destinationPath) {
+    const rename = fs.promises.rename.bind(fs.promises);
+    spyOn(fs.promises, "rename").and.callFake(async (oldPath, newPath) => {
+      if (oldPath === sourcePath && newPath === destinationPath) {
+        const error = new Error("cross-device");
+        error.code = "EXDEV";
+        throw error;
+      }
+      return rename(oldPath, newPath);
+    });
+  }
+
+  it("moves an EXDEV repository directly without renaming or staging its source", async () => {
+    const sourcePath = path.join(rootPath, "source");
+    const destinationPath = path.join(rootPath, "destination");
+    fs.mkdirSync(path.join(sourcePath, ".git", "objects"), { recursive: true });
+    fs.writeFileSync(path.join(sourcePath, ".git", "HEAD"), "ref: refs/heads/master");
+    fs.writeFileSync(path.join(sourcePath, "file.txt"), "contents");
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const cp = fs.promises.cp.bind(fs.promises);
+    spyOn(fs.promises, "cp").and.callFake(async (from, to, options) => {
+      expect(from.startsWith(sourcePath + path.sep)).toBe(true);
+      expect(to.startsWith(destinationPath + path.sep)).toBe(true);
+      expect(fs.existsSync(path.join(sourcePath, ".git", "HEAD"))).toBe(true);
+      expect(fs.readdirSync(rootPath).some((name) => name.includes(".lumine-"))).toBe(false);
+      return cp(from, to, options);
+    });
+
+    expect(await movePath(sourcePath, destinationPath, 6, rootPath)).toEqual({
+      moved: true,
+      renames: [{ oldPath: sourcePath, newPath: destinationPath, isDirectory: true }],
+    });
+    expect(fs.promises.rename).toHaveBeenCalledTimes(1);
+    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(fs.readFileSync(path.join(destinationPath, "file.txt"), "utf8")).toBe("contents");
+  });
+
+  it("keeps a complete EXDEV copy and reports concrete renames when source cleanup fails", async () => {
     const sourcePath = path.join(rootPath, "source");
     const destinationPath = path.join(rootPath, "destination");
     fs.mkdirSync(sourcePath);
     fs.writeFileSync(path.join(sourcePath, "first.txt"), "first");
     fs.writeFileSync(path.join(sourcePath, "second.txt"), "second");
-    const rename = fs.promises.rename.bind(fs.promises);
-    spyOn(fs.promises, "rename").and.callFake(async (oldPath, newPath) => {
-      if (oldPath === sourcePath && newPath === destinationPath) {
-        const error = new Error("cross-device");
-        error.code = "EXDEV";
-        throw error;
-      }
-      return rename(oldPath, newPath);
-    });
-    const remove = fs.promises.rm.bind(fs.promises);
-    spyOn(fs.promises, "rm").and.callFake(async (targetPath, options) => {
-      if (path.basename(targetPath).includes(".lumine-move-source-")) {
-        await remove(path.join(targetPath, "first.txt"), { force: true });
-        throw new Error("cleanup failed");
-      }
-      return remove(targetPath, options);
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const unlink = fs.promises.unlink.bind(fs.promises);
+    spyOn(fs.promises, "unlink").and.callFake(async (targetPath) => {
+      if (targetPath === path.join(sourcePath, "second.txt")) throw new Error("cleanup failed");
+      return unlink(targetPath);
     });
 
-    const result = await movePath(sourcePath, destinationPath, 6, rootPath);
+    const result = await movePath(sourcePath, destinationPath, 7, rootPath);
 
-    expect(result.moved).toBe(true);
-    expect(result.cleanupError).toContain("Unable to remove");
-    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.partial).toBe(true);
+    expect(result.renames).toEqual([
+      {
+        oldPath: path.join(sourcePath, "first.txt"),
+        newPath: path.join(destinationPath, "first.txt"),
+        isDirectory: false,
+      },
+    ]);
+    expect(result.creates).toEqual([{ path: destinationPath, isDirectory: true }]);
+    expect(result.cleanupPath).toBe(sourcePath);
+    expect(fs.existsSync(path.join(sourcePath, "first.txt"))).toBe(false);
+    expect(fs.readFileSync(path.join(sourcePath, "second.txt"), "utf8")).toBe("second");
     expect(fs.readFileSync(path.join(destinationPath, "first.txt"), "utf8")).toBe("first");
     expect(fs.readFileSync(path.join(destinationPath, "second.txt"), "utf8")).toBe("second");
-    expect(fs.readFileSync(path.join(result.cleanupPath, "second.txt"), "utf8")).toBe("second");
   });
 
-  it("restores an EXDEV source when its completed destination is replaced", async () => {
+  it("keeps the source when its EXDEV destination changes during copying", async () => {
     const sourcePath = path.join(rootPath, "source");
     const destinationPath = path.join(rootPath, "destination");
     fs.mkdirSync(sourcePath);
     fs.writeFileSync(path.join(sourcePath, "file.txt"), "source");
-    const rename = fs.promises.rename.bind(fs.promises);
-    spyOn(fs.promises, "rename").and.callFake(async (oldPath, newPath) => {
-      if (oldPath === sourcePath && newPath === destinationPath) {
-        const error = new Error("cross-device");
-        error.code = "EXDEV";
-        throw error;
-      }
-      return rename(oldPath, newPath);
-    });
-    const link = fs.promises.link.bind(fs.promises);
-    spyOn(fs.promises, "link").and.callFake(async (oldPath, newPath) => {
-      await link(oldPath, newPath);
-      if (path.dirname(newPath) === destinationPath) fs.writeFileSync(newPath, "external");
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const cp = fs.promises.cp.bind(fs.promises);
+    spyOn(fs.promises, "cp").and.callFake(async (from, to, options) => {
+      await cp(from, to, options);
+      fs.writeFileSync(to, "external");
     });
 
-    await expectAsync(movePath(sourcePath, destinationPath, 7, rootPath)).toBeRejectedWithError(
+    await expectAsync(movePath(sourcePath, destinationPath, 8, rootPath)).toBeRejectedWithError(
       /changed while the file operation was waiting/,
     );
-
     expect(fs.readFileSync(path.join(sourcePath, "file.txt"), "utf8")).toBe("source");
     expect(fs.readFileSync(path.join(destinationPath, "file.txt"), "utf8")).toBe("external");
   });
 
-  it("keeps EXDEV recovery data when the original source path reappears", async () => {
+  it("keeps both versions when the EXDEV source changes while copying", async () => {
     const sourcePath = path.join(rootPath, "source");
     const destinationPath = path.join(rootPath, "destination");
     fs.mkdirSync(sourcePath);
     fs.writeFileSync(path.join(sourcePath, "file.txt"), "original");
-    const rename = fs.promises.rename.bind(fs.promises);
-    spyOn(fs.promises, "rename").and.callFake(async (oldPath, newPath) => {
-      if (oldPath === sourcePath && newPath === destinationPath) {
-        const error = new Error("cross-device");
-        error.code = "EXDEV";
-        throw error;
-      }
-      return rename(oldPath, newPath);
-    });
-    const link = fs.promises.link.bind(fs.promises);
-    spyOn(fs.promises, "link").and.callFake(async (oldPath, newPath) => {
-      await link(oldPath, newPath);
-      if (path.dirname(newPath) === destinationPath && !fs.existsSync(sourcePath)) {
-        fs.mkdirSync(sourcePath);
-        fs.writeFileSync(path.join(sourcePath, "new.txt"), "new");
-      }
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const cp = fs.promises.cp.bind(fs.promises);
+    spyOn(fs.promises, "cp").and.callFake(async (from, to, options) => {
+      await cp(from, to, options);
+      fs.writeFileSync(from, "modified");
     });
 
-    let failure;
-    try {
-      await movePath(sourcePath, destinationPath, 9, rootPath);
-    } catch (error) {
-      failure = error;
-    }
-
-    expect(failure.code).toBe("ESTALE");
-    expect(failure.cleanupPath).toContain(".lumine-move-source-");
-    expect(fs.readFileSync(path.join(sourcePath, "new.txt"), "utf8")).toBe("new");
+    await expectAsync(movePath(sourcePath, destinationPath, 9, rootPath)).toBeRejectedWithError(
+      /changed while the file operation was waiting/,
+    );
+    expect(fs.readFileSync(path.join(sourcePath, "file.txt"), "utf8")).toBe("modified");
     expect(fs.readFileSync(path.join(destinationPath, "file.txt"), "utf8")).toBe("original");
-    expect(fs.readFileSync(path.join(failure.cleanupPath, "file.txt"), "utf8")).toBe("original");
+    expect(fs.readdirSync(rootPath).some((name) => name.includes(".lumine-"))).toBe(false);
+  });
+
+  it("preserves an EXDEV source edited after cleanup has begun", async () => {
+    const sourcePath = path.join(rootPath, "source");
+    const destinationPath = path.join(rootPath, "destination");
+    fs.mkdirSync(sourcePath);
+    fs.writeFileSync(path.join(sourcePath, "first.txt"), "first");
+    fs.writeFileSync(path.join(sourcePath, "second.txt"), "second");
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const unlink = fs.promises.unlink.bind(fs.promises);
+    spyOn(fs.promises, "unlink").and.callFake(async (targetPath) => {
+      await unlink(targetPath);
+      if (targetPath === path.join(sourcePath, "first.txt"))
+        fs.writeFileSync(path.join(sourcePath, "second.txt"), "modified");
+    });
+
+    const result = await movePath(sourcePath, destinationPath, 10, rootPath);
+    expect(result.partial).toBe(true);
+    expect(result.renames).toEqual([
+      {
+        oldPath: path.join(sourcePath, "first.txt"),
+        newPath: path.join(destinationPath, "first.txt"),
+        isDirectory: false,
+      },
+    ]);
+    expect(fs.readFileSync(path.join(sourcePath, "second.txt"), "utf8")).toBe("modified");
+    expect(fs.readFileSync(path.join(destinationPath, "second.txt"), "utf8")).toBe("second");
+  });
+
+  it("cancels an EXDEV move after copying while keeping the original source", async () => {
+    const sourcePath = path.join(rootPath, "source");
+    const destinationPath = path.join(rootPath, "destination");
+    fs.mkdirSync(sourcePath);
+    fs.writeFileSync(path.join(sourcePath, "file.txt"), "contents");
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const cp = fs.promises.cp.bind(fs.promises);
+    spyOn(fs.promises, "cp").and.callFake(async (from, to, options) => {
+      await cp(from, to, options);
+      setJobCancelled(11);
+    });
+    try {
+      expect(await movePath(sourcePath, destinationPath, 11, rootPath)).toEqual({
+        cancelled: true,
+        renames: [],
+      });
+    } finally {
+      setJobCancelled(11, false);
+    }
+    expect(fs.readFileSync(path.join(sourcePath, "file.txt"), "utf8")).toBe("contents");
+    expect(fs.existsSync(destinationPath)).toBe(false);
+  });
+
+  it("preserves edits at the visible EXDEV destination when the move is cancelled", async () => {
+    const sourcePath = path.join(rootPath, "source");
+    const destinationPath = path.join(rootPath, "destination");
+    fs.mkdirSync(sourcePath);
+    fs.writeFileSync(path.join(sourcePath, "file.txt"), "original");
+    forceCrossDeviceMove(sourcePath, destinationPath);
+    const cp = fs.promises.cp.bind(fs.promises);
+    spyOn(fs.promises, "cp").and.callFake(async (from, to, options) => {
+      await cp(from, to, options);
+      fs.writeFileSync(to, "edited destination");
+      setJobCancelled(12);
+    });
+    let result;
+    try {
+      result = await movePath(sourcePath, destinationPath, 12, rootPath);
+    } finally {
+      setJobCancelled(12, false);
+    }
+    expect(result.cancelled).toBe(true);
+    expect(result.renames).toEqual([]);
+    expect(result.creates).toEqual([{ path: destinationPath, isDirectory: true }]);
+    expect(result.cleanupPath).toBe(destinationPath);
+    expect(fs.readFileSync(path.join(sourcePath, "file.txt"), "utf8")).toBe("original");
+    expect(fs.readFileSync(path.join(destinationPath, "file.txt"), "utf8")).toBe(
+      "edited destination",
+    );
   });
 
   it("restores a replaced destination when an EXDEV move is cancelled", async () => {
