@@ -17,6 +17,20 @@ function option(name, fallback) {
 }
 const baselinePath = option("baseline");
 assert(baselinePath, "Pass --baseline with the saved directory.js source");
+const counts = option("counts", "100,1000,10000").split(",").map(Number);
+const sampleCount = Number(option("samples", "15"));
+const warmupCount = Number(option("warmups", "3"));
+const modes = option("modes", "listing-cpu,filesystem-reload").split(",");
+assert(
+  counts.every((count) => Number.isInteger(count) && count > 0),
+  "Invalid --counts",
+);
+assert(Number.isInteger(sampleCount) && sampleCount > 0, "Invalid --samples");
+assert(Number.isInteger(warmupCount) && warmupCount >= 0, "Invalid --warmups");
+assert(
+  modes.every((mode) => ["listing-cpu", "filesystem-reload", "first-load"].includes(mode)),
+  "Invalid --modes",
+);
 const sources = {
   baseline: fs.readFileSync(path.resolve(baselinePath), "utf8"),
   current: fs.readFileSync(path.join(root, "lib", "directory.js"), "utf8"),
@@ -32,6 +46,7 @@ const defaults = Object.fromEntries(
   ]),
 );
 const settings = { ...defaults };
+settings.sortByBase = option("sort-by-base", "true") === "true";
 global.lumine = { config: { get: (key) => settings[key.replace("tree-view.", "")] } };
 const observer = { observe: () => ({ repository: null, dispose() {} }) };
 function load(source, file, adapter) {
@@ -60,12 +75,22 @@ function summary(values) {
   return { medianMs: percentile(values, 0.5), p95Ms: percentile(values, 0.95), samplesMs: values };
 }
 function namesFor(count) {
+  const numbers = Array.from({ length: count }, (_, index) => index);
+  let seed = 0x519a;
+  for (let index = count - 1; index > 0; index--) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const other = seed % (index + 1);
+    [numbers[index], numbers[other]] = [numbers[other], numbers[index]];
+  }
   return Array.from({ length: count }, (_, index) => {
-    const number = (index * 7919) % count;
+    const number = numbers[index];
     return `${index % 3 === 0 ? "Module" : "component"}-${number}.${["js", "test.js", "d.ts", "json"][index % 4]}`;
   });
 }
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-benchmark-"));
+const output = path.resolve(
+  option("output", path.join(root, "..", ".dev", "tree-view-directory-results.json")),
+);
 const report = {
   node: process.version,
   platform: process.platform,
@@ -76,12 +101,14 @@ const report = {
       crypto.createHash("sha256").update(source).digest("hex"),
     ]),
   ),
+  sampleCount,
+  warmupCount,
   methodology:
-    "Alternating baseline/current order, 3 warmups, 15 samples. Listing CPU uses cached native Stats and no disk reads; filesystem reload uses actual readdir/lstat. Git observers and UI are excluded. Filesystem cache is warm.",
+    "Alternating baseline/current order. Listing CPU uses cached native Stats and no disk reads; filesystem reload and first load use actual readdir/lstat. First load includes new model construction and synchronous realpath resolution. Git observers and UI are excluded. Filesystem cache is warm; validation runs outside the measured interval.",
   results: [],
 };
 try {
-  for (const count of [100, 1000, 10000]) {
+  for (const count of counts) {
     const directoryPath = path.join(temporaryRoot, String(count));
     fs.mkdirSync(directoryPath);
     const names = namesFor(count);
@@ -99,7 +126,7 @@ try {
     for (const sortMethod of ["default", "natural"]) {
       for (const sortFoldersBeforeFiles of [true, false]) {
         Object.assign(settings, { sortMethod, sortFoldersBeforeFiles });
-        for (const mode of ["listing-cpu", "filesystem-reload"]) {
+        for (const mode of modes) {
           const adapters = Object.fromEntries(
             Object.keys(sources).map((label) => [
               label,
@@ -122,35 +149,43 @@ try {
                 useSyncFS: true,
                 ignoredNames: { matches: () => false },
               });
-              directory.reload();
+              if (mode !== "first-load") directory.reload();
               return [label, directory];
             }),
           );
           const samples = { baseline: [], current: [] };
           let expected;
-          for (let iteration = -3; iteration < 15; iteration++) {
+          for (let iteration = -warmupCount; iteration < sampleCount; iteration++) {
             for (const label of iteration % 2 === 0
               ? ["baseline", "current"]
               : ["current", "baseline"]) {
               const directory = directories[label];
+              if (mode === "first-load") directory.unwatch();
               const start = performance.now();
               const listing = mode === "listing-cpu" ? directory.getEntries() : directory.reload();
               const elapsed = performance.now() - start;
-              const entries = mode === "listing-cpu" ? listing : directory.getEntries();
-              const orderedNames = entries.map((entry) =>
-                typeof entry === "string" ? entry : entry.name,
-              );
-              if (!expected) expected = orderedNames;
-              assert.deepEqual(orderedNames, expected, `${label} changed ordering`);
+              // A reload's entries Map preserves model insertion order, not
+              // current sort order. Check its sorted listing after all samples
+              // rather than adding a second filesystem scan to every sample.
+              if (mode === "listing-cpu") {
+                if (!expected) expected = listing;
+                assert.deepEqual(listing, expected, `${label} changed ordering`);
+              }
               assert.equal(directory.entries.size, count);
               if (iteration >= 0) samples[label].push(elapsed);
             }
           }
+          assert.deepEqual(
+            directories.current.getEntries(),
+            directories.baseline.getEntries(),
+            "Changed filesystem ordering",
+          );
           for (const directory of Object.values(directories)) directory.destroy();
           const result = {
             count,
             sortMethod,
             sortFoldersBeforeFiles,
+            sortByBase: settings.sortByBase,
             mode,
             baseline: summary(samples.baseline),
             current: summary(samples.current),
@@ -158,6 +193,7 @@ try {
           result.improvementPercent =
             100 * (1 - result.current.medianMs / result.baseline.medianMs);
           report.results.push(result);
+          fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
           console.log(
             `${mode} ${count} ${sortMethod} folders=${sortFoldersBeforeFiles}: ${result.baseline.medianMs.toFixed(3)} -> ${result.current.medianMs.toFixed(3)} ms (${result.improvementPercent.toFixed(1)}%)`,
           );
@@ -165,7 +201,6 @@ try {
       }
     }
   }
-  const output = path.resolve(option("output", path.join(temporaryRoot, "results.json")));
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`Results: ${output}`);
 } finally {
