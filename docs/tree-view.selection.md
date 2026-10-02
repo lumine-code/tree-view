@@ -66,7 +66,7 @@ module.exports = {
 
 Entries are only rendered while their parent directory is expanded, so `entryForPath` returns `undefined` for a collapsed subtree even though the path exists on disk. Do not use it to test existence.
 
-`revealPath` starts every directory expansion on the way before waiting for them together, so the tree and its selected path appear in one update rather than revealing one level at a time. Its promise nevertheless settles only after all expansion work has finished. A directory reveals like a file: it is expanded, selected and scrolled to.
+`revealPath` reads each ancestor's filesystem metadata asynchronously before continuing along the path, then publishes each completed directory listing in one update. The target is selected and scrolled into view once its ancestors have loaded, without waiting for every directory watcher to become ready; the returned promise settles after that remaining expansion work finishes. A newer reveal, selection or project change takes precedence over an older load. A directory reveals like a file: it is expanded, selected and scrolled to.
 
 The service resolves against the live tree-view instance on each call, so holding the service object across a tree-view teardown and re-creation is safe.
 

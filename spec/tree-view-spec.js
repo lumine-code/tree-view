@@ -1461,7 +1461,9 @@ describe("TreeView construction", () => {
       revealPromise.then(settled, settled);
 
       try {
-        await flushMicrotasks();
+        await conditionPromise(
+          () => watchedPaths.length === 2 && treeView.selectedEntry()?.getPath() === target,
+        );
 
         expect(watchedPaths).toEqual([projectPath, __dirname]);
         expect(treeView.entryForPath(target)).toBeDefined();
@@ -1503,6 +1505,11 @@ describe("TreeView construction", () => {
       spyOn(treeView, "scrollToEntry");
 
       const firstReveal = treeView.revealPath(firstTarget, { show: false, focus: false });
+      await conditionPromise(
+        () =>
+          watchedPaths.includes(firstDirectoryPath) &&
+          treeView.selectedEntry()?.getPath() === firstTarget,
+      );
       const secondReveal = treeView.revealPath(secondTarget, { show: false, focus: false });
       const firstSettled = jasmine.createSpy("first settled");
       const secondSettled = jasmine.createSpy("second settled");
@@ -1510,7 +1517,11 @@ describe("TreeView construction", () => {
       secondReveal.then(secondSettled, secondSettled);
 
       try {
-        await flushMicrotasks();
+        await conditionPromise(
+          () =>
+            watchedPaths.includes(secondDirectoryPath) &&
+            treeView.selectedEntry()?.getPath() === secondTarget,
+        );
 
         expect(watchedPaths).toEqual([firstDirectoryPath, secondDirectoryPath]);
         expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
@@ -1534,6 +1545,34 @@ describe("TreeView construction", () => {
       expect(treeView.scrollToEntry.calls.mostRecent().args[0].getPath()).toBe(secondTarget);
     });
 
+    it("keeps the newer reveal selected when an older directory load finishes later", async () => {
+      treeView = new TreeView({});
+      await treeView.roots[0].expand();
+      const firstTarget = __filename;
+      const secondTarget = path.resolve(__dirname, "..", "lib", "tree-view.js");
+      let releaseLoad;
+      const loadGate = new Promise((resolve) => {
+        releaseLoad = resolve;
+      });
+      const reloadAsync = Directory.prototype.reloadAsync;
+      spyOn(Directory.prototype, "reloadAsync").and.callFake(function (options) {
+        if (this.path === __dirname) return loadGate.then(() => reloadAsync.call(this, options));
+        return reloadAsync.call(this, options);
+      });
+      spyOn(treeView, "scrollToEntry");
+      const firstReveal = treeView.revealPath(firstTarget, { show: false, focus: false });
+      try {
+        await conditionPromise(() => treeView.treeEntryForPath(__dirname)?.isExpanded);
+        await treeView.revealPath(secondTarget, { show: false, focus: false });
+        expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
+      } finally {
+        releaseLoad();
+        await firstReveal;
+      }
+      expect(treeView.selectedEntry()?.getPath()).toBe(secondTarget);
+      expect(treeView.scrollToEntry.calls.mostRecent().args[0].getPath()).toBe(secondTarget);
+    });
+
     it("selects a directory it reveals rather than only expanding it", async () => {
       treeView = new TreeView({});
 
@@ -1541,6 +1580,30 @@ describe("TreeView construction", () => {
 
       expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
       expect(treeView.selectedEntry()?.isExpanded).toBe(true);
+    });
+
+    it("preserves a click made while a revealed directory is loading", async () => {
+      treeView = new TreeView({});
+      await treeView.roots[0].expand();
+      let releaseLoad;
+      const loadGate = new Promise((resolve) => {
+        releaseLoad = resolve;
+      });
+      const reloadAsync = Directory.prototype.reloadAsync;
+      spyOn(Directory.prototype, "reloadAsync").and.callFake(function (options) {
+        if (this.path === __dirname) return loadGate.then(() => reloadAsync.call(this, options));
+        return reloadAsync.call(this, options);
+      });
+      const revealing = treeView.revealPath(__filename, { show: false, focus: false });
+      const clicked = treeView.treeEntryForPath(path.resolve(__dirname, "..", "lib"));
+      try {
+        await conditionPromise(() => treeView.treeEntryForPath(__dirname)?.isExpanded);
+        treeView.selectEntry(clicked);
+      } finally {
+        releaseLoad();
+        await revealing;
+      }
+      expect(treeView.selectedEntry()).toBe(clicked);
     });
 
     it("leaves a newly created directory closed when revealing it", async () => {
@@ -2484,6 +2547,43 @@ describe("TreeView row model and sticky headers", () => {
       expect(treeView.rowViews.get(row).element).toBe(element);
     }
     treeView.destroyRowViews();
+  });
+
+  it("leaves unchanged row layout styles untouched and applies changed heights and depths", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderMode = "none";
+    treeView.stickyHeaderLayer = document.createElement("div");
+    treeView.stickyHeaderList = document.createElement("ol");
+    treeView.stickyHeaderEntries = [];
+    treeView.rowViews = new Map();
+    treeView.specialRoots = [];
+    treeView.contentWidth = 0;
+    treeView.regularRowHeight = 24;
+    treeView.list = document.createElement("ol");
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const child = entry(treeView, "file.js", "file", root);
+    layout(treeView, [root]);
+    treeView.renderVisibleRows();
+    const observer = new MutationObserver(() => {});
+    observer.observe(treeView.list, { attributes: true, subtree: true });
+    try {
+      treeView.renderVisibleRows();
+      expect(observer.takeRecords()).toEqual([]);
+      const element = treeView.rowViews.get(child).element;
+      element.style.height = "99px";
+      element.style.setProperty("--tree-view-depth", "99");
+      treeView.renderVisibleRows();
+      expect(element.style.height).toBe(`${child.height}px`);
+      expect(element.style.getPropertyValue("--tree-view-depth")).toBe(`${child.depth}`);
+      child.height = 28;
+      child.depth = 2;
+      treeView.renderVisibleRows();
+      expect(element.style.height).toBe("28px");
+      expect(element.style.getPropertyValue("--tree-view-depth")).toBe("2");
+    } finally {
+      observer.disconnect();
+      treeView.destroyRowViews();
+    }
   });
 
   it("keeps the package-owned state and clears the overlay when disabled", () => {
