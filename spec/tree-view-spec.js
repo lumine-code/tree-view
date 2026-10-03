@@ -99,7 +99,7 @@ describe("TreeViewPackage teardown", () => {
     await treeViewPackage.deactivate();
   });
 
-  it("applies workspace state to the instance opened before deserialization", async () => {
+  it("restores workspace state without replacing the live directory expansion state", async () => {
     const originalProjectPaths = lumine.project.getPaths();
     const projectParent = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-roots-state-")),
@@ -123,15 +123,24 @@ describe("TreeViewPackage teardown", () => {
     }
 
     try {
+      await Promise.all(treeView.roots.map((root) => root.expand()));
+      treeView.roots[1].collapse();
+
       const restored = treeViewPackage.getTreeViewInstance({
         deserializer: "TreeView",
         directoryExpansionStates,
-        selectedPaths: [],
+        selectedPaths: [projectPaths[2]],
+        width: 320,
       });
+      await Promise.all(
+        restored.roots.filter((root) => root.isExpanded).map((root) => root.expand()),
+      );
       await flushMicrotasks();
 
       expect(restored).toBe(treeView);
-      expect(restored.roots.map((root) => root.isExpanded)).toEqual([false, true, false, true]);
+      expect(restored.roots.map((root) => root.isExpanded)).toEqual([true, false, true, true]);
+      expect(restored.selectedEntry()?.getPath()).toBe(projectPaths[2]);
+      expect(restored.element.style.width).toBe("320px");
     } finally {
       await treeViewPackage.deactivate();
       lumine.project.setPaths(originalProjectPaths);
@@ -659,7 +668,7 @@ describe("TreeView construction", () => {
     expect(treeView.fileOperationProcess.childProcess).toBeUndefined();
   });
 
-  it("restores the expansion state of project roots and their folders from JSON", async () => {
+  it("omits directory expansion state from JSON and ignores state saved by older versions", async () => {
     const projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-state-")));
     const openPath = path.join(projectPath, "open");
     const nestedPath = path.join(openPath, "nested");
@@ -675,23 +684,36 @@ describe("TreeView construction", () => {
       await treeView.treeEntryForPath(openPath).expand();
       await treeView.treeEntryForPath(nestedPath).expand();
       root.collapse();
+      treeView.selectEntry(root);
 
       const state = JSON.parse(JSON.stringify(treeView.serialize()));
-      expect(state.directoryExpansionStates[projectPath].isExpanded).toBe(false);
-      expect(Array.isArray(state.directoryExpansionStates[projectPath].entries)).toBe(true);
+      expect(Object.hasOwn(state, "directoryExpansionStates")).toBe(false);
+      state.directoryExpansionStates = {
+        [projectPath]: {
+          isExpanded: false,
+          entries: [
+            [
+              "open",
+              { isExpanded: true, entries: [["nested", { isExpanded: true, entries: [] }]] },
+            ],
+          ],
+        },
+      };
 
       await treeView.destroy();
       treeView = new TreeView(state);
-      expect(treeView.roots[0].isExpanded).toBe(false);
-
-      await treeView.roots[0].expand();
       await conditionPromise(
-        () =>
-          treeView.treeEntryForPath(openPath)?.isExpanded === true &&
-          treeView.treeEntryForPath(nestedPath)?.isExpanded === true,
-        "serialized tree expansion state",
+        () => treeView.treeEntryForPath(openPath)?.getPath() === openPath,
+        "initial project root expansion",
       );
+      expect(treeView.roots[0].isExpanded).toBe(true);
+
+      expect(treeView.treeEntryForPath(openPath).isExpanded).toBe(false);
       expect(treeView.treeEntryForPath(closedPath).isExpanded).toBe(false);
+      expect(treeView.selectedEntry()?.getPath()).toBe(projectPath);
+
+      await treeView.treeEntryForPath(openPath).expand();
+      expect(treeView.treeEntryForPath(nestedPath).isExpanded).toBe(false);
     } finally {
       await treeView?.destroy();
       treeView = null;
