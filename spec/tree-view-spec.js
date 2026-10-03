@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { webUtils } = require("electron");
-const { Disposable } = require("lumine");
+const { Disposable, Emitter } = require("lumine");
 const Directory = require("../lib/directory");
 const TreeView = require("../lib/tree-view");
 const TreeEntry = require("../lib/tree-entry");
@@ -1653,6 +1653,35 @@ describe("TreeView construction", () => {
         focus: false,
         center: false,
       });
+    });
+
+    it("reveals the replacement resource without changing the active item", async () => {
+      treeView = new TreeView({});
+      const emitter = new Emitter();
+      let filePath = __filename;
+      const item = {
+        element: document.createElement("div"),
+        getPath: () => filePath,
+        getURI: () => filePath,
+        onDidChangeURI: (callback) => emitter.on("did-change-uri", callback),
+      };
+      await lumine.workspace.open(item, { pending: true });
+      spyOn(treeView, "selectActiveFile");
+      spyOn(treeView, "revealActiveFile");
+      lumine.config.set("tree-view.autoReveal", true);
+
+      const oldURI = filePath;
+      filePath = path.join(path.dirname(__filename), "replacement.png");
+      emitter.emit("did-change-uri", { oldURI, newURI: filePath });
+
+      expect(lumine.workspace.getCenter().getActivePaneItem()).toBe(item);
+      expect(treeView.selectActiveFile).toHaveBeenCalled();
+      expect(treeView.revealActiveFile).toHaveBeenCalledWith({
+        show: false,
+        focus: false,
+        center: false,
+      });
+      emitter.dispose();
     });
   });
 
