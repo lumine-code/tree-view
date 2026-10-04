@@ -265,6 +265,47 @@ describe("TreeView dialogs", () => {
       expect(moved).toEqual({ initialPath: source, newPath: destination, open: false });
     });
 
+    for (const [command, updateReferences, open] of [
+      ["core:confirm", false, false],
+      ["tree-view:confirm-and-open", false, true],
+      ["tree-view:confirm-and-update-references", true, false],
+    ]) {
+      it(`requests reference updates only through its separate action (${command})`, async () => {
+        const source = fixture("old.py", "content");
+        const destination = path.join(projectPath, "renamed.ipy");
+        const willMove = jasmine.createSpy("willMove").and.resolveTo(true);
+        const onMove = jasmine.createSpy("onMove");
+        const dialog = track(new MoveDialog(source, { willMove, onMove }));
+        dialog.attach();
+        dialog.miniEditor.setText("renamed.ipy");
+
+        await lumine.commands.dispatch(dialog.miniEditor.element, command);
+        await dialog.confirmPromise;
+
+        expect(willMove).toHaveBeenCalledWith({
+          initialPath: source,
+          newPath: destination,
+          updateReferences,
+        });
+        expect(fs.existsSync(source)).toBe(false);
+        expect(fs.readFileSync(destination, "utf8")).toBe("content");
+        expect(onMove).toHaveBeenCalledWith({ initialPath: source, newPath: destination, open });
+      });
+    }
+
+    it("keeps ordinary confirmation primary and exposes reference updates for directories too", () => {
+      const directory = path.join(projectPath, "folder");
+      fs.mkdirSync(directory);
+      const dialog = track(new MoveDialog(directory, {}));
+      dialog.attach();
+      const actions = dialog.inputDialog.getActions();
+
+      expect(actions.find((action) => action.primary).command).toBe("tree-view:confirm");
+      expect(
+        actions.some((action) => action.command === "tree-view:confirm-and-update-references"),
+      ).toBe(true);
+    });
+
     it("does not move an entry when a will listener refuses it", async () => {
       const source = fixture("old.txt", "content");
       const willMove = jasmine.createSpy("willMove").and.resolveTo(false);
@@ -274,6 +315,11 @@ describe("TreeView dialogs", () => {
 
       await dialog.confirm();
 
+      expect(willMove).toHaveBeenCalledWith({
+        initialPath: source,
+        newPath: path.join(projectPath, "renamed.txt"),
+        updateReferences: false,
+      });
       expect(fs.existsSync(source)).toBe(true);
       expect(fs.existsSync(path.join(projectPath, "renamed.txt"))).toBe(false);
     });
@@ -332,6 +378,23 @@ describe("TreeView dialogs", () => {
         open: true,
       });
     });
+  });
+
+  it("does not offer reference updates while adding or duplicating entries", () => {
+    const source = fixture("source.txt");
+    for (const dialog of [
+      track(new AddDialog(projectPath, true)),
+      track(new AddDialog(projectPath, false)),
+      track(new CopyDialog(source, {})),
+    ]) {
+      dialog.attach();
+      expect(
+        dialog.inputDialog
+          .getActions()
+          .some((action) => action.command === "tree-view:confirm-and-update-references"),
+      ).toBe(false);
+      dialog.close();
+    }
   });
 
   describe("CopyDialog", () => {
@@ -537,13 +600,14 @@ describe("TreeView dialogs", () => {
       return dialog.inputDialog.getAvailableActions().map((action) => action.command);
     }
 
-    it("lists both ways to confirm in the item actions, keystroke or not", () => {
+    it("lists ordinary confirmation, opening and reference updates as separate actions", () => {
       const dialog = track(new MoveDialog(fixture("old.txt"), {}));
       dialog.attach();
 
       expect(actionCommands(dialog)).toEqual([
         "tree-view:confirm",
         "tree-view:confirm-and-open",
+        "tree-view:confirm-and-update-references",
         "tree-view:select-name",
       ]);
 
@@ -566,7 +630,11 @@ describe("TreeView dialogs", () => {
       fs.mkdirSync(directory);
       const rename = track(new MoveDialog(directory, {}));
       rename.attach();
-      expect(actionCommands(rename)).toEqual(["tree-view:confirm", "tree-view:select-name"]);
+      expect(actionCommands(rename)).toEqual([
+        "tree-view:confirm",
+        "tree-view:confirm-and-update-references",
+        "tree-view:select-name",
+      ]);
     });
 
     it("resolves its keystroke at the mini editor the dialog focuses", () => {
@@ -581,6 +649,79 @@ describe("TreeView dialogs", () => {
           command: "tree-view:confirm-and-open",
         });
         expect(bindings.map((binding) => binding.keystrokes)).toEqual(["shift-enter"]);
+        const updateBindings = lumine.keymaps.findKeyBindings({
+          target: dialog.miniEditor.element,
+          command: "tree-view:confirm-and-update-references",
+        });
+        expect(updateBindings.map((binding) => binding.keystrokes)).toEqual(["alt-enter"]);
+      } finally {
+        lumine.keymaps.removeBindingsFromSource(keymapPath);
+      }
+    });
+
+    for (const altKey of [false, true]) {
+      it(`confirms the focused rename input ${altKey ? "with" : "without"} reference updates through its keymap`, async () => {
+        const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+        lumine.keymaps.loadKeymap(keymapPath);
+        try {
+          const source = fixture("source.py", "content");
+          const destination = path.join(projectPath, "source.ipy");
+          const willMove = jasmine.createSpy("willMove").and.resolveTo(true);
+          const completed = deferred();
+          const dialog = track(
+            new MoveDialog(source, {
+              willMove,
+              onMove: () => completed.resolve(),
+            }),
+          );
+          dialog.attach();
+          dialog.miniEditor.setText("source.ipy");
+          dialog.miniEditor.element.focus();
+          expect(dialog.miniEditor.element.contains(document.activeElement)).toBe(true);
+          const event = new KeyboardEvent("keydown", {
+            key: "Enter",
+            altKey,
+            bubbles: true,
+            cancelable: true,
+          });
+          Object.defineProperty(event, "target", { get: () => dialog.miniEditor.element });
+          Object.defineProperty(event, "path", { get: () => [dialog.miniEditor.element] });
+
+          lumine.keymaps.handleKeyboardEvent(event);
+          await completed.promise;
+
+          expect(willMove).toHaveBeenCalledWith({
+            initialPath: source,
+            newPath: destination,
+            updateReferences: altKey,
+          });
+          expect(fs.existsSync(source)).toBe(false);
+          expect(fs.readFileSync(destination, "utf8")).toBe("content");
+        } finally {
+          lumine.keymaps.removeBindingsFromSource(keymapPath);
+        }
+      });
+    }
+
+    it("does not bind reference confirmation in add or duplicate dialogs", () => {
+      const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+      lumine.keymaps.loadKeymap(keymapPath);
+      try {
+        const source = fixture("source.py");
+        for (const dialog of [
+          track(new AddDialog(projectPath, true)),
+          track(new AddDialog(projectPath, false)),
+          track(new CopyDialog(source, {})),
+        ]) {
+          dialog.attach();
+          expect(
+            lumine.keymaps.findKeyBindings({
+              target: dialog.miniEditor.element,
+              command: "tree-view:confirm-and-update-references",
+            }),
+          ).toEqual([]);
+          dialog.close();
+        }
       } finally {
         lumine.keymaps.removeBindingsFromSource(keymapPath);
       }

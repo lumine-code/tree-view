@@ -15,21 +15,21 @@ Consume `tree-view.file-operations` at `^1.0.0`. Each registration method return
 
 ## Contract
 
-| Method                        | Payload            | Behavior                                                                                   |
-| ----------------------------- | ------------------ | ------------------------------------------------------------------------------------------ |
-| `onWillCreateFiles(callback)` | `{paths, entries}` | Awaits the callback before creating paths; returning `false` cancels the operation.        |
-| `onWillRenameFiles(callback)` | `{files}`          | Awaits the callback before moving paths; returning `false` cancels the operation.          |
-| `onWillDeleteFiles(callback)` | `{paths, entries}` | Awaits the callback before moving paths to trash; returning `false` cancels the operation. |
-| `onDidCreateFiles(callback)`  | `{paths, entries}` | Runs after paths were created successfully.                                                |
-| `onDidRenameFiles(callback)`  | `{files}`          | Runs after paths were moved successfully.                                                  |
-| `onDidDeleteFiles(callback)`  | `{paths, entries}` | Runs after paths were moved to trash successfully.                                         |
+| Method                        | Payload                      | Behavior                                                                                   |
+| ----------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------ |
+| `onWillCreateFiles(callback)` | `{paths, entries}`           | Awaits the callback before creating paths; returning `false` cancels the operation.        |
+| `onWillRenameFiles(callback)` | `{files, updateReferences?}` | Awaits the callback before moving paths; returning `false` cancels the operation.          |
+| `onWillDeleteFiles(callback)` | `{paths, entries}`           | Awaits the callback before moving paths to trash; returning `false` cancels the operation. |
+| `onDidCreateFiles(callback)`  | `{paths, entries}`           | Runs after paths were created successfully.                                                |
+| `onDidRenameFiles(callback)`  | `{files}`                    | Runs after paths were moved successfully.                                                  |
+| `onDidDeleteFiles(callback)`  | `{paths, entries}`           | Runs after paths were moved to trash successfully.                                         |
 
 ## Minimal example
 
 ```js
 consumeTreeViewFileOperations(fileOperations) {
-  return fileOperations.onWillRenameFiles(async ({ files }) => {
-    await prepareReferences(files);
+  return fileOperations.onWillRenameFiles(async ({ files, updateReferences }) => {
+    if (updateReferences === true) await prepareReferences(files);
     return true;
   });
 }
@@ -40,6 +40,8 @@ consumeTreeViewFileOperations(fileOperations) {
 Will callbacks run in registration order. The first callback returning `false`, throwing, or rejecting cancels the complete operation before any filesystem work begins. Did callbacks run together after the complete batch settles; they receive only paths that actually changed, and a rejection is logged without turning an already completed operation into a failure.
 
 `paths` contains absolute path strings. `entries` carries the same create/delete paths as `{path, isDirectory}` objects, while rename `files` contains `{oldPath, newPath, isDirectory}`. The richer form lets a consumer honor file-only and folder-only filters; `paths` remains the convenient form for consumers that do not care.
+
+The optional `updateReferences` boolean in a will-rename payload says whether the user requested reference updates. The rename dialog's ordinary confirmation and all paste/drop moves send `false`; its separate Confirm and Update References action sends `true`. Consumers perform reference refactoring only when this flag is `true`. All guards and did-rename notifications still run for ordinary moves, and open documents follow their renamed paths.
 
 A copy is a create operation and a move is a rename operation. A multi-entry paste or drop produces one plural will callback, queues nothing until every listener accepts it, preserves deterministic child-before-parent move order, and produces one plural did callback after all entries settle. When a directory is merged only the child or subtree roots that physically moved are reported; cancelled, skipped, and failed entries never masquerade as completed top-level operations.
 

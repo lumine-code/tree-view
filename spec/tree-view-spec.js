@@ -3353,6 +3353,68 @@ describe("TreeView revealing created paths", () => {
     expect(fs.existsSync(movedPath)).toBe(true);
     expect(treeView.revealPath).not.toHaveBeenCalled();
   });
+
+  for (const [command, updateReferences] of [
+    ["core:confirm", false],
+    ["tree-view:confirm-and-open", false],
+    ["tree-view:confirm-and-update-references", true],
+  ]) {
+    it(`passes the reference-update choice to rename guards (${command})`, async () => {
+      const sourcePath = path.join(projectPath, "source.py");
+      const movedPath = path.join(projectPath, "source.ipy");
+      fs.writeFileSync(sourcePath, "content");
+      treeView.treeEntryForPath(sourcePath).reload();
+      await treeView.revealPath(sourcePath);
+      spyOn(treeView, "hasFocus").and.returnValue(true);
+      treeView.fileOperationEvents = {
+        will: jasmine.createSpy("will").and.resolveTo(true),
+        did: jasmine.createSpy("did").and.resolveTo(),
+      };
+
+      const dialog = treeView.moveSelectedEntry();
+      dialog.miniEditor.setText("source.ipy");
+      await lumine.commands.dispatch(dialog.miniEditor.element, command);
+      await dialog.confirmPromise;
+
+      const files = [{ oldPath: sourcePath, newPath: movedPath, isDirectory: false }];
+      expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
+        files,
+        updateReferences,
+      });
+      expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", { files });
+      expect(fs.existsSync(sourcePath)).toBe(false);
+      expect(fs.readFileSync(movedPath, "utf8")).toBe("content");
+    });
+  }
+
+  it("still lets ordinary rename guards cancel the filesystem operation", async () => {
+    const sourcePath = path.join(projectPath, "source.py");
+    const movedPath = path.join(projectPath, "source.ipy");
+    fs.writeFileSync(sourcePath, "content");
+    treeView.treeEntryForPath(sourcePath).reload();
+    await treeView.revealPath(sourcePath);
+    spyOn(treeView, "hasFocus").and.returnValue(true);
+    spyOn(treeView.fileOperationProcess, "run").and.callThrough();
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(false),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+    const dialog = treeView.moveSelectedEntry();
+    dialog.miniEditor.setText("source.ipy");
+
+    await lumine.commands.dispatch(dialog.miniEditor.element, "core:confirm");
+    await dialog.confirmPromise;
+
+    expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
+      files: [{ oldPath: sourcePath, newPath: movedPath, isDirectory: false }],
+      updateReferences: false,
+    });
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
+    expect(fs.readFileSync(sourcePath, "utf8")).toBe("content");
+    expect(fs.existsSync(movedPath)).toBe(false);
+    dialog.cancel();
+  });
 });
 
 describe("TreeView completed file operations", () => {
@@ -3597,6 +3659,7 @@ describe("TreeView completed file operations", () => {
     expect(treeView.resolveFileOperationConflict).not.toHaveBeenCalled();
     expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
       files: expectedFiles,
+      updateReferences: false,
     });
     expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
       files: expectedFiles,
@@ -3686,6 +3749,7 @@ describe("TreeView completed file operations", () => {
     ];
     expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
       files: expectedFiles,
+      updateReferences: false,
     });
     expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
       files: expectedFiles,
@@ -3761,6 +3825,7 @@ describe("TreeView completed file operations", () => {
     expect(treeView.fileOperationEvents.will.calls.count()).toBe(1);
     expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
       files: expectedFiles,
+      updateReferences: false,
     });
     expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", {
       files: expectedFiles,

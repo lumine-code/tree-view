@@ -66,5 +66,8 @@
     "escape": "core:cancel",
     // The key that opens the rename dialog goes on cycling what it selected.
     "f2": "tree-view:select-name"
+  },
+  ".tree-view-dialog.reference-updates lumine-text-editor[mini]": {
+    "alt-enter": "tree-view:confirm-and-update-references"
   }
 }
