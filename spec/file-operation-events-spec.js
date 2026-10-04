@@ -50,4 +50,36 @@ describe("tree-view.file-operations", () => {
     expect(await events.will("willDelete", { paths: ["file"] })).toBe(false);
     expect(console.error).toHaveBeenCalled();
   });
+
+  it("invokes every did listener synchronously and logs synchronous and asynchronous failures", async () => {
+    const events = new FileOperationEvents();
+    const seen = [];
+    const synchronous = new Error("synchronous listener failure");
+    const asynchronous = new Error("asynchronous listener failure");
+    spyOn(console, "error");
+    events.on("didRename", () => {
+      seen.push("first");
+      throw synchronous;
+    });
+    events.on("didRename", () => {
+      seen.push("second");
+      return Promise.reject(asynchronous);
+    });
+    events.on("didRename", ({ files }) => seen.push(files[0].newPath));
+
+    const notification = events.did("didRename", {
+      files: [{ oldPath: "before", newPath: "after" }],
+    });
+
+    expect(seen).toEqual(["first", "second", "after"]);
+    await expectAsync(notification).toBeResolved();
+    expect(console.error).toHaveBeenCalledWith(
+      "tree-view file operation listener failed",
+      synchronous,
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      "tree-view file operation listener failed",
+      asynchronous,
+    );
+  });
 });

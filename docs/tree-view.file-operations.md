@@ -37,7 +37,7 @@ consumeTreeViewFileOperations(fileOperations) {
 
 ## Behavior
 
-Will callbacks run in registration order. The first callback returning `false`, throwing, or rejecting cancels the complete operation before any filesystem work begins. Did callbacks run together after the complete batch settles; they receive only paths that actually changed, and a rejection is logged without turning an already completed operation into a failure.
+Will callbacks run in registration order. The first callback returning `false`, throwing, or rejecting cancels the complete operation before any filesystem work begins. Did callbacks run together after the complete batch settles; they receive only paths that actually changed, and a throw or rejection is logged without preventing other callbacks or turning an already completed operation into a failure. Confirmed disk changes are still reported when reconciling open documents or repositories fails after a move.
 
 `paths` contains absolute path strings. `entries` carries the same create/delete paths as `{path, isDirectory}` objects, while rename `files` contains `{oldPath, newPath, isDirectory}`. The richer form lets a consumer honor file-only and folder-only filters; `paths` remains the convenient form for consumers that do not care.
 

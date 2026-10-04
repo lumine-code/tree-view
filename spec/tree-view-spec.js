@@ -3393,6 +3393,36 @@ describe("TreeView revealing created paths", () => {
     expect(fs.existsSync(movedPath)).toBe(false);
     dialog.cancel();
   });
+
+  it("notifies a completed dialog rename when document reconciliation fails", async () => {
+    const sourcePath = path.join(projectPath, "source.py");
+    const movedPath = path.join(projectPath, "source.ipy");
+    const files = [{ oldPath: sourcePath, newPath: movedPath, isDirectory: false }];
+    fs.writeFileSync(sourcePath, "content");
+    treeView.treeEntryForPath(sourcePath).reload();
+    await treeView.revealPath(sourcePath);
+    spyOn(treeView, "hasFocus").and.returnValue(true);
+    const complete = jasmine
+      .createSpy("complete")
+      .and.rejectWith(new Error("reconciliation failed"));
+    spyOn(lumine.workspace, "beginFileMove").and.returnValue({
+      ready: Promise.resolve(),
+      complete,
+    });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+    const dialog = treeView.moveSelectedEntry();
+    dialog.miniEditor.setText("source.ipy");
+
+    await dialog.confirm();
+
+    expect(complete).toHaveBeenCalledWith(files);
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", { files });
+    expect(fs.existsSync(sourcePath)).toBe(false);
+    expect(fs.readFileSync(movedPath, "utf8")).toBe("content");
+  });
 });
 
 describe("TreeView completed file operations", () => {
@@ -3419,6 +3449,89 @@ describe("TreeView completed file operations", () => {
       refreshSpecialRoots: jasmine.createSpy("refreshSpecialRoots"),
     });
   }
+
+  it("does not start a worker or replace the original error when move preparation fails", async () => {
+    const preparationError = new Error("preparation failed");
+    const complete = jasmine.createSpy("complete").and.rejectWith(preparationError);
+    spyOn(lumine.workspace, "beginFileMove").and.returnValue({
+      ready: Promise.reject(preparationError),
+      complete,
+    });
+    const treeView = operationTree();
+
+    await expectAsync(treeView.runFileMove("source.txt", "destination.txt")).toBeRejectedWith(
+      preparationError,
+    );
+
+    expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledWith([]);
+    expect(preparationError.renames).toEqual([]);
+    expect(preparationError.creates).toEqual([]);
+  });
+
+  it("notifies partial disk changes and retains both failures when move reconciliation also fails", async () => {
+    const sourcePath = path.join(temporaryPath, "source");
+    const destinationDirectory = path.join(temporaryPath, "destination");
+    const destinationPath = path.join(destinationDirectory, "source");
+    const sourceChild = path.join(sourcePath, "moved.txt");
+    const destinationChild = path.join(destinationPath, "moved.txt");
+    const retainedCopy = path.join(destinationPath, "retained-copy.txt");
+    fs.mkdirSync(sourcePath);
+    fs.mkdirSync(destinationDirectory);
+    fs.writeFileSync(sourceChild, "moved content");
+    const renames = [{ oldPath: sourceChild, newPath: destinationChild, isDirectory: false }];
+    const creates = [{ path: retainedCopy, isDirectory: false }];
+    const workerError = Object.assign(new Error("partial disk failure"), {
+      code: "EIO",
+      renames,
+      creates,
+      partial: true,
+      cleanupError: "retained copy needs cleanup",
+      cleanupPath: retainedCopy,
+    });
+    const completionError = new Error("reconciliation failed");
+    const complete = jasmine.createSpy("complete").and.rejectWith(completionError);
+    spyOn(lumine.workspace, "beginFileMove").and.returnValue({
+      ready: Promise.resolve(),
+      complete,
+    });
+    const treeView = operationTree();
+    treeView.fileOperationProcess.run.and.callFake(() => {
+      fs.mkdirSync(destinationPath);
+      fs.renameSync(sourceChild, destinationChild);
+      fs.writeFileSync(retainedCopy, "retained content");
+      return Promise.reject(workerError);
+    });
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.resolveTo(true),
+      did: jasmine.createSpy("did").and.resolveTo(),
+    };
+    spyOn(treeView, "runFileMove").and.callThrough();
+
+    expect(await treeView.moveEntry(sourcePath, destinationDirectory)).toBe(false);
+    const failure = await treeView.runFileMove.calls
+      .mostRecent()
+      .returnValue.catch((error) => error);
+
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect(failure.errors).toEqual([workerError, completionError]);
+    expect(failure.cause).toBe(workerError);
+    expect(failure.code).toBe("EIO");
+    expect(failure.partial).toBe(true);
+    expect(failure.renames).toEqual(renames);
+    expect(failure.creates).toEqual(creates);
+    expect(failure.cleanupError).toBe(workerError.cleanupError);
+    expect(failure.cleanupPath).toBe(retainedCopy);
+    expect(complete).toHaveBeenCalledWith(renames);
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", { files: renames });
+    expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didCreate", {
+      paths: [retainedCopy],
+      entries: creates,
+    });
+    expect(fs.existsSync(sourceChild)).toBe(false);
+    expect(fs.readFileSync(destinationChild, "utf8")).toBe("moved content");
+    expect(fs.readFileSync(retainedCopy, "utf8")).toBe("retained content");
+  });
 
   it("does not reveal the destination after pasting a copied entry", async () => {
     const sourcePath = path.join(temporaryPath, "source.txt");
