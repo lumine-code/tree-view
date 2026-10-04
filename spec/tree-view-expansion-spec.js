@@ -47,7 +47,7 @@ describe("TreeView asynchronous expansion generations", () => {
     };
     // Exercise the real entry lifecycle with a controlled model and no DOM,
     // filesystem, watchers, or package activation involved in its timing.
-    const treeView = {
+    const treeView = Object.assign(Object.create(TreeView.prototype), {
       treeEntries: new Set([root]),
       selectedEntries: new Set([root]),
       rebuildVisibleRows: jasmine.createSpy("rebuild visible rows"),
@@ -56,7 +56,7 @@ describe("TreeView asynchronous expansion generations", () => {
       }),
       expandTreeEntry: TreeView.prototype.expandTreeEntry,
       collapseTreeEntry: TreeView.prototype.collapseTreeEntry,
-    };
+    });
     return { treeView, root, directory };
   }
 
