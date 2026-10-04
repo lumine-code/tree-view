@@ -3358,6 +3358,7 @@ describe("TreeView revealing created paths", () => {
       expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
         files,
         updateReferences,
+        signal: treeView.fileOperationEvents.will.calls.mostRecent().args[1].signal,
       });
       expect(treeView.fileOperationEvents.did).toHaveBeenCalledWith("didRename", { files });
       expect(fs.existsSync(sourcePath)).toBe(false);
@@ -3386,12 +3387,38 @@ describe("TreeView revealing created paths", () => {
     expect(treeView.fileOperationEvents.will).toHaveBeenCalledWith("willRename", {
       files: [{ oldPath: sourcePath, newPath: movedPath, isDirectory: false }],
       updateReferences: false,
+      signal: treeView.fileOperationEvents.will.calls.mostRecent().args[1].signal,
     });
     expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
     expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
     expect(fs.readFileSync(sourcePath, "utf8")).toBe("content");
     expect(fs.existsSync(movedPath)).toBe(false);
     dialog.cancel();
+  });
+
+  it("cancels pending creation when the owning tree is destroyed before a boolean reply", async () => {
+    let resolve;
+    const gate = new Promise((done) => (resolve = done));
+    treeView.fileOperationEvents = {
+      will: jasmine.createSpy("will").and.returnValue(gate),
+      did: jasmine.createSpy("did"),
+    };
+    treeView.add(true);
+    const input = document.querySelector(".tree-view-dialog lumine-text-editor").getModel();
+    input.setText("late.txt");
+    lumine.commands.dispatch(input.element, "core:confirm");
+    await conditionPromise(() => treeView.fileOperationEvents.will.calls.count() === 1);
+    const events = treeView.fileOperationEvents;
+    const signal = events.will.calls.mostRecent().args[1].signal;
+
+    await treeView.destroy();
+    treeView = null;
+    resolve(true);
+    await flushMicrotasks();
+
+    expect(signal.aborted).toBe(true);
+    expect(fs.existsSync(path.join(projectPath, "late.txt"))).toBe(false);
+    expect(events.did).not.toHaveBeenCalled();
   });
 
   it("notifies a completed dialog rename when document reconciliation fails", async () => {
@@ -3447,6 +3474,107 @@ describe("TreeView completed file operations", () => {
       },
       revealCreatedPath: jasmine.createSpy("revealCreatedPath").and.returnValue(Promise.resolve()),
       refreshSpecialRoots: jasmine.createSpy("refreshSpecialRoots"),
+    });
+  }
+
+  for (const kind of ["copy", "move", "delete"]) {
+    it(`disposes staged ${kind} preparation when a legacy guard changes the source`, async () => {
+      const source = path.join(temporaryPath, "source.txt");
+      const preservedSource = path.join(temporaryPath, "original.txt");
+      const destination = path.join(temporaryPath, "destination");
+      fs.writeFileSync(source, "original content");
+      fs.mkdirSync(destination);
+      const preparation = {
+        commit: jasmine.createSpy("commit").and.resolveTo(true),
+        dispose: jasmine.createSpy("dispose"),
+      };
+      const treeView = operationTree();
+      treeView.fileOperationEvents = {
+        will: jasmine.createSpy("will").and.resolveTo(preparation),
+        did: jasmine.createSpy("did"),
+      };
+      treeView.emitter.emit.and.callFake((event) => {
+        if (!event.startsWith("will-")) return;
+        fs.renameSync(source, preservedSource);
+        fs.writeFileSync(source, "changed source");
+      });
+      const trash = spyOn(lumine.shell, "trashItem").and.resolveTo();
+      const confirmDelete = lumine.config.get("tree-view.confirmDelete");
+      lumine.config.set("tree-view.confirmDelete", false);
+      try {
+        if (kind === "delete") {
+          Object.assign(treeView, {
+            roots: [],
+            getActivePath: () => null,
+            hasFocus: () => true,
+            selectedPaths: () => [source],
+            getSelectedEntries: () => [{ getPath: () => source, parent: null }],
+          });
+          await treeView.removeSelectedEntries();
+        } else if (kind === "copy") {
+          expect(await treeView.copyEntry(source, destination)).toBe(false);
+        } else {
+          expect(await treeView.moveEntry(source, destination)).toBe(false);
+        }
+      } finally {
+        lumine.config.set("tree-view.confirmDelete", confirmDelete);
+      }
+
+      expect(preparation.commit).not.toHaveBeenCalled();
+      expect(preparation.dispose).toHaveBeenCalledTimes(1);
+      expect(treeView.fileOperationProcess.run).not.toHaveBeenCalled();
+      expect(trash).not.toHaveBeenCalled();
+      expect(treeView.fileOperationEvents.did).not.toHaveBeenCalled();
+      expect(fs.readFileSync(source, "utf8")).toBe("changed source");
+      expect(fs.readFileSync(preservedSource, "utf8")).toBe("original content");
+    });
+  }
+
+  for (const kind of ["copy", "move"]) {
+    it(`commits staged ${kind} preparation before queueing workers and disposes afterward`, async () => {
+      const source = path.join(temporaryPath, "source.txt");
+      const destination = path.join(temporaryPath, "destination");
+      fs.writeFileSync(source, "content");
+      fs.mkdirSync(destination);
+      const order = [];
+      const preparation = {
+        commit: jasmine.createSpy("commit").and.callFake(({ isCurrent }) => {
+          expect(isCurrent()).toBe(true);
+          order.push("commit");
+          return true;
+        }),
+        dispose: jasmine.createSpy("dispose").and.callFake(() => order.push("dispose")),
+      };
+      const treeView = operationTree();
+      treeView.fileOperationEvents = {
+        will: jasmine.createSpy("will").and.resolveTo(preparation),
+        did: jasmine.createSpy("did").and.resolveTo(),
+      };
+      treeView.fileOperationProcess.run.and.callFake((_operation, initialPath, newPath) => {
+        order.push("disk");
+        if (kind === "copy") {
+          fs.copyFileSync(initialPath, newPath);
+          return Promise.resolve({
+            copied: true,
+            creates: [{ path: newPath, isDirectory: false }],
+          });
+        }
+        fs.renameSync(initialPath, newPath);
+        return Promise.resolve({
+          moved: true,
+          renames: [{ oldPath: initialPath, newPath, isDirectory: false }],
+        });
+      });
+
+      expect(
+        await (kind === "copy"
+          ? treeView.copyEntry(source, destination)
+          : treeView.moveEntry(source, destination)),
+      ).toBe(true);
+
+      expect(order).toEqual(["commit", "disk", "dispose"]);
+      expect(preparation.commit).toHaveBeenCalledTimes(1);
+      expect(fs.readFileSync(path.join(destination, "source.txt"), "utf8")).toBe("content");
     });
   }
 

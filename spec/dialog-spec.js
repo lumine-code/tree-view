@@ -5,6 +5,7 @@ const fsCompat = require("../lib/fs-compat");
 const AddDialog = require("../lib/add-dialog");
 const MoveDialog = require("../lib/move-dialog");
 const CopyDialog = require("../lib/copy-dialog");
+const FileOperationEvents = require("../lib/file-operation-events");
 
 describe("TreeView dialogs", () => {
   let originalProjectPaths;
@@ -50,6 +51,169 @@ describe("TreeView dialogs", () => {
     return { promise, resolve };
   }
 
+  describe("staged file operation preparations", () => {
+    async function referenceStage() {
+      const editor = await lumine.workspace.open();
+      editor.setText("original reference");
+      return {
+        editor,
+        commit: jasmine.createSpy("commit").and.callFake(({ isCurrent }) => {
+          if (!isCurrent()) return false;
+          editor.setText("updated reference");
+          return true;
+        }),
+        dispose: jasmine.createSpy("dispose"),
+      };
+    }
+
+    for (const changedQuery of [false, true]) {
+      it(`discards a late reference preparation after ${changedQuery ? "the query changes" : "cancellation"}`, async () => {
+        const source = fixture("source.py", "content");
+        const gate = deferred();
+        const events = new FileOperationEvents();
+        const preparation = await referenceStage();
+        const will = jasmine.createSpy("will").and.returnValue(gate.promise);
+        events.on("willRename", will);
+        const dialog = track(
+          new MoveDialog(source, {
+            willMove: (payload) => events.will("willRename", payload),
+          }),
+        );
+        dialog.attach();
+        dialog.miniEditor.setText("source.ipy");
+        const confirmation = dialog.confirm({ updateReferences: true });
+        const signal = will.calls.mostRecent().args[0].signal;
+
+        if (changedQuery) dialog.miniEditor.setText("different.ipy");
+        else dialog.cancel();
+        await confirmation;
+        gate.resolve(preparation);
+        await conditionPromise(() => preparation.dispose.calls.count() === 1);
+
+        expect(signal.aborted).toBe(true);
+        expect(preparation.commit).not.toHaveBeenCalled();
+        expect(preparation.editor.getText()).toBe("original reference");
+        expect(fs.readFileSync(source, "utf8")).toBe("content");
+        expect(fs.existsSync(path.join(projectPath, "source.ipy"))).toBe(false);
+        expect(dialog.closed).toBe(!changedQuery);
+      });
+    }
+
+    it("leaves reference buffers unchanged when a later guard vetoes", async () => {
+      const source = fixture("source.py", "content");
+      const preparation = await referenceStage();
+      const events = new FileOperationEvents();
+      events.on("willRename", () => preparation);
+      events.on("willRename", () => false);
+      const dialog = track(
+        new MoveDialog(source, {
+          willMove: (payload) => events.will("willRename", payload),
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("source.ipy");
+
+      await dialog.confirm({ updateReferences: true });
+
+      expect(preparation.commit).not.toHaveBeenCalled();
+      expect(preparation.dispose).toHaveBeenCalledTimes(1);
+      expect(preparation.editor.getText()).toBe("original reference");
+      expect(fs.existsSync(source)).toBe(true);
+      expect(fs.existsSync(path.join(projectPath, "source.ipy"))).toBe(false);
+    });
+
+    it("disposes reference preparation if the destination changes before operation start", async () => {
+      const source = fixture("source.py", "content");
+      const destination = path.join(projectPath, "source.ipy");
+      const preparation = await referenceStage();
+      const dialog = track(
+        new MoveDialog(source, {
+          willMove: () => {
+            fs.writeFileSync(destination, "claimed");
+            return preparation;
+          },
+        }),
+      );
+      dialog.attach();
+      dialog.miniEditor.setText("source.ipy");
+
+      await dialog.confirm({ updateReferences: true });
+
+      expect(preparation.commit).not.toHaveBeenCalled();
+      expect(preparation.dispose).toHaveBeenCalledTimes(1);
+      expect(preparation.editor.getText()).toBe("original reference");
+      expect(fs.readFileSync(source, "utf8")).toBe("content");
+      expect(fs.readFileSync(destination, "utf8")).toBe("claimed");
+    });
+
+    for (const kind of ["create", "copy", "move"]) {
+      it(`closes and locks the ${kind} dialog before committing accepted preparation`, async () => {
+        const source = fixture("source.txt", "content");
+        const destination = path.join(projectPath, "target.txt");
+        const preparation = await referenceStage();
+        let signal;
+        const will = (payload) => {
+          signal = payload.signal;
+          return preparation;
+        };
+        const dialog = track(
+          kind === "create"
+            ? new AddDialog(projectPath, true, { willCreate: will })
+            : kind === "copy"
+              ? new CopyDialog(source, { willCopy: will })
+              : new MoveDialog(source, { willMove: will }),
+        );
+        preparation.commit.and.callFake(({ isCurrent }) => {
+          expect(dialog.closed).toBe(true);
+          expect(signal.aborted).toBe(false);
+          dialog.cancel();
+          expect(signal.aborted).toBe(false);
+          expect(isCurrent()).toBe(true);
+          expect(fs.existsSync(destination)).toBe(false);
+          preparation.editor.setText("updated reference");
+          return true;
+        });
+        dialog.attach();
+        dialog.miniEditor.setText("target.txt");
+
+        await dialog.confirm();
+
+        expect(preparation.commit).toHaveBeenCalledTimes(1);
+        expect(preparation.dispose).toHaveBeenCalledTimes(1);
+        expect(preparation.editor.getText()).toBe("updated reference");
+        expect(fs.existsSync(destination)).toBe(true);
+        expect(fs.existsSync(source)).toBe(kind !== "move");
+      });
+    }
+
+    it("keeps the path guard live during an asynchronous commit", async () => {
+      const source = fixture("source.py", "content");
+      const destination = path.join(projectPath, "source.ipy");
+      const preparation = await referenceStage();
+      const gate = deferred();
+      preparation.commit.and.callFake(async ({ isCurrent }) => {
+        await gate.promise;
+        if (!isCurrent()) return false;
+        preparation.editor.setText("updated reference");
+        return true;
+      });
+      const dialog = track(new MoveDialog(source, { willMove: () => preparation }));
+      dialog.attach();
+      dialog.miniEditor.setText("source.ipy");
+      const confirmation = dialog.confirm({ updateReferences: true });
+      await conditionPromise(() => preparation.commit.calls.count() === 1);
+      fs.writeFileSync(destination, "claimed");
+      gate.resolve();
+
+      await confirmation;
+
+      expect(preparation.editor.getText()).toBe("original reference");
+      expect(preparation.dispose).toHaveBeenCalledTimes(1);
+      expect(fs.readFileSync(source, "utf8")).toBe("content");
+      expect(fs.readFileSync(destination, "utf8")).toBe("claimed");
+    });
+  });
+
   describe("AddDialog", () => {
     it("does not create a path when a will listener refuses it", async () => {
       const target = path.join(projectPath, "refused.txt");
@@ -63,6 +227,7 @@ describe("TreeView dialogs", () => {
       expect(willCreate).toHaveBeenCalledWith({
         paths: [target],
         entries: [{ path: target, isDirectory: false }],
+        signal: willCreate.calls.mostRecent().args[0].signal,
       });
       expect(fs.existsSync(target)).toBe(false);
     });
@@ -286,6 +451,7 @@ describe("TreeView dialogs", () => {
           initialPath: source,
           newPath: destination,
           updateReferences,
+          signal: willMove.calls.mostRecent().args[0].signal,
         });
         expect(fs.existsSync(source)).toBe(false);
         expect(fs.readFileSync(destination, "utf8")).toBe("content");
@@ -319,6 +485,7 @@ describe("TreeView dialogs", () => {
         initialPath: source,
         newPath: path.join(projectPath, "renamed.txt"),
         updateReferences: false,
+        signal: willMove.calls.mostRecent().args[0].signal,
       });
       expect(fs.existsSync(source)).toBe(true);
       expect(fs.existsSync(path.join(projectPath, "renamed.txt"))).toBe(false);
@@ -694,6 +861,7 @@ describe("TreeView dialogs", () => {
             initialPath: source,
             newPath: destination,
             updateReferences: altKey,
+            signal: willMove.calls.mostRecent().args[0].signal,
           });
           expect(fs.existsSync(source)).toBe(false);
           expect(fs.readFileSync(destination, "utf8")).toBe("content");
