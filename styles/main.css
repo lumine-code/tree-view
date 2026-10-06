@@ -8,12 +8,10 @@
   --tree-view-sticky-background: var(--tree-view-background-color);
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
-  --tree-view-disclosure-gutter: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
-  --tree-view-indent-size: calc(var(--component-icon-size) + var(--component-icon-padding));
+  --tree-view-disclosure-gutter: calc(var(--ui-disclosure-size) + var(--ui-icon-spacing));
+  --tree-view-indent-size: calc(var(--ui-icon-size) + var(--ui-icon-spacing));
   --tree-view-indent-guide-color: var(--text-color-subtle);
-  --tree-view-indent-guide-origin: calc(
-    var(--component-icon-padding) + var(--component-icon-size) / 4
-  );
+  --tree-view-indent-guide-origin: calc(var(--ui-icon-spacing) + var(--ui-icon-size) / 4);
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
   --tree-view-root-name-font-size: inherit;
@@ -29,7 +27,7 @@
   display: flex;
   flex-direction: column;
   padding: var(--tree-view-padding);
-  font-size: var(--ui-size);
+  font-size: var(--ui-unit);
   background: var(--tree-view-background);
 
   .tree-view-viewport {
@@ -52,9 +50,7 @@
   }
 
   .tree-view-operation-status {
-    --tree-view-operation-row-height: calc(
-      var(--component-icon-size) + 4px + var(--component-padding)
-    );
+    --tree-view-operation-row-height: calc(var(--ui-icon-size) + 4px + var(--ui-spacing));
 
     display: flex;
     box-sizing: border-box;
@@ -82,8 +78,8 @@
       min-height: var(--tree-view-operation-row-height);
       flex: 0 0 var(--tree-view-operation-row-height);
       align-items: center;
-      gap: var(--component-icon-padding);
-      padding: calc(var(--component-padding) / 2) var(--component-padding);
+      gap: var(--ui-icon-spacing);
+      padding: calc(var(--ui-spacing) / 2) var(--ui-spacing);
       border-bottom: 1px solid var(--base-border-color);
       white-space: nowrap;
     }
@@ -94,7 +90,7 @@
     }
 
     .tree-view-operation-progress {
-      min-width: calc(var(--component-icon-size) * 2);
+      min-width: calc(var(--ui-icon-size) * 2);
       flex: 1;
       margin: 0;
     }
@@ -113,8 +109,8 @@
       min-height: var(--tree-view-operation-row-height);
       flex: 0 0 var(--tree-view-operation-row-height);
       align-items: center;
-      gap: var(--component-icon-padding);
-      padding: calc(var(--component-padding) / 2) var(--component-padding);
+      gap: var(--ui-icon-spacing);
+      padding: calc(var(--ui-spacing) / 2) var(--ui-spacing);
       white-space: nowrap;
 
       &.is-queued {
@@ -153,8 +149,8 @@
 
     .tree-view-operation-button.btn.icon {
       display: inline-grid;
-      width: calc(var(--component-icon-size) + 4px);
-      height: calc(var(--component-icon-size) + 4px);
+      width: calc(var(--ui-icon-size) + 4px);
+      height: calc(var(--ui-icon-size) + 4px);
       flex: none;
       place-items: center;
       padding: 0;
@@ -163,9 +159,9 @@
       &::before {
         position: static;
         display: block;
-        width: var(--component-icon-size);
-        height: var(--component-icon-size);
-        line-height: var(--component-icon-size);
+        width: var(--ui-icon-size);
+        height: var(--ui-icon-size);
+        line-height: var(--ui-icon-size);
         vertical-align: initial;
         margin-right: 0;
       }
@@ -241,7 +237,7 @@
 
   .tree-view-row {
     --tree-view-indent: calc(
-      var(--tree-view-disclosure-gutter) + var(--component-icon-padding) + var(--tree-view-depth) *
+      var(--tree-view-disclosure-gutter) + var(--ui-icon-spacing) + var(--tree-view-depth) *
         var(--tree-view-indent-size)
     );
 
@@ -249,7 +245,7 @@
     box-sizing: border-box;
     width: max-content;
     min-width: 100%;
-    padding-right: var(--component-padding);
+    padding-right: var(--ui-spacing);
     padding-left: var(--tree-view-indent);
     overflow: hidden;
   }
@@ -278,16 +274,16 @@
     bottom: 0;
     left: calc(
       var(--tree-view-disclosure-gutter) + var(--tree-view-indent-guide-origin) -
-        var(--disclosure-arrow-size) / 2 + var(--tree-view-disclosure-depth) *
+        var(--ui-disclosure-size) / 2 + var(--tree-view-disclosure-depth) *
         var(--tree-view-indent-size)
     );
     z-index: 1;
-    width: var(--disclosure-arrow-size);
+    width: var(--ui-disclosure-size);
     pointer-events: auto;
   }
 
   .tree-view-root-disclosure {
-    left: var(--component-icon-padding);
+    left: var(--ui-icon-spacing);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -296,7 +292,7 @@
   .directory > .tree-view-root-disclosure::before {
     content: "\f0a3"; /* chevron-down */
     font-family: "Octicons Regular";
-    font-size: var(--disclosure-arrow-size);
+    font-size: var(--ui-disclosure-size);
     font-style: normal;
     font-weight: normal;
     -webkit-font-smoothing: antialiased;
@@ -351,16 +347,14 @@
   }
 
   &.tree-view-classic {
-    --tree-view-indent-size: calc(var(--disclosure-arrow-size) + var(--component-icon-padding));
+    --tree-view-indent-size: calc(var(--ui-disclosure-size) + var(--ui-icon-spacing));
 
     .tree-view-indent-guides {
       display: none;
     }
 
     .tree-view-disclosure {
-      left: calc(
-        var(--component-icon-padding) + var(--tree-view-depth) * var(--tree-view-indent-size)
-      );
+      left: calc(var(--ui-icon-spacing) + var(--tree-view-depth) * var(--tree-view-indent-size));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -374,7 +368,7 @@
       background: none;
       clip-path: none;
       font-family: "Octicons Regular";
-      font-size: var(--disclosure-arrow-size);
+      font-size: var(--ui-disclosure-size);
       font-style: normal;
       font-weight: normal;
       line-height: normal;
@@ -484,7 +478,7 @@
   &:focus {
     .selected.list-item > .name,
     .selected.list-nested-item > .list-item > .name {
-      color: var(--accent-bg-text-color);
+      color: var(--accent-foreground-color);
     }
 
     .entry.selected::before {
@@ -499,7 +493,7 @@
        (0,4,0) — leaving that variable dead. */
     li:not(.list-nested-item),
     li.list-nested-item:not(.project-root) > .list-item {
-      line-height: var(--ui-line-height);
+      line-height: var(--ui-row-height);
     }
   }
 
@@ -547,12 +541,12 @@
       width: calc(100% - var(--tree-view-row-inset) * 2);
       margin-right: var(--tree-view-row-inset);
       margin-left: var(--tree-view-row-inset);
-      padding-right: var(--component-padding);
+      padding-right: var(--ui-spacing);
       padding-left: max(
         0px,
         calc(
-          var(--tree-view-disclosure-gutter) + var(--component-icon-padding) +
-            var(--tree-view-depth) * var(--tree-view-indent-size) - var(--tree-view-row-inset)
+          var(--tree-view-disclosure-gutter) + var(--ui-icon-spacing) + var(--tree-view-depth) *
+            var(--tree-view-indent-size) - var(--tree-view-row-inset)
         )
       );
       border-radius: var(--tree-view-row-border-radius);
@@ -596,13 +590,13 @@
   /* Drag and Drop */
   .placeholder {
     position: absolute;
-    left: var(--component-icon-padding);
+    left: var(--ui-icon-spacing);
     padding: 0;
     z-index: 999;
     display: inline-block;
 
-    width: calc(100% - var(--component-icon-padding));
-    background: var(--accent-color);
+    width: calc(100% - var(--ui-icon-spacing));
+    background: var(--accent-indicator-color);
 
     list-style: none;
     pointer-events: none;
@@ -626,7 +620,7 @@
       margin-left: -1px;
       width: 4px;
       height: 4px;
-      background: var(--accent-color);
+      background: var(--accent-indicator-color);
       border-radius: 4px;
       border: 1px solid transparent;
     }

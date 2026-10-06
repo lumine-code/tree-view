@@ -2676,12 +2676,12 @@ describe("TreeView row model and sticky headers", () => {
       --tree-view-sticky-background: rgb(242, 242, 242);
       --background-color-selected: rgb(220, 225, 235);
       --button-background-color-selected: rgb(90, 138, 233);
-      --ui-line-height: 24px;
+      --ui-row-height: 24px;
       --ui-tab-height: 32px;
-      --ui-size: 12px;
-      --component-padding: 8px;
-      --component-icon-padding: 5px;
-      --disclosure-arrow-size: 12px;
+      --ui-unit: 12px;
+      --ui-spacing: 8px;
+      --ui-icon-spacing: 5px;
+      --ui-disclosure-size: 12px;
       --base-border-color: rgb(180, 180, 180);
       --text-color-subtle: rgb(100, 100, 100);
       --tree-view-row-inset: 4px;
@@ -2906,7 +2906,7 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(directoryRow).lineHeight).toBe("24px");
       // The selection layer is as tall as the row it paints, whichever height
       // that row happens to be, because it takes it from the row rather than
-      // restating it from a variable. The rule that named --ui-line-height used
+      // restating it from a variable. The rule that named --ui-row-height used
       // to win the tie against the one naming --tree-view-root-header-height,
       // leaving a selected root's highlight 8px short of its own row.
       expect(getComputedStyle(root, "::before").height).toBe("32px");
@@ -2939,7 +2939,7 @@ describe("TreeView row model and sticky headers", () => {
     tree.style.cssText = `
       --tree-view-row-border-radius: 6px;
       --tree-view-row-inset: 4px;
-      --ui-line-height: 24px;
+      --ui-row-height: 24px;
     `;
     const list = document.createElement("ol");
     list.classList.add("tree-view-root", "list-tree");
@@ -3012,11 +3012,11 @@ describe("TreeView row model and sticky headers", () => {
     tree.style.cssText = `
       width: 200px;
       height: 300px;
-      --ui-line-height: 24px;
-      --ui-size: 12px;
-      --component-padding: 8px;
-      --component-icon-padding: 5px;
-      --disclosure-arrow-size: 12px;
+      --ui-row-height: 24px;
+      --ui-unit: 12px;
+      --ui-spacing: 8px;
+      --ui-icon-spacing: 5px;
+      --ui-disclosure-size: 12px;
     `;
 
     const viewport = document.createElement("div");
