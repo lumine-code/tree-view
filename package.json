@@ -136,7 +136,7 @@
           "description": "Directories — pin the project root and every expanded ancestor directory"
         }
       ],
-      "default": "none"
+      "default": "directories"
     },
     "hideVcsIgnoredFiles": {
       "title": "Hide VCS Ignored Files",
