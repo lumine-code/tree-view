@@ -469,20 +469,14 @@ describe("TreeView repository changes", () => {
   it("routes a registered repository to repositoriesChanged, never to updateRoots", () => {
     const originalProjectPaths = lumine.project.getPaths();
     lumine.project.setPaths([path.resolve(__dirname, "..")]);
-    spyOn(lumine.repositories, "onDidAddRepository").and.callThrough();
+    spyOn(lumine.repositories, "onDidChange").and.callThrough();
     const treeView = new TreeView({});
 
     try {
       spyOn(treeView, "updateRoots").and.callThrough();
       spyOn(treeView, "repositoriesChanged").and.callThrough();
-      // `observeRepositories` delegates to `onDidAddRepository`, so the tree has
-      // two subscribers here and the registry notifies both.
-      const notified = lumine.repositories.onDidAddRepository.calls
-        .all()
-        .map((call) => call.args[0]);
-      const repository = { onDidDestroy: () => new Disposable() };
-
-      for (const notify of notified) notify(repository);
+      const notified = lumine.repositories.onDidChange.calls.all().map((call) => call.args[0]);
+      for (const notify of notified) notify({ added: [], removed: [], updated: [] });
       advanceClock(50);
 
       expect(treeView.repositoriesChanged).toHaveBeenCalled();
