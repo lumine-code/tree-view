@@ -5,6 +5,8 @@
 .tree-view {
   --tree-view-padding: 0;
   --tree-view-background: var(--tree-view-background-color);
+  --tree-view-selection-background-color: var(--accent-background-color);
+  --tree-view-selection-foreground-color: var(--accent-foreground-color);
   --tree-view-sticky-background: var(--tree-view-background-color);
   --tree-view-row-inset: 0px;
   --tree-view-row-border-radius: 0px;
@@ -468,6 +470,10 @@
     background: var(--background-color-selected);
   }
 
+  .entry.selected {
+    color: var(--text-color-selected);
+  }
+
   /* A row is a single `li` with no descendant rows, so hovering it is hovering
      that row — a directory does not need to ask whether the pointer is over its
      header to tell itself apart from its children any more. */
@@ -476,13 +482,13 @@
   }
 
   &:focus {
-    .selected.list-item > .name,
-    .selected.list-nested-item > .list-item > .name {
-      color: var(--accent-foreground-color);
+    .entry.selected .name,
+    .tree-view-sticky-header.selected .name {
+      color: var(--tree-view-selection-foreground-color);
     }
 
     .entry.selected::before {
-      background: var(--button-background-color-selected);
+      background: var(--tree-view-selection-background-color);
     }
   }
 
@@ -559,6 +565,7 @@
     }
 
     &.selected > .tree-view-sticky-header-row {
+      color: var(--text-color-selected);
       background: var(--background-color-selected);
     }
 
@@ -577,7 +584,8 @@
   }
 
   &:focus .tree-view-sticky-header.selected > .tree-view-sticky-header-row {
-    background: var(--button-background-color-selected);
+    color: var(--tree-view-selection-foreground-color);
+    background: var(--tree-view-selection-background-color);
   }
 
   .tree-view-sticky-header-list.selection-continues-below

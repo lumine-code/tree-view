@@ -2675,7 +2675,7 @@ describe("TreeView row model and sticky headers", () => {
       --tree-view-background-color: rgb(242, 242, 242);
       --tree-view-sticky-background: rgb(242, 242, 242);
       --background-color-selected: rgb(220, 225, 235);
-      --button-background-color-selected: rgb(90, 138, 233);
+      --tree-view-selection-background-color: rgb(90, 138, 233);
       --ui-row-height: 24px;
       --ui-tab-height: 32px;
       --ui-unit: 12px;
