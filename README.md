@@ -2,6 +2,8 @@
 
 Explore and open project files in a tree-like view of your directories.
 
+Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/tree-view`).
+
 ## Features
 
 - **Configurable click behavior**: open files and expand folders on single or double click.
