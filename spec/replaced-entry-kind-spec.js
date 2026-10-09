@@ -5,6 +5,7 @@ const path = require("node:path");
 describe("Tree View entries replaced with another filesystem kind", () => {
   let tree;
   let scratch;
+  let scratchInput;
   let projectPaths;
 
   beforeEach(() => {
@@ -14,7 +15,8 @@ describe("Tree View entries replaced with another filesystem kind", () => {
     }
     spyOn(lumine.application, "openWindow").and.returnValue(Promise.resolve());
     projectPaths = lumine.project.getPaths();
-    scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-entry-kind-")));
+    scratchInput = fs.mkdtempSync(path.join(os.tmpdir(), "tree-entry-kind-"));
+    scratch = fs.realpathSync.native(scratchInput);
     lumine.config.set("tree-view.squashDirectoryNames", true);
   });
 
@@ -28,8 +30,8 @@ describe("Tree View entries replaced with another filesystem kind", () => {
     }
     lumine.project.setPaths(projectPaths);
     await lumine.fileWatchClient.settlePendingTeardown();
-    const tempRoot = fs.realpathSync(os.tmpdir());
-    const relative = path.relative(tempRoot, fs.realpathSync(scratch));
+    const tempRoot = fs.realpathSync.native(os.tmpdir());
+    const relative = path.relative(tempRoot, fs.realpathSync.native(scratch));
     if (
       !relative ||
       relative === ".." ||
@@ -41,8 +43,8 @@ describe("Tree View entries replaced with another filesystem kind", () => {
     fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
-  async function startTree() {
-    lumine.project.setPaths([scratch]);
+  async function startTree(projectPath = scratch) {
+    lumine.project.setPaths([projectPath]);
     jasmine.attachToDOM(lumine.workspace.getElement());
     await lumine.packages.activatePackage("tree-view");
     tree = lumine.packages.getActivePackage("tree-view").mainModule.getTreeViewInstance();
@@ -108,7 +110,7 @@ describe("Tree View entries replaced with another filesystem kind", () => {
   it("keeps unchanged file and expanded directory models across both refresh APIs", async () => {
     fs.writeFileSync(path.join(scratch, "stable.txt"), "stable\n");
     createDirectoryTarget(path.join(scratch, "stable-directory"));
-    const directory = await startTree();
+    const directory = await startTree(scratchInput);
     const file = directory.entries.get("stable.txt");
     const folder = directory.entries.get("stable-directory");
     const folderEntry = tree.treeEntryForPath(folder.path);
@@ -121,5 +123,7 @@ describe("Tree View entries replaced with another filesystem kind", () => {
     expect(directory.entries.get("stable-directory")).toBe(folder);
     expect(tree.treeEntryForPath(folder.path)).toBe(folderEntry);
     expect(folderEntry.isExpanded).toBe(true);
+    expect(fs.realpathSync.native(directory.realPath)).toBe(scratch);
+    expect(fs.realpathSync.native(file.realPath)).toBe(path.join(scratch, "stable.txt"));
   });
 });
