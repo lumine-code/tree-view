@@ -167,4 +167,39 @@ describe("Tree View native lifetime and service ownership", () => {
     await replacement.show();
     expect(lumine.workspace.paneForItem(replacement)).toBeDefined();
   });
+
+  it("finishes a pending native startup open without recreating a retired tree", async () => {
+    await lumine.packages.deactivatePackage("tree-view");
+    lumine.config.set("tree-view.hiddenOnStartup", false);
+    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(true);
+    const open = lumine.workspace.open;
+    let release, ready;
+    const gate = new Promise((resolve) => (release = resolve));
+    const opened = new Promise((resolve) => (ready = resolve));
+    let first = true;
+    spyOn(lumine.workspace, "open").and.callFake(function (...args) {
+      const result = open.apply(this, args);
+      if (!first || args[0]?.getURI?.() !== "lumine://tree-view") return result;
+      first = false;
+      trees.push(args[0]);
+      return result.then((item) => {
+        ready();
+        return gate.then(() => item);
+      });
+    });
+    main = (await lumine.packages.activatePackage("tree-view")).mainModule;
+    await opened;
+    const retiring = lumine.packages.deactivatePackage("tree-view");
+    release();
+    await retiring;
+    try {
+      expect(main.treeView).toBeNull();
+      expect(
+        lumine.workspace.getPaneItems().filter((item) => item.getURI?.() === "lumine://tree-view"),
+      ).toEqual([]);
+    } finally {
+      // The staged original can recreate a view after its captured one closes.
+      await main.treeView?.destroy();
+    }
+  });
 });
