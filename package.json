@@ -16,6 +16,9 @@
   },
   "license": "MIT",
   "main": "./lib/main",
+  "specPackages": [
+    "busy-signal"
+  ],
   "files": [
     "docs",
     "keymaps",

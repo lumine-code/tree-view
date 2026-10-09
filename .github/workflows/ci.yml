@@ -61,6 +61,10 @@ jobs:
         with:
           repository: lumine-code/lumine
           path: lumine
+      - uses: actions/checkout@v7
+        with:
+          repository: lumine-code/busy-signal
+          path: busy-signal
       - uses: actions/setup-node@v7
         with:
           node-version-file: lumine/.nvmrc
@@ -80,6 +84,9 @@ jobs:
       - name: Install package dependencies
         working-directory: tree-view
         run: npm ci --ignore-scripts
+      - name: Install owned test service
+        working-directory: busy-signal
+        run: npm ci --ignore-scripts
       - name: Install editor dependencies
         working-directory: lumine
         run: |
@@ -94,4 +101,7 @@ jobs:
       - name: Run the Jasmine spec suite
         working-directory: lumine
         timeout-minutes: 20
-        run: xvfb-run --auto-servernum npm start -- --test ../tree-view/spec
+        run: |
+          mkdir -p "$HOME/.lumine/packages"
+          ln -s "$GITHUB_WORKSPACE/busy-signal" "$HOME/.lumine/packages/busy-signal"
+          LUMINE_TEST_PACKAGES="busy-signal" xvfb-run --auto-servernum npm start -- --test ../tree-view/spec
