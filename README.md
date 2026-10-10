@@ -37,7 +37,7 @@ Commands available in `lumine-workspace`:
 
 Commands available in `.tree-view`:
 
-- `tree-view:expand-item`: open the selected entry with pending state,
+- `tree-view:expand-item`: expand the selected folder, or select its first child when already expanded,
 - `tree-view:recursive-expand-directory`: recursively expand the selected directory,
 - `tree-view:collapse-directory`: collapse the selected directory,
 - `tree-view:recursive-collapse-directory`: recursively collapse the selected directory,

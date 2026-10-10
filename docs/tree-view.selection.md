@@ -9,7 +9,7 @@ Read what is selected in the tree, find the element for a path, and scroll a pat
 | Consumed by | `consumeTreeViewSelection(treeView)`                   |
 | Owner       | `tree-view` (bundled)                                  |
 
-This is how a package acts on "the files the user has selected" — a publish command, a formatter, a linter run, a clipboard operation. It is read-and-reveal only: nothing here changes the selection or the project folders.
+This is how a package acts on "the files the user has selected" — a publish command, a formatter, a linter run, a clipboard operation. The service reads the selection and reveals paths without changing the project folders.
 
 ## Registration
 
@@ -35,11 +35,11 @@ type TreeViewSelection = {
 };
 ```
 
-| Member                    | Description                                                                                              |
-| ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `selectedPaths()`         | Absolute paths of every selected entry, in tree order. Empty when nothing is selected.                   |
-| `entryForPath(entryPath)` | The entry element for a path, or `undefined` if that path is not currently rendered.                     |
-| `revealPath(filePath)`    | Expands the tree to the path, selects it, and scrolls it into view. Also shows the tree if it is hidden. |
+| Member                    | Description                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `selectedPaths()`         | Absolute paths of every selected entry, in tree order. Empty when nothing is selected.                                 |
+| `entryForPath(entryPath)` | The entry element for a path, or `undefined` if that path is not currently rendered.                                   |
+| `revealPath(filePath)`    | Expands the tree to the path, selects it, and scrolls it into view; `show: true` or `focus: true` also shows the tree. |
 
 ## Minimal example
 
