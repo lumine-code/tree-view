@@ -1655,6 +1655,7 @@ describe("TreeView construction", () => {
       let filePath = __filename;
       const item = {
         element: document.createElement("div"),
+        isSingleton: () => true,
         getPath: () => filePath,
         getURI: () => filePath,
         onDidChangeURI: (callback) => emitter.on("did-change-uri", callback),
