@@ -2069,9 +2069,8 @@ describe("TreeView construction", () => {
       expect(labels(treeView.list)).toContain("Copy Project Path");
     });
 
-    // The path items go last on purpose: a platform-specific "Show in
-    // Explorer" comes from a selector of its own, which can only append after
-    // everything the menus above contribute.
+    // Window-opening actions belong to the first group; project management
+    // stays together after the file operations and before the path items.
     it("keeps the items that act on the project in one run", () => {
       const rootHeader = openMenu();
       const shown = labels(rootHeader);
@@ -2081,23 +2080,27 @@ describe("TreeView construction", () => {
         "Add Project Folder",
         "Remove Project Folder",
         "Collapse All Project Folders",
-        "Open in New Window",
-        "Open in This Window",
       ];
       for (const label of project) expect(at(label)).toBeGreaterThan(-1);
       expect(project.map(at)).toEqual(project.map((_, i) => at(project[0]) + i));
 
-      expect(at("Copy Full Path")).toBeGreaterThan(at("Open in This Window"));
+      expect(at("Open in New Window")).toBeGreaterThan(-1);
+      expect(at("Open in This Window")).toBe(at("Open in New Window") + 1);
+      expect(at("Open in This Window")).toBeLessThan(shown.indexOf(undefined));
+      expect(at("Add Project Folder")).toBeGreaterThan(at("Open in This Window"));
+      expect(at("Copy Full Path")).toBeGreaterThan(at("Collapse All Project Folders"));
     });
 
-    it("keeps the same run for a right-click anywhere else in the tree", () => {
+    it("keeps window-opening actions first and path items after project actions", () => {
       openMenu();
       const shown = labels(treeView.list);
       const at = (label) => shown.indexOf(label);
 
-      expect(at("Open in New Window")).toBe(at("Add Project Folder") + 1);
-      expect(at("Open in This Window")).toBe(at("Add Project Folder") + 2);
-      expect(at("Copy Full Path")).toBeGreaterThan(at("Open in This Window"));
+      expect(at("Open in New Window")).toBeGreaterThan(-1);
+      expect(at("Open in This Window")).toBe(at("Open in New Window") + 1);
+      expect(at("Open in This Window")).toBeLessThan(shown.indexOf(undefined));
+      expect(at("Add Project Folder")).toBeGreaterThan(at("Open in This Window"));
+      expect(at("Copy Full Path")).toBeGreaterThan(at("Add Project Folder"));
       expect(at("Copy Project Path")).toBe(at("Copy Full Path") + 1);
     });
 
@@ -2116,12 +2119,14 @@ describe("TreeView construction", () => {
 
       const fileRow = treeView.elementForTreeEntry(treeView.selectedEntry());
       const fileLabels = labels(fileRow);
+      expect(fileLabels.indexOf("Open in New Window")).toBeGreaterThan(-1);
       expect(fileLabels.indexOf("Open in Detached Window")).toBe(
         fileLabels.indexOf("Open in New Window") + 1,
       );
       expect(fileLabels.indexOf("Open in This Window")).toBe(
         fileLabels.indexOf("Open in Detached Window") + 1,
       );
+      expect(fileLabels.indexOf("Open in This Window")).toBeLessThan(fileLabels.indexOf(undefined));
       expect(labels(treeView.elementForTreeEntry(treeView.roots[0]))).not.toContain(
         "Open in Detached Window",
       );

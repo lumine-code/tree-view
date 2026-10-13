@@ -188,7 +188,7 @@ describe("Tree View opening context-menu group", () => {
     file.className = "entry file";
     file.setAttribute("is", "tree-view-file");
     folder = document.createElement("li");
-    folder.className = "entry directory";
+    folder.className = "entry directory collapsed";
     tree.list.append(file, folder);
     const packageMenus = (name) => {
       const pack = lumine.packages.loadPackage(
@@ -217,18 +217,37 @@ describe("Tree View opening context-menu group", () => {
     return (firstSeparator < 0 ? items : items.slice(0, firstSeparator)).map((item) => item.label);
   };
 
-  it("puts the four file opening actions first and shows the Enter hint for Open", () => {
+  it("groups file opening and window actions first and shows the Enter hint for Open", () => {
     expect(openingLabels(file)).toEqual([
       "Open",
       "Open With…",
       "Open Externally",
       "Show in Folder",
+      "Open in New Window",
+      "Open in Detached Window",
+      "Open in This Window",
     ]);
-    expect(template(file)[0].keyBindingLabel).toBe("Enter");
+    expect(template(file)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
   });
 
   it("keeps Open With limited to one file, including virtual file rows", () => {
-    expect(openingLabels(folder)).toEqual(["Open", "Open Externally", "Show in Folder"]);
+    expect(openingLabels(folder)).toEqual([
+      "Expand",
+      "Open Externally",
+      "Show in Folder",
+      "Open in New Window",
+      "Open in This Window",
+    ]);
+    expect(template(folder)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
+    folder.classList.replace("collapsed", "expanded");
+    expect(openingLabels(folder)).toEqual([
+      "Collapse",
+      "Open Externally",
+      "Show in Folder",
+      "Open in New Window",
+      "Open in This Window",
+    ]);
+    expect(template(folder)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
     file.classList.add("tree-view-special-entry");
     tree.list.classList.add("special-select");
     expect(openingLabels(file)).toEqual([
@@ -236,6 +255,9 @@ describe("Tree View opening context-menu group", () => {
       "Open With…",
       "Open Externally",
       "Show in Folder",
+      "Open in New Window",
+      "Open in Detached Window",
+      "Open in This Window",
     ]);
     tree.showMultiSelectMenu();
     expect(openingLabels(file)).toEqual(["Open Externally", "Show in Folder"]);
@@ -245,9 +267,15 @@ describe("Tree View opening context-menu group", () => {
   it("derives a single separator even when external contributions disappear", () => {
     external.dispose();
     const items = template(file);
-    expect(openingLabels(file)).toEqual(["Open", "Open With…"]);
-    expect(items[2].type).toBe("separator");
-    expect(items[3].type).not.toBe("separator");
+    expect(openingLabels(file)).toEqual([
+      "Open",
+      "Open With…",
+      "Open in New Window",
+      "Open in Detached Window",
+      "Open in This Window",
+    ]);
+    expect(items[5].type).toBe("separator");
+    expect(items[6].type).not.toBe("separator");
     expect(items.at(-1).type).not.toBe("separator");
   });
 });
