@@ -4,8 +4,13 @@
       "label": "View",
       "submenu": [
         {
-          "label": "Toggle Tree View",
-          "command": "tree-view:toggle"
+          "label": "Toggle View",
+          "submenu": [
+            {
+              "label": "Tree View",
+              "command": "tree-view:toggle"
+            }
+          ]
         }
       ]
     },
