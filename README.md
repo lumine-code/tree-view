@@ -69,6 +69,12 @@ Commands available in `.tree-view-dialog`:
 - `tree-view:confirm-and-update-references`: rename or move the entry and ask language servers to update references, available only in the rename dialog,
 - `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path.
 
+## Usage
+
+The ordinary rename confirmation changes the path without waiting for language servers to rewrite references. Choose Confirm and Update References when you want those edits; preparing them can take longer while a server analyzes the project.
+
+Tree view moves update the paths of open documents in the initiating workspace while preserving edits and view state. External renames follow the separate [document-move policy](https://github.com/lumine-code/lumine/blob/master/docs/file-watching.md#document-moves), keeping unsaved contents at their original path.
+
 ## Services
 
 - [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
