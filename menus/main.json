@@ -189,6 +189,10 @@
         "type": "separator"
       },
       {
+        "label": "Open in Detached Window",
+        "command": "tree-view:open-in-detached-window"
+      },
+      {
         "label": "Split Up",
         "command": "tree-view:open-selected-entry-up",
         "afterGroupContaining": [

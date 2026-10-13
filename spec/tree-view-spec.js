@@ -1908,6 +1908,56 @@ describe("TreeView construction", () => {
     });
   });
 
+  describe("opening the selected file in a detached window", () => {
+    afterEach(async () => {
+      await lumine.workspace.discardEditorWindows();
+    });
+
+    it("opens a separate view of the shared document through its registered command", async () => {
+      const workspace = lumine.workspace;
+      jasmine.attachToDOM(workspace.getElement());
+      const original = await workspace.open(__filename);
+      original.setText("Shared unsaved content");
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      const open = spyOn(treeView, "openSelectedEntryInDetachedWindow").and.callThrough();
+      const independent = spyOn(lumine.application, "openWindow");
+      lumine.commands.dispatch(treeView.element, "tree-view:open-in-detached-window");
+      expect(open).toHaveBeenCalledTimes(1);
+      const opened = await open.calls.mostRecent().returnValue;
+      const extra = workspace.getWindows().find((window) => !window.isMain());
+      expect(extra.getEditorContainer().getPaneItems()).toContain(opened);
+      expect(opened).not.toBe(original);
+      expect(opened.getBuffer()).toBe(original.getBuffer());
+      expect(opened.getText()).toBe("Shared unsaved content");
+      expect(workspace.getMainWindow().getEditorContainer().getPaneItems()).toContain(original);
+      expect(independent).not.toHaveBeenCalled();
+    });
+
+    it("does not create a presentation for a folder", async () => {
+      treeView = new TreeView({});
+      treeView.selectEntry(treeView.roots[0]);
+      const open = spyOn(lumine.workspace, "openEditorWindow");
+      const warning = spyOn(lumine.notifications, "addWarning");
+      await treeView.openSelectedEntryInDetachedWindow();
+      expect(open).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledWith("Select a file to open in a detached window.");
+    });
+
+    it("closes an empty auxiliary host if opening its file fails", async () => {
+      treeView = new TreeView({});
+      await treeView.revealPath(__filename);
+      spyOn(lumine.workspace, "openURIInPane").and.rejectWith(new Error("Cannot open file"));
+      const error = spyOn(lumine.notifications, "addError");
+      await treeView.openSelectedEntryInDetachedWindow();
+      expect(lumine.workspace.getWindows()).toEqual([lumine.workspace.getMainWindow()]);
+      expect(error).toHaveBeenCalledWith("Unable to open the file in a detached window.", {
+        detail: "Cannot open file",
+        dismissable: true,
+      });
+    });
+  });
+
   describe("previewing the selected entry", () => {
     beforeEach(() => {
       lumine.config.set("tree-view.alwaysOpenExisting", false);
@@ -2065,6 +2115,13 @@ describe("TreeView construction", () => {
           .filter((item) => item.label?.startsWith("Split"));
 
       const fileRow = treeView.elementForTreeEntry(treeView.selectedEntry());
+      const fileLabels = labels(fileRow);
+      expect(fileLabels.indexOf("Open in Detached Window")).toBe(
+        fileLabels.indexOf("Split Up") - 1,
+      );
+      expect(labels(treeView.elementForTreeEntry(treeView.roots[0]))).not.toContain(
+        "Open in Detached Window",
+      );
       expect(splits(fileRow).map((item) => item.label)).toEqual([
         "Split Up",
         "Split Down",
