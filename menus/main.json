@@ -8,7 +8,9 @@
           "submenu": [
             {
               "label": "Tree View",
-              "command": "tree-view:toggle"
+              "command": "tree-view:toggle",
+              "group": "panels",
+              "order": 10
             }
           ]
         }
