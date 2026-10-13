@@ -190,7 +190,12 @@
       },
       {
         "label": "Open in Detached Window",
-        "command": "tree-view:open-in-detached-window"
+        "command": "tree-view:open-in-detached-window",
+        "after": ["tree-view:open-in-new-window"],
+        "before": ["tree-view:open-in-this-window"]
+      },
+      {
+        "type": "separator"
       },
       {
         "label": "Split Up",

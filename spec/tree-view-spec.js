@@ -2117,7 +2117,10 @@ describe("TreeView construction", () => {
       const fileRow = treeView.elementForTreeEntry(treeView.selectedEntry());
       const fileLabels = labels(fileRow);
       expect(fileLabels.indexOf("Open in Detached Window")).toBe(
-        fileLabels.indexOf("Split Up") - 1,
+        fileLabels.indexOf("Open in New Window") + 1,
+      );
+      expect(fileLabels.indexOf("Open in This Window")).toBe(
+        fileLabels.indexOf("Open in Detached Window") + 1,
       );
       expect(labels(treeView.elementForTreeEntry(treeView.roots[0]))).not.toContain(
         "Open in Detached Window",
