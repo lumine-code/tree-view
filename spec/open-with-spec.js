@@ -1,5 +1,13 @@
 const path = require("node:path");
+const { createRequire } = require("node:module");
 const { CompositeDisposable } = require("lumine");
+
+function currentPackageRequire() {
+  const pack =
+    lumine.packages.getLoadedPackage("tree-view") ??
+    lumine.packages.loadPackage(path.resolve(__dirname, ".."));
+  return createRequire(path.join(pack.path, "package.json"));
+}
 
 describe("Tree View Open With", () => {
   let tree, selected, catalog, openers;
@@ -7,7 +15,7 @@ describe("Tree View Open With", () => {
   beforeEach(() => {
     jasmine.useRealClock();
     lumine.project.setPaths([]);
-    const TreeView = require("../lib/tree-view");
+    const TreeView = currentPackageRequire()("./lib/tree-view");
     tree = new TreeView();
     lumine.workspace.getLeftDock().getActivePane().getElement().appendChild(tree.element);
     jasmine.attachToDOM(lumine.workspace.getElement());
@@ -175,12 +183,16 @@ describe("Tree View Open With", () => {
 });
 
 describe("Tree View opening context-menu group", () => {
-  let tree, file, folder, disposables, external;
+  let tree, file, folder, disposables, external, humanizeKeystroke;
 
   beforeEach(() => {
     jasmine.useRealClock();
     lumine.project.setPaths([]);
-    const TreeView = require("../lib/tree-view");
+    const TreeView = currentPackageRequire()("./lib/tree-view");
+    const coreRequire = createRequire(
+      path.join(lumine.application.getResourcePath(), "package.json"),
+    );
+    ({ humanizeKeystroke } = coreRequire("@lumine-code/underscore-plus"));
     tree = new TreeView();
     lumine.workspace.getLeftDock().getActivePane().getElement().appendChild(tree.element);
     jasmine.attachToDOM(lumine.workspace.getElement());
@@ -217,6 +229,15 @@ describe("Tree View opening context-menu group", () => {
     return (firstSeparator < 0 ? items : items.slice(0, firstSeparator)).map((item) => item.label);
   };
 
+  const expectOpeningHint = (element) => {
+    const item = template(element)[0];
+    expect(item.command).toBe("tree-view:open-selected-entry");
+    const [binding] = lumine.keymaps.findKeyBindings({ command: item.command, target: element });
+    expect(binding?.selector).toBe(".tree-view");
+    expect(binding?.keystrokes).toBe("enter");
+    expect(item.keyBindingLabel).toBe(humanizeKeystroke("enter"));
+  };
+
   it("groups file opening and window actions first and shows the Enter hint for Open", () => {
     expect(openingLabels(file)).toEqual([
       "Open",
@@ -227,7 +248,7 @@ describe("Tree View opening context-menu group", () => {
       "Open in Detached Window",
       "Open in This Window",
     ]);
-    expect(template(file)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
+    expectOpeningHint(file);
   });
 
   it("keeps Open With limited to one file, including virtual file rows", () => {
@@ -238,7 +259,7 @@ describe("Tree View opening context-menu group", () => {
       "Open in New Window",
       "Open in This Window",
     ]);
-    expect(template(folder)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
+    expectOpeningHint(folder);
     folder.classList.replace("collapsed", "expanded");
     expect(openingLabels(folder)).toEqual([
       "Collapse",
@@ -247,7 +268,7 @@ describe("Tree View opening context-menu group", () => {
       "Open in New Window",
       "Open in This Window",
     ]);
-    expect(template(folder)[0].keyBindingLabel).toBe(process.platform === "darwin" ? "⏎" : "Enter");
+    expectOpeningHint(folder);
     file.classList.add("tree-view-special-entry");
     tree.list.classList.add("special-select");
     expect(openingLabels(file)).toEqual([
