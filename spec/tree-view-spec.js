@@ -1801,163 +1801,6 @@ describe("TreeView construction", () => {
     });
   });
 
-  describe("opening the selected entry in this window", () => {
-    beforeEach(() => {
-      spyOn(lumine.project, "setState");
-      spyOn(lumine.application, "openWindow");
-    });
-
-    it("hands the folder to the project rather than opening a window", () => {
-      treeView = new TreeView({});
-      const root = treeView.roots[0];
-
-      treeView.selectEntry(root);
-      treeView.openSelectedEntryInThisWindow();
-
-      expect(lumine.project.setState).toHaveBeenCalledWith([root.getPath()]);
-      expect(lumine.application.openWindow).not.toHaveBeenCalled();
-    });
-
-    // The project resolves a file to the directory holding it, so the command
-    // reads the same wherever it is invoked from.
-    it("passes a file's own path along, leaving the project to resolve it", async () => {
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-
-      treeView.openSelectedEntryInThisWindow();
-
-      expect(lumine.project.setState).toHaveBeenCalledWith([__filename]);
-    });
-
-    it("does nothing for an entry that owns no path", () => {
-      treeView = new TreeView({});
-      const section = treeView.addSpecialRoot({
-        name: "Recent",
-        className: "recent",
-        entryClassName: "recent-entry",
-        iconClass: "icon-history",
-        getEntries: () => [__filename],
-      });
-
-      treeView.selectEntry(section.root);
-      treeView.openSelectedEntryInThisWindow();
-
-      expect(lumine.project.setState).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("opening the selected entry in a new window", () => {
-    beforeEach(() => spyOn(lumine.application, "openWindow"));
-
-    it("preserves the project roots when opening a file", async () => {
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-
-      treeView.openSelectedEntryInNewWindow();
-
-      expect(lumine.application.openWindow).toHaveBeenCalledWith({
-        pathsToOpen: [...lumine.project.getPaths(), __filename],
-        newWindow: true,
-        devMode: lumine.devMode,
-        safeMode: lumine.safeMode,
-      });
-    });
-
-    it("opens a directory as a project of its own", () => {
-      treeView = new TreeView({});
-      const root = treeView.roots[0];
-      treeView.selectEntry(root);
-
-      treeView.openSelectedEntryInNewWindow();
-
-      expect(lumine.application.openWindow).toHaveBeenCalledWith({
-        pathsToOpen: [root.getPath()],
-        newWindow: true,
-        devMode: lumine.devMode,
-        safeMode: lumine.safeMode,
-      });
-    });
-
-    it("opens a nested directory without carrying the current project roots", async () => {
-      treeView = new TreeView({});
-      await treeView.revealPath(__dirname);
-
-      treeView.openSelectedEntryInNewWindow();
-
-      expect(lumine.application.openWindow).toHaveBeenCalledWith({
-        pathsToOpen: [__dirname],
-        newWindow: true,
-        devMode: lumine.devMode,
-        safeMode: lumine.safeMode,
-      });
-    });
-
-    it("does nothing for an entry that owns no path", () => {
-      treeView = new TreeView({});
-      const section = treeView.addSpecialRoot({
-        name: "Recent",
-        className: "recent",
-        entryClassName: "recent-entry",
-        getEntries: () => [__filename],
-      });
-      treeView.selectEntry(section.root);
-
-      treeView.openSelectedEntryInNewWindow();
-
-      expect(lumine.application.openWindow).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("opening the selected file in a detached window", () => {
-    afterEach(async () => {
-      await lumine.workspace.discardEditorWindows();
-    });
-
-    it("opens a separate view of the shared document through its registered command", async () => {
-      const workspace = lumine.workspace;
-      jasmine.attachToDOM(workspace.getElement());
-      const original = await workspace.open(__filename);
-      original.setText("Shared unsaved content");
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-      const open = spyOn(treeView, "openSelectedEntryInDetachedWindow").and.callThrough();
-      const independent = spyOn(lumine.application, "openWindow");
-      lumine.commands.dispatch(treeView.element, "tree-view:open-in-detached-window");
-      expect(open).toHaveBeenCalledTimes(1);
-      const opened = await open.calls.mostRecent().returnValue;
-      const extra = workspace.getWindows().find((window) => !window.isMain());
-      expect(extra.getEditorContainer().getPaneItems()).toContain(opened);
-      expect(opened).not.toBe(original);
-      expect(opened.getBuffer()).toBe(original.getBuffer());
-      expect(opened.getText()).toBe("Shared unsaved content");
-      expect(workspace.getMainWindow().getEditorContainer().getPaneItems()).toContain(original);
-      expect(independent).not.toHaveBeenCalled();
-    });
-
-    it("does not create a presentation for a folder", async () => {
-      treeView = new TreeView({});
-      treeView.selectEntry(treeView.roots[0]);
-      const open = spyOn(lumine.workspace, "openEditorWindow");
-      const warning = spyOn(lumine.notifications, "addWarning");
-      await treeView.openSelectedEntryInDetachedWindow();
-      expect(open).not.toHaveBeenCalled();
-      expect(warning).toHaveBeenCalledWith("Select a file to open in a detached window.");
-    });
-
-    it("closes an empty auxiliary host if opening its file fails", async () => {
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-      spyOn(lumine.workspace, "openURIInPane").and.rejectWith(new Error("Cannot open file"));
-      const error = spyOn(lumine.notifications, "addError");
-      await treeView.openSelectedEntryInDetachedWindow();
-      expect(lumine.workspace.getWindows()).toEqual([lumine.workspace.getMainWindow()]);
-      expect(error).toHaveBeenCalledWith("Unable to open the file in a detached window.", {
-        detail: "Cannot open file",
-        dismissable: true,
-      });
-    });
-  });
-
   describe("previewing the selected entry", () => {
     beforeEach(() => {
       lumine.config.set("tree-view.alwaysOpenExisting", false);
@@ -2069,8 +1912,7 @@ describe("TreeView construction", () => {
       expect(labels(treeView.list)).toContain("Copy Project Path");
     });
 
-    // Window-opening actions belong to the first group; project management
-    // stays together after the file operations and before the path items.
+    // Project management stays together after file operations and before paths.
     it("keeps the items that act on the project in one run", () => {
       const rootHeader = openMenu();
       const shown = labels(rootHeader);
@@ -2084,22 +1926,22 @@ describe("TreeView construction", () => {
       for (const label of project) expect(at(label)).toBeGreaterThan(-1);
       expect(project.map(at)).toEqual(project.map((_, i) => at(project[0]) + i));
 
-      expect(at("Open in New Window")).toBeGreaterThan(-1);
-      expect(at("Open in This Window")).toBe(at("Open in New Window") + 1);
-      expect(at("Open in This Window")).toBeLessThan(shown.indexOf(undefined));
-      expect(at("Add Project Folder")).toBeGreaterThan(at("Open in This Window"));
+      expect(shown).not.toContain("Open in New Window");
+      expect(shown).not.toContain("Open in Detached Window");
+      expect(shown).not.toContain("Open in This Window");
+      expect(at("Add Project Folder")).toBeGreaterThan(at("Paste"));
       expect(at("Copy Full Path")).toBeGreaterThan(at("Collapse All Project Folders"));
     });
 
-    it("keeps window-opening actions first and path items after project actions", () => {
+    it("keeps path items after project actions without old window actions", () => {
       openMenu();
       const shown = labels(treeView.list);
       const at = (label) => shown.indexOf(label);
 
-      expect(at("Open in New Window")).toBeGreaterThan(-1);
-      expect(at("Open in This Window")).toBe(at("Open in New Window") + 1);
-      expect(at("Open in This Window")).toBeLessThan(shown.indexOf(undefined));
-      expect(at("Add Project Folder")).toBeGreaterThan(at("Open in This Window"));
+      expect(shown).not.toContain("Open in New Window");
+      expect(shown).not.toContain("Open in Detached Window");
+      expect(shown).not.toContain("Open in This Window");
+      expect(at("Add Project Folder")).toBeGreaterThan(at("Paste"));
       expect(at("Copy Full Path")).toBeGreaterThan(at("Add Project Folder"));
       expect(at("Copy Project Path")).toBe(at("Copy Full Path") + 1);
     });
@@ -2119,14 +1961,9 @@ describe("TreeView construction", () => {
 
       const fileRow = treeView.elementForTreeEntry(treeView.selectedEntry());
       const fileLabels = labels(fileRow);
-      expect(fileLabels.indexOf("Open in New Window")).toBeGreaterThan(-1);
-      expect(fileLabels.indexOf("Open in Detached Window")).toBe(
-        fileLabels.indexOf("Open in New Window") + 1,
-      );
-      expect(fileLabels.indexOf("Open in This Window")).toBe(
-        fileLabels.indexOf("Open in Detached Window") + 1,
-      );
-      expect(fileLabels.indexOf("Open in This Window")).toBeLessThan(fileLabels.indexOf(undefined));
+      expect(fileLabels).not.toContain("Open in New Window");
+      expect(fileLabels).not.toContain("Open in Detached Window");
+      expect(fileLabels).not.toContain("Open in This Window");
       expect(labels(treeView.elementForTreeEntry(treeView.roots[0]))).not.toContain(
         "Open in Detached Window",
       );

@@ -45,9 +45,7 @@ Commands available in `.tree-view`:
 - `tree-view:recursive-collapse-directory`: recursively collapse the selected directory,
 - `tree-view:collapse-all`: collapse all directories,
 - `tree-view:open-selected-entry`: open the selected file or expand or collapse the selected folder,
-- `tree-view:open-with`: choose how to open or reveal the selected file,
 - `tree-view:preview-selected-entry`: open the selected file without moving focus out of the tree,
-- `tree-view:open-in-detached-window`: open the selected file in an additional window sharing this workspace,
 - `tree-view:open-selected-entry-right`: open the selected entry in a split to the right,
 - `tree-view:open-selected-entry-left`: open the selected entry in a split to the left,
 - `tree-view:open-selected-entry-up`: open the selected entry in a split above,
@@ -59,8 +57,6 @@ Commands available in `.tree-view`:
 - `tree-view:paste`: paste entries,
 - `tree-view:copy-full-path`: copy the full path of the selected entry,
 - `tree-view:copy-project-path`: copy the project-relative path of the selected entry,
-- `tree-view:open-in-new-window`: open the selected entry in a new window,
-- `tree-view:open-in-this-window`: open the selected entry's folder here, restoring the editors it was last left with,
 - `tree-view:unfocus`: return focus to the editor,
 - `tree-view:toggle-vcs-ignored-files`: toggle visibility of VCS-ignored files,
 - `tree-view:toggle-ignored-names`: toggle visibility of ignored names,
@@ -72,10 +68,6 @@ Commands available in `.tree-view-dialog`:
 - `tree-view:confirm`: create, duplicate or move the file and leave it closed, which is what confirming the dialog does,
 - `tree-view:confirm-and-update-references`: rename or move the entry and ask language servers to update references, available only in the rename dialog,
 - `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path.
-
-Commands available in `.tree-view-open-with`:
-
-- `tree-view:open-with-selected-opener`: open the original file with the selected view.
 
 ## Usage
 

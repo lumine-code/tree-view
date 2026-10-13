@@ -58,12 +58,6 @@
         "command": "tree-view:open-selected-entry",
         "group": "opening",
         "order": 10
-      },
-      {
-        "label": "Open With…",
-        "command": "tree-view:open-with",
-        "group": "opening",
-        "order": 20
       }
     ],
     ".tree-view .full-menu .directory.collapsed": [
@@ -152,18 +146,6 @@
         ]
       },
       {
-        "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window",
-        "group": "opening",
-        "order": 50
-      },
-      {
-        "label": "Open in This Window",
-        "command": "tree-view:open-in-this-window",
-        "group": "opening",
-        "order": 70
-      },
-      {
         "type": "separator"
       },
       {
@@ -184,21 +166,6 @@
         "type": "separator"
       },
       {
-        "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window",
-        "group": "opening",
-        "order": 50
-      },
-      {
-        "label": "Open in This Window",
-        "command": "tree-view:open-in-this-window",
-        "group": "opening",
-        "order": 70
-      },
-      {
-        "type": "separator"
-      },
-      {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path"
       },
@@ -207,15 +174,6 @@
       }
     ],
     ".tree-view .full-menu [is=\"tree-view-file\"]": [
-      {
-        "type": "separator"
-      },
-      {
-        "label": "Open in Detached Window",
-        "command": "tree-view:open-in-detached-window",
-        "group": "opening",
-        "order": 60
-      },
       {
         "type": "separator"
       },
@@ -321,18 +279,6 @@
       {
         "label": "Collapse All Project Folders",
         "command": "tree-view:collapse-all"
-      },
-      {
-        "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window",
-        "group": "opening",
-        "order": 50
-      },
-      {
-        "label": "Open in This Window",
-        "command": "tree-view:open-in-this-window",
-        "group": "opening",
-        "order": 70
       },
       {
         "type": "separator"
