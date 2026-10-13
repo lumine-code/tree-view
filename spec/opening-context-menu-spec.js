@@ -10,9 +10,9 @@ function currentPackageRequire() {
 }
 
 describe("Tree View opening context-menu group", () => {
-  let tree, file, folder, disposables, external, humanizeKeystroke;
+  let tree, file, folder, disposables, humanizeKeystroke, previousExternalContextMenu;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jasmine.useRealClock();
     lumine.project.setPaths([]);
     const TreeView = currentPackageRequire()("./lib/tree-view");
@@ -39,8 +39,9 @@ describe("Tree View opening context-menu group", () => {
       lumine.contextMenu.add(packageMenus("tree-view")),
       lumine.contextMenu.add(packageMenus("open-with")),
     );
-    external = lumine.contextMenu.add(packageMenus("open-external"));
-    disposables.add(external);
+    await lumine.packages.activatePackage("open-external");
+    previousExternalContextMenu = lumine.config.get("open-external.showTreeViewContextMenu");
+    lumine.config.set("open-external.showTreeViewContextMenu", true);
     const pack = lumine.packages.getLoadedPackage("tree-view");
     for (const [keymapPath, keymap] of pack.keymaps)
       disposables.add(lumine.keymaps.add(keymapPath, keymap));
@@ -48,6 +49,8 @@ describe("Tree View opening context-menu group", () => {
 
   afterEach(async () => {
     disposables.dispose();
+    lumine.config.set("open-external.showTreeViewContextMenu", previousExternalContextMenu);
+    await lumine.packages.deactivatePackage("open-external");
     await tree.destroy();
     tree.element.remove();
   });
@@ -123,7 +126,7 @@ describe("Tree View opening context-menu group", () => {
   });
 
   it("derives a single separator even when external contributions disappear", () => {
-    external.dispose();
+    lumine.config.set("open-external.showTreeViewContextMenu", false);
     const items = template(file);
     expect(openingLabels(file)).toEqual(["Open", "Open With…"]);
     expect(items[2].type).toBe("separator");
