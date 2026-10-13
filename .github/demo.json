@@ -1,0 +1,16 @@
+{
+  "title": "tree-view",
+  "description": "Browse a project tree beside the source editor.",
+  "recordedOn": "2026-10-13",
+  "sourceRevision": "d1aea3a4dd2bc1d4520263866d0cf0bc78522d73",
+  "mode": "normal",
+  "fontSettings": "default",
+  "images": [
+    {
+      "file": "demo.png",
+      "label": "Browse a project tree beside the source editor.",
+      "width": 1200,
+      "height": 760
+    }
+  ]
+}

@@ -16,6 +16,8 @@ Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/t
 - **Debounced file watching**: rapid file creation and deletion is batched so the tree does not reload excessively.
 - **Virtual root sections**: let external packages inject their own root sections above the project folders.
 
+![Browse a project tree beside the source editor.](.github/demo.png)
+
 ## Installation
 
 To install `tree-view` search for it in the Install pane of the Lumine settings, or run the command `lumine --install lumine-code/tree-view`.
