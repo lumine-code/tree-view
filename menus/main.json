@@ -288,7 +288,17 @@
       },
       {
         "label": "Rename File",
-        "command": "tree-view:rename"
+        "command": "tree-view:rename",
+        "after": ["open-external:show"],
+        "before": ["diff-view:enable"],
+        "afterGroupContaining": [
+          "pane:detach",
+          "pane:close",
+          "tabs:detach-tab",
+          "tabs:open-in-new-window",
+          "tabs:split-up",
+          "tabs:close-tab"
+        ]
       },
       {
         "type": "separator"
