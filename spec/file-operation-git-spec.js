@@ -45,7 +45,13 @@ describe("TreeView cross-volume Git moves", () => {
     const destinationPath = path.join(destinationRoot, "repository");
     fs.mkdirSync(sourceRoot);
     fs.mkdirSync(destinationRoot);
-    const git = (...args) => execFileSync("git", args, { encoding: "utf8", windowsHide: true });
+    // Automatic maintenance must finish with fixture setup instead of removing
+    // its transient lock files while the cross-volume copy enumerates .git.
+    const git = (...args) =>
+      execFileSync("git", ["-c", "maintenance.autoDetach=false", ...args], {
+        encoding: "utf8",
+        windowsHide: true,
+      });
     git("init", "-b", "master", sourcePath);
     fs.writeFileSync(path.join(sourcePath, "tracked.txt"), "tracked contents\n");
     git("-C", sourcePath, "add", "tracked.txt");
