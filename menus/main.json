@@ -54,7 +54,8 @@
       },
       {
         "label": "Rename",
-        "command": "tree-view:move"
+        "command": "tree-view:move",
+        "afterGroupContaining": ["tree-view:add-file"]
       },
       {
         "label": "Duplicate",
@@ -64,13 +65,15 @@
         "label": "Delete",
         "command": "tree-view:remove"
       },
+      { "type": "separator" },
+      {
+        "label": "Cut",
+        "command": "tree-view:cut",
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+      },
       {
         "label": "Copy",
         "command": "tree-view:copy"
-      },
-      {
-        "label": "Cut",
-        "command": "tree-view:cut"
       },
       {
         "label": "Paste",
@@ -81,7 +84,32 @@
       },
       {
         "label": "Add Project Folder",
-        "command": "application:add-project-folder"
+        "command": "application:add-project-folder",
+        "afterGroupContaining": [
+          {
+            "id": "fast-publish:tree-context"
+          },
+          "folder-sync:create",
+          "folder-sync:run",
+          {
+            "id": "terminal:tree-context"
+          },
+          "tree-view-favourite:add",
+          "tree-view-favourite:remove",
+          "diff-view:enable",
+          "jupyter-cells:import-notebook",
+          "jupyter-view:open-source",
+          "graviss:open-source-on-right",
+          "markdown-preview:preview-file",
+          "image-editor:open-in-new-tab",
+          "search-panel:project-show-in-current-directory",
+          "open-external:show",
+          "tree-view:open-selected-entry-up",
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "label": "Open in New Window",
@@ -96,7 +124,8 @@
       },
       {
         "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
+        "command": "tree-view:copy-full-path",
+        "afterGroupContaining": ["application:add-project-folder"]
       },
       {
         "label": "Copy Project Path",
@@ -112,7 +141,32 @@
       },
       {
         "label": "Open in New Window",
-        "command": "tree-view:open-in-new-window"
+        "command": "tree-view:open-in-new-window",
+        "afterGroupContaining": [
+          {
+            "id": "fast-publish:tree-context"
+          },
+          "folder-sync:create",
+          "folder-sync:run",
+          {
+            "id": "terminal:tree-context"
+          },
+          "tree-view-favourite:add",
+          "tree-view-favourite:remove",
+          "diff-view:enable",
+          "jupyter-cells:import-notebook",
+          "jupyter-view:open-source",
+          "graviss:open-source-on-right",
+          "markdown-preview:preview-file",
+          "image-editor:open-in-new-tab",
+          "search-panel:project-show-in-current-directory",
+          "open-external:show",
+          "tree-view:open-selected-entry-up",
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "label": "Open in This Window",
@@ -123,7 +177,8 @@
       },
       {
         "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
+        "command": "tree-view:copy-full-path",
+        "afterGroupContaining": ["tree-view:open-in-new-window"]
       },
       {
         "type": "separator"
@@ -135,7 +190,13 @@
       },
       {
         "label": "Split Up",
-        "command": "tree-view:open-selected-entry-up"
+        "command": "tree-view:open-selected-entry-up",
+        "afterGroupContaining": [
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "label": "Split Down",
@@ -170,7 +231,8 @@
       },
       {
         "label": "Rename",
-        "command": "tree-view:move"
+        "command": "tree-view:move",
+        "afterGroupContaining": ["tree-view:add-file"]
       },
       {
         "label": "Duplicate",
@@ -180,13 +242,15 @@
         "label": "Delete",
         "command": "tree-view:remove"
       },
+      { "type": "separator" },
+      {
+        "label": "Cut",
+        "command": "tree-view:cut",
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+      },
       {
         "label": "Copy",
         "command": "tree-view:copy"
-      },
-      {
-        "label": "Cut",
-        "command": "tree-view:cut"
       },
       {
         "label": "Paste",
@@ -197,7 +261,32 @@
       },
       {
         "label": "Add Project Folder",
-        "command": "application:add-project-folder"
+        "command": "application:add-project-folder",
+        "afterGroupContaining": [
+          {
+            "id": "fast-publish:tree-context"
+          },
+          "folder-sync:create",
+          "folder-sync:run",
+          {
+            "id": "terminal:tree-context"
+          },
+          "tree-view-favourite:add",
+          "tree-view-favourite:remove",
+          "diff-view:enable",
+          "jupyter-cells:import-notebook",
+          "jupyter-view:open-source",
+          "graviss:open-source-on-right",
+          "markdown-preview:preview-file",
+          "image-editor:open-in-new-tab",
+          "search-panel:project-show-in-current-directory",
+          "open-external:show",
+          "tree-view:open-selected-entry-up",
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "label": "Remove Project Folder",
@@ -220,7 +309,8 @@
       },
       {
         "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
+        "command": "tree-view:copy-full-path",
+        "afterGroupContaining": ["application:add-project-folder"]
       },
       // A project folder's path relative to itself is the empty string, so the
       // item has nothing to copy here. It is hidden rather than dropped: the
@@ -243,13 +333,15 @@
         "label": "Delete",
         "command": "tree-view:remove"
       },
+      { "type": "separator" },
+      {
+        "label": "Cut",
+        "command": "tree-view:cut",
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+      },
       {
         "label": "Copy",
         "command": "tree-view:copy"
-      },
-      {
-        "label": "Cut",
-        "command": "tree-view:cut"
       },
       {
         "label": "Paste",
@@ -260,7 +352,33 @@
       },
       {
         "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
+        "command": "tree-view:copy-full-path",
+        "afterGroupContaining": [
+          "tree-view:remove-project-folder",
+          {
+            "id": "fast-publish:tree-context"
+          },
+          "folder-sync:create",
+          "folder-sync:run",
+          {
+            "id": "terminal:tree-context"
+          },
+          "tree-view-favourite:add",
+          "tree-view-favourite:remove",
+          "diff-view:enable",
+          "jupyter-cells:import-notebook",
+          "jupyter-view:open-source",
+          "graviss:open-source-on-right",
+          "markdown-preview:preview-file",
+          "image-editor:open-in-new-tab",
+          "search-panel:project-show-in-current-directory",
+          "open-external:show",
+          "tree-view:open-selected-entry-up",
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "label": "Copy Project Path",
@@ -276,7 +394,32 @@
       },
       {
         "label": "Remove Project Folders",
-        "command": "tree-view:remove-project-folder"
+        "command": "tree-view:remove-project-folder",
+        "afterGroupContaining": [
+          {
+            "id": "fast-publish:tree-context"
+          },
+          "folder-sync:create",
+          "folder-sync:run",
+          {
+            "id": "terminal:tree-context"
+          },
+          "tree-view-favourite:add",
+          "tree-view-favourite:remove",
+          "diff-view:enable",
+          "jupyter-cells:import-notebook",
+          "jupyter-view:open-source",
+          "graviss:open-source-on-right",
+          "markdown-preview:preview-file",
+          "image-editor:open-in-new-tab",
+          "search-panel:project-show-in-current-directory",
+          "open-external:show",
+          "tree-view:open-selected-entry-up",
+          "native-clip:paste",
+          "tree-view:paste",
+          "tree-view:remove",
+          "tree-view:add-file"
+        ]
       },
       {
         "type": "separator"
