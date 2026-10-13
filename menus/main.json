@@ -44,6 +44,29 @@
     }
   ],
   "context-menu": {
+    ".tree-view .full-menu": {
+      "groupOrder": ["opening", "extensions"],
+      "items": [
+        {
+          "label": "Open",
+          "command": "tree-view:open-selected-entry",
+          "group": "opening",
+          "order": 10
+        }
+      ]
+    },
+    ".tree-view .multi-select": {
+      "groupOrder": ["opening", "extensions"],
+      "items": []
+    },
+    ".tree-view .full-menu .file": [
+      {
+        "label": "Open With…",
+        "command": "tree-view:open-with",
+        "group": "opening",
+        "order": 20
+      }
+    ],
     ".tree-view .full-menu:not(.special-select)": [
       {
         "type": "separator"
@@ -104,11 +127,6 @@
           "tree-view-favourite:add",
           "tree-view-favourite:remove",
           "diff-view:enable",
-          "jupyter-cells:import-notebook",
-          "jupyter-view:open-source",
-          "graviss:open-source-on-right",
-          "markdown-preview:preview-file",
-          "image-editor:open-in-new-tab",
           "search-panel:project-show-in-current-directory",
           "open-external:show",
           "tree-view:open-selected-entry-up",
@@ -161,11 +179,6 @@
           "tree-view-favourite:add",
           "tree-view-favourite:remove",
           "diff-view:enable",
-          "jupyter-cells:import-notebook",
-          "jupyter-view:open-source",
-          "graviss:open-source-on-right",
-          "markdown-preview:preview-file",
-          "image-editor:open-in-new-tab",
           "search-panel:project-show-in-current-directory",
           "open-external:show",
           "tree-view:open-selected-entry-up",
@@ -290,11 +303,6 @@
           "tree-view-favourite:add",
           "tree-view-favourite:remove",
           "diff-view:enable",
-          "jupyter-cells:import-notebook",
-          "jupyter-view:open-source",
-          "graviss:open-source-on-right",
-          "markdown-preview:preview-file",
-          "image-editor:open-in-new-tab",
           "search-panel:project-show-in-current-directory",
           "open-external:show",
           "tree-view:open-selected-entry-up",
@@ -382,11 +390,6 @@
           "tree-view-favourite:add",
           "tree-view-favourite:remove",
           "diff-view:enable",
-          "jupyter-cells:import-notebook",
-          "jupyter-view:open-source",
-          "graviss:open-source-on-right",
-          "markdown-preview:preview-file",
-          "image-editor:open-in-new-tab",
           "search-panel:project-show-in-current-directory",
           "open-external:show",
           "tree-view:open-selected-entry-up",
@@ -423,11 +426,6 @@
           "tree-view-favourite:add",
           "tree-view-favourite:remove",
           "diff-view:enable",
-          "jupyter-cells:import-notebook",
-          "jupyter-view:open-source",
-          "graviss:open-source-on-right",
-          "markdown-preview:preview-file",
-          "image-editor:open-in-new-tab",
           "search-panel:project-show-in-current-directory",
           "open-external:show",
           "tree-view:open-selected-entry-up",

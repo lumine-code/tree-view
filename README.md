@@ -45,6 +45,7 @@ Commands available in `.tree-view`:
 - `tree-view:recursive-collapse-directory`: recursively collapse the selected directory,
 - `tree-view:collapse-all`: collapse all directories,
 - `tree-view:open-selected-entry`: open the selected entry,
+- `tree-view:open-with`: choose a view to open the selected file,
 - `tree-view:preview-selected-entry`: open the selected file without moving focus out of the tree,
 - `tree-view:open-in-detached-window`: open the selected file in an additional window sharing this workspace,
 - `tree-view:open-selected-entry-right`: open the selected entry in a split to the right,
@@ -71,6 +72,10 @@ Commands available in `.tree-view-dialog`:
 - `tree-view:confirm`: create, duplicate or move the file and leave it closed, which is what confirming the dialog does,
 - `tree-view:confirm-and-update-references`: rename or move the entry and ask language servers to update references, available only in the rename dialog,
 - `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path.
+
+Commands available in `.tree-view-open-with`:
+
+- `tree-view:open-with-selected-opener`: open the original file with the selected view.
 
 ## Usage
 

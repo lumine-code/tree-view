@@ -17,7 +17,8 @@
   "license": "MIT",
   "main": "./lib/main",
   "specPackages": [
-    "busy-signal"
+    "busy-signal",
+    "open-external"
   ],
   "files": [
     "docs",
