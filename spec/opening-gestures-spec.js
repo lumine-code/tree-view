@@ -178,6 +178,7 @@ describe("Tree View opening gestures", () => {
   for (const [modifiers, command] of [
     [{ altKey: true }, "open-with:toggle"],
     [{ altKey: true, ctrlKey: true }, "open-external:open"],
+    [{ altKey: true, shiftKey: true }, "open-external:show"],
   ]) {
     it(`routes a directory disclosure to ${command} without expanding it`, () => {
       const toggle = spyOn(folder, "toggleExpansion").and.callThrough();
@@ -224,9 +225,11 @@ describe("Tree View opening gestures", () => {
     const dispatch = spyOn(lumine.commands, "dispatch").and.callThrough();
     click(nameFor(second), { altKey: true });
     click(nameFor(folder), { ctrlKey: true, altKey: true });
+    click(nameFor(second), { shiftKey: true, altKey: true });
 
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-with:toggle");
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:open");
+    expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:show");
     expect(opening).not.toHaveBeenCalled();
     expect(toggle).not.toHaveBeenCalled();
     expect(commands).toEqual([]);
@@ -278,7 +281,7 @@ describe("Tree View opening gestures", () => {
   }
 
   for (const allowPending of [true, false]) {
-    it(`opens the default for Enter with pending ${allowPending} and forces text for Shift+Enter`, async () => {
+    it(`opens the default for Enter with pending ${allowPending}`, async () => {
       const { viewer, open } = registerDefaultViewer();
       lumine.config.set("core.allowPendingPaneItems", allowPending);
       tree.selectEntry(second);
@@ -287,12 +290,6 @@ describe("Tree View opening gestures", () => {
       expect(lumine.workspace.paneForItem(viewer).getPendingItem()).toBe(
         allowPending ? viewer : null,
       );
-      lumine.config.set("core.allowPendingPaneItems", false);
-      lumine.commands.dispatch(tree.element, "tree-view:preview-selected-entry");
-      const editor = await opening.calls.mostRecent().returnValue;
-
-      expect(editor.getText()).toBe("second\n");
-      expect(lumine.workspace.paneForItem(editor).getPendingItem()).toBe(editor);
       expect(open).toHaveBeenCalledTimes(1);
     });
   }
@@ -341,13 +338,13 @@ describe("Tree View opening gestures", () => {
     expect(commands).toEqual([]);
   });
 
-  it("keeps Enter and Shift+Enter on their owned opening commands", () => {
-    for (const [keystrokes, command] of [
-      ["enter", "tree-view:open-selected-entry"],
-      ["shift-enter", "tree-view:preview-selected-entry"],
-    ]) {
-      const bindings = lumine.keymaps.findKeyBindings({ target: tree.element, keystrokes });
-      expect(bindings[0]?.command).toBe(command);
-    }
+  it("keeps Enter on the default opener without a separate Shift+Enter action", () => {
+    const bindings = lumine.keymaps.findKeyBindings({ target: tree.element, keystrokes: "enter" });
+    expect(bindings[0]?.command).toBe("tree-view:open-selected-entry");
+    const shifted = lumine.keymaps.findKeyBindings({
+      target: tree.element,
+      keystrokes: "shift-enter",
+    });
+    expect(shifted.some((binding) => binding.command.startsWith("tree-view:"))).toBe(false);
   });
 });

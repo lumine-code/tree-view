@@ -1800,55 +1800,6 @@ describe("TreeView construction", () => {
     });
   });
 
-  describe("previewing the selected entry", () => {
-    beforeEach(() => {
-      lumine.config.set("tree-view.alwaysOpenExisting", false);
-      spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
-    });
-
-    it("opens the selected file without activating its pane", async () => {
-      lumine.config.set("core.allowPendingPaneItems", true);
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-
-      treeView.previewSelectedEntry();
-
-      expect(lumine.workspace.open).toHaveBeenCalledWith(__filename, {
-        opener: "text-editor",
-        pending: true,
-        forcePending: true,
-        activatePane: false,
-      });
-    });
-
-    it("explicitly requests a pending text editor even when automatic pending items are disabled", async () => {
-      lumine.config.set("core.allowPendingPaneItems", false);
-      treeView = new TreeView({});
-      await treeView.revealPath(__filename);
-
-      treeView.previewSelectedEntry();
-
-      expect(lumine.workspace.open).toHaveBeenCalledWith(__filename, {
-        opener: "text-editor",
-        pending: true,
-        forcePending: true,
-        activatePane: false,
-      });
-    });
-
-    it("leaves a selected directory alone rather than toggling it", () => {
-      treeView = new TreeView({});
-      const root = treeView.roots[0];
-      treeView.selectEntry(root);
-      const wasExpanded = root.isExpanded;
-
-      treeView.previewSelectedEntry();
-
-      expect(lumine.workspace.open).not.toHaveBeenCalled();
-      expect(root.isExpanded).toBe(wasExpanded);
-    });
-  });
-
   describe("expanding the selected entry", () => {
     beforeEach(() => {
       spyOn(lumine.workspace, "open").and.returnValue(Promise.resolve());
