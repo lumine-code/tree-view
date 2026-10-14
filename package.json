@@ -229,11 +229,6 @@
         "^1.0.0": "consumeBusySignal"
       }
     },
-    "open-external": {
-      "versions": {
-        "^1.0.0": "consumeOpenExternal"
-      }
-    },
     "project-list": {
       "versions": {
         "^1.0.0": "consumeProjectList"

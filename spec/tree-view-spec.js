@@ -227,7 +227,6 @@ describe("TreeView directory disclosure clicks", () => {
     const treeView = {
       treeEntryForElement: TreeView.prototype.treeEntryForElement,
       selectEntry: jasmine.createSpy("selectEntry"),
-      openExternalService: null,
     };
     return { treeView, entry, disclosure, name };
   }
@@ -1815,14 +1814,14 @@ describe("TreeView construction", () => {
       treeView.previewSelectedEntry();
 
       expect(lumine.workspace.open).toHaveBeenCalledWith(__filename, {
+        opener: "text-editor",
         pending: true,
+        forcePending: true,
         activatePane: false,
       });
     });
 
-    // Pending-ness is the user's setting; keeping the focus in the tree is the
-    // command's own promise, so it survives the setting being off.
-    it("keeps the focus in the tree when pending pane items are disabled", async () => {
+    it("explicitly requests a pending text editor even when automatic pending items are disabled", async () => {
       lumine.config.set("core.allowPendingPaneItems", false);
       treeView = new TreeView({});
       await treeView.revealPath(__filename);
@@ -1830,7 +1829,9 @@ describe("TreeView construction", () => {
       treeView.previewSelectedEntry();
 
       expect(lumine.workspace.open).toHaveBeenCalledWith(__filename, {
-        pending: false,
+        opener: "text-editor",
+        pending: true,
+        forcePending: true,
         activatePane: false,
       });
     });

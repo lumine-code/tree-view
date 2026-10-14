@@ -45,7 +45,7 @@ Commands available in `.tree-view`:
 - `tree-view:recursive-collapse-directory`: recursively collapse the selected directory,
 - `tree-view:collapse-all`: collapse all directories,
 - `tree-view:open-selected-entry`: open the selected file or expand or collapse the selected folder,
-- `tree-view:preview-selected-entry`: open the selected file without moving focus out of the tree,
+- `tree-view:preview-selected-entry`: open the selected file as a pending text editor while keeping focus in the tree,
 - `tree-view:open-selected-entry-right`: open the selected entry in a split to the right,
 - `tree-view:open-selected-entry-left`: open the selected entry in a split to the left,
 - `tree-view:open-selected-entry-up`: open the selected entry in a split above,
@@ -81,7 +81,6 @@ Tree view moves update the paths of open documents in the initiating workspace w
 - [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
 - [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, copying, moving, renaming and deletion.
 - `busy-signal`: consumed to report copy and move operations on the busy indicator.
-- `open-external`: consumed to open files with the configured external application.
 - `project-list`: consumed to add a "List projects" button to the empty project view.
 - `recent-list`: consumed to add a "Reopen a project" button to the empty project view.
 

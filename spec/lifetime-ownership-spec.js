@@ -48,7 +48,6 @@ describe("Tree View native lifetime and service ownership", () => {
     return lease;
   }
   const services = [
-    ["open-external", "consumeOpenExternal", "openExternalService"],
     ["project-list", "consumeProjectList", "projectList"],
     ["recent-list", "consumeRecentList", "recentList"],
     ["busy-signal", "consumeBusySignal", "busySignal"],
