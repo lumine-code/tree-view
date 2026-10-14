@@ -150,21 +150,34 @@ describe("Tree View opening gestures", () => {
     expectCommand("open-external:open", second);
   });
 
-  it("reveals the Ctrl+Shift target instead of extending or toggling the selection", () => {
-    tree.selectEntry(first);
-    tree.selectMultipleEntries(second);
+  it("adds a range on Ctrl/Cmd+Shift-click through both mouse-down and deferred mouse-up selection", () => {
+    tree.selectEntry(folder);
+    tree.selectMultipleEntries(first);
     tree.showMultiSelectMenuIfNecessary();
     const range = spyOn(tree, "selectContinuousEntries").and.callThrough();
-    click(nameFor(first), { ctrlKey: true, shiftKey: true });
+    const modifiers =
+      process.platform === "darwin"
+        ? { metaKey: true, shiftKey: true }
+        : { ctrlKey: true, shiftKey: true };
+    click(nameFor(second), modifiers);
 
-    expectCommand("open-external:show", first);
-    expect(range).not.toHaveBeenCalled();
+    expect(range).toHaveBeenCalledOnceWith(second, false);
+    expect(tree.selectedPaths()).toEqual([folder.getPath(), first.getPath(), second.getPath()]);
+
+    // Clicking an already selected row must also retain entries outside the range.
+    click(nameFor(first), modifiers);
+    expect(range.calls.count()).toBe(2);
+    expect(range.calls.mostRecent().args).toEqual([first, false]);
+    expect(tree.selectedPaths()).toEqual([folder.getPath(), first.getPath(), second.getPath()]);
+    expect(tree.selectOnMouseUp).toBeNull();
+    expect(tree.multiSelectEnabled()).toBe(true);
+    expect(opening).not.toHaveBeenCalled();
+    expect(commands).toEqual([]);
   });
 
   for (const [modifiers, command] of [
     [{ altKey: true }, "open-with:toggle"],
     [{ altKey: true, ctrlKey: true }, "open-external:open"],
-    [{ shiftKey: true, ctrlKey: true }, "open-external:show"],
   ]) {
     it(`routes a directory disclosure to ${command} without expanding it`, () => {
       const toggle = spyOn(folder, "toggleExpansion").and.callThrough();
@@ -211,11 +224,9 @@ describe("Tree View opening gestures", () => {
     const dispatch = spyOn(lumine.commands, "dispatch").and.callThrough();
     click(nameFor(second), { altKey: true });
     click(nameFor(folder), { ctrlKey: true, altKey: true });
-    click(nameFor(folder), { ctrlKey: true, shiftKey: true });
 
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-with:toggle");
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:open");
-    expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:show");
     expect(opening).not.toHaveBeenCalled();
     expect(toggle).not.toHaveBeenCalled();
     expect(commands).toEqual([]);
@@ -243,20 +254,26 @@ describe("Tree View opening gestures", () => {
       expect(commands).toEqual([]);
     });
 
-    it(`opens an explicitly pending text editor on Shift-click with automatic pending ${allowPending}`, async () => {
+    it(`selects a file range on Shift-click without opening files when automatic pending is ${allowPending}`, () => {
       const { open } = registerDefaultViewer();
       lumine.config.set("core.allowPendingPaneItems", allowPending);
       tree.selectEntry(first);
       const range = spyOn(tree, "selectContinuousEntries").and.callThrough();
       click(nameFor(second), { shiftKey: true });
-      const editor = await opening.calls.mostRecent().returnValue;
 
-      expect(editor.getText()).toBe("second\n");
-      expect(editor.getPath()).toBe(second.getPath());
-      expect(lumine.workspace.paneForItem(editor).getPendingItem()).toBe(editor);
+      expect(range).toHaveBeenCalledOnceWith(second);
+      expect(tree.selectedPaths()).toEqual([first.getPath(), second.getPath()]);
+      expect(tree.multiSelectEnabled()).toBe(true);
+
+      // A selected row takes the deferred mouse-up selection path.
+      click(nameFor(first), { shiftKey: true });
+      expect(range.calls.count()).toBe(2);
+      expect(range.calls.mostRecent().args).toEqual([first]);
+      expect(tree.selectedPaths()).toEqual([first.getPath()]);
+      expect(tree.selectOnMouseUp).toBeNull();
+      expect(opening).not.toHaveBeenCalled();
       expect(open).not.toHaveBeenCalled();
-      expect(range).not.toHaveBeenCalled();
-      expect(tree.selectedPaths()).toEqual([second.getPath()]);
+      expect(commands).toEqual([]);
     });
   }
 
@@ -301,6 +318,24 @@ describe("Tree View opening gestures", () => {
     click(nameFor(folder), { shiftKey: true });
 
     expect(range).toHaveBeenCalledOnceWith(folder);
+    expect(opening).not.toHaveBeenCalled();
+    expect(toggle).not.toHaveBeenCalled();
+    expect(commands).toEqual([]);
+  });
+
+  it("adds a clicked directory to the range without toggling it or dispatching a file action", () => {
+    tree.selectEntry(second);
+    tree.selectMultipleEntries(first);
+    const range = spyOn(tree, "selectContinuousEntries").and.callThrough();
+    const toggle = spyOn(folder, "toggleExpansion").and.callThrough();
+    const modifiers =
+      process.platform === "darwin"
+        ? { metaKey: true, shiftKey: true }
+        : { ctrlKey: true, shiftKey: true };
+    click(tree.elementForTreeEntry(folder).querySelector(".tree-view-disclosure"), modifiers);
+
+    expect(range).toHaveBeenCalledOnceWith(folder, false);
+    expect(tree.selectedPaths()).toEqual([folder.getPath(), first.getPath(), second.getPath()]);
     expect(opening).not.toHaveBeenCalled();
     expect(toggle).not.toHaveBeenCalled();
     expect(commands).toEqual([]);
