@@ -1,16 +1,82 @@
 {
   "title": "tree-view",
   "description": "Browse a project tree beside the source editor.",
-  "recordedOn": "2026-10-13",
-  "sourceRevision": "d1aea3a4dd2bc1d4520263866d0cf0bc78522d73",
+  "recordedOn": "2026-10-14",
+  "sourceRevision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
+  "themeSourceRevision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
   "mode": "normal",
   "fontSettings": "default",
+  "scenario": "demo.js",
+  "recipeHash": "6a72b65d71d1ebce678255a2ea629da2844081fe8eb7d378ee8bc9f8c90c609c",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "electron": "44.7.0",
+    "chrome": "152.0.7977.130",
+    "devicePixelRatio": 1,
+    "locale": "en-GB",
+    "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
+    "fontSize": 14,
+    "themes": ["one-day-syntax", "one-day-ui"]
+  },
+  "viewport": { "width": 1200, "height": 760 },
+  "cornerRadius": 10,
+  "sources": {
+    "editor": {
+      "revision": "8be8f86075ad93df038610d82b3ac6d99329957d",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "package": {
+      "revision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "tree-view": {
+      "revision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "language-javascript": {
+      "revision": "ae2e6968e3a349fb4d09ce53e339a0f8cce903aa",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "one-theme": {
+      "revision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+      "dirty": false,
+      "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "fixtures": [
+    {
+      "file": "Signal Lab/data/samples.csv",
+      "sha256": "2d35e3bb79e7e9086de59900ceef8f1eea104bfc4ad0de99236dba1f341e4719"
+    },
+    {
+      "file": "Signal Lab/docs/experiments.md",
+      "sha256": "fb3d0c9760047153815c692248e97c1d78abe70ce7a01c3bb2146a6b998b4501"
+    },
+    {
+      "file": "Signal Lab/package.json",
+      "sha256": "cb3a7618b04433243426e1193d0e49da9a776c4bf10e8eb6a147d4db53e189c8"
+    },
+    {
+      "file": "Signal Lab/README.md",
+      "sha256": "1359f188748fa3dd6e11b6aca489ed6dcf737f39dbf3ec55baf8bf695c75c81f"
+    },
+    {
+      "file": "Signal Lab/src/signal.js",
+      "sha256": "2a36953daadd1ae53070d0ff7ceab4624395fdb957104aa6e8ec92d785cadf1d"
+    }
+  ],
   "images": [
     {
       "file": "demo.png",
       "label": "Browse a project tree beside the source editor.",
       "width": 1200,
-      "height": 760
+      "height": 760,
+      "sha256": "19c6fa64a1335cb584acd86d3f3e3428efb4ef4314d916d410304e7809e30dd9"
     }
   ]
 }
