@@ -37,7 +37,7 @@ describe("Tree View opening context-menu group", () => {
     };
     disposables = new CompositeDisposable(
       lumine.contextMenu.add(packageMenus("tree-view")),
-      lumine.contextMenu.add(packageMenus("open-with")),
+      lumine.contextMenu.add(packageMenus("launcher")),
     );
     await lumine.packages.activatePackage("open-external");
     previousExternalContextMenu = lumine.config.get("open-external.showTreeViewContextMenu");
@@ -78,57 +78,42 @@ describe("Tree View opening context-menu group", () => {
   };
 
   it("groups file opening first without window actions and shows the Enter hint", () => {
-    expect(openingLabels(file)).toEqual([
-      "Open",
-      "Open With…",
-      "Open Externally",
-      "Show in Folder",
-    ]);
-    expect(template(file).find((item) => item.label === "Open With…").command).toBe(
-      "open-with:toggle",
+    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally", "Show in Folder"]);
+    expect(template(file).find((item) => item.label === "Open…").command).toBe(
+      "launcher:open-resource",
     );
     expectOpeningHint(file);
     expectNoWindowRows(file);
   });
 
-  it("offers Open With on folders alongside the appropriate expansion action", () => {
-    expect(openingLabels(folder)).toEqual([
-      "Expand",
-      "Open With…",
-      "Open Externally",
-      "Show in Folder",
-    ]);
+  it("offers Launcher on folders alongside the appropriate expansion action", () => {
+    expect(openingLabels(folder)).toEqual(["Expand", "Open…", "Open Externally", "Show in Folder"]);
     expectOpeningHint(folder);
     expectNoWindowRows(folder);
     folder.classList.replace("collapsed", "expanded");
     expect(openingLabels(folder)).toEqual([
       "Collapse",
-      "Open With…",
+      "Open…",
       "Open Externally",
       "Show in Folder",
     ]);
     expectOpeningHint(folder);
   });
 
-  it("offers Open With for virtual entries and omits it from a multiple selection", () => {
+  it("offers Launcher for virtual entries and omits it from a multiple selection", () => {
     file.classList.add("tree-view-special-entry");
     tree.list.classList.add("special-select");
-    expect(openingLabels(file)).toEqual([
-      "Open",
-      "Open With…",
-      "Open Externally",
-      "Show in Folder",
-    ]);
+    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally", "Show in Folder"]);
     expectNoWindowRows(file);
     tree.showMultiSelectMenu();
     expect(openingLabels(file)).toEqual(["Open Externally", "Show in Folder"]);
-    expect(template(file).some((item) => item.command === "open-with:toggle")).toBe(false);
+    expect(template(file).some((item) => item.command === "launcher:open-resource")).toBe(false);
   });
 
   it("derives a single separator even when external contributions disappear", () => {
     lumine.config.set("open-external.showTreeViewContextMenu", false);
     const items = template(file);
-    expect(openingLabels(file)).toEqual(["Open", "Open With…"]);
+    expect(openingLabels(file)).toEqual(["Open", "Open…"]);
     expect(items[2].type).toBe("separator");
     expect(items[3].type).not.toBe("separator");
     expect(items.at(-1).type).not.toBe("separator");

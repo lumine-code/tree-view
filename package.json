@@ -18,7 +18,7 @@
   "main": "./lib/main",
   "specPackages": [
     "busy-signal",
-    "open-with",
+    "launcher",
     "open-external"
   ],
   "files": [

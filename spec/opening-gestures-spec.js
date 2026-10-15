@@ -18,7 +18,7 @@ describe("Tree View opening gestures", () => {
     lumine.config.set("tree-view.fileDoubleClick", false);
     lumine.config.set("tree-view.alwaysOpenExisting", false);
     lumine.config.set("core.allowPendingPaneItems", true);
-    await lumine.packages.deactivatePackage("open-with");
+    await lumine.packages.deactivatePackage("launcher");
     await lumine.packages.deactivatePackage("open-external");
     const pack =
       lumine.packages.getLoadedPackage("tree-view") ??
@@ -34,10 +34,10 @@ describe("Tree View opening gestures", () => {
     commands = [];
     disposables = new CompositeDisposable(
       lumine.commands.add("lumine-workspace", {
-        "open-with:toggle": (event) => {
+        "launcher:open-resource": (event) => {
           event.stopPropagation();
           commands.push({
-            command: "open-with:toggle",
+            command: "launcher:open-resource",
             paths: tree.selectedPaths(),
             target: event.target,
           });
@@ -130,7 +130,7 @@ describe("Tree View opening gestures", () => {
     const event = click(nameFor(second), { altKey: true });
 
     expect(event.defaultPrevented).toBe(true);
-    expectCommand("open-with:toggle", second);
+    expectCommand("launcher:open-resource", second);
   });
 
   it("opens externally for Ctrl+Alt on a selected row without removing it from a multiple selection", () => {
@@ -176,7 +176,7 @@ describe("Tree View opening gestures", () => {
   });
 
   for (const [modifiers, command] of [
-    [{ altKey: true }, "open-with:toggle"],
+    [{ altKey: true }, "launcher:open-resource"],
     [{ altKey: true, ctrlKey: true }, "open-external:open"],
     [{ altKey: true, shiftKey: true }, "open-external:show"],
   ]) {
@@ -211,7 +211,7 @@ describe("Tree View opening gestures", () => {
     });
     const pinned = section.entries[0];
     click(nameFor(pinned), { altKey: true });
-    expectCommand("open-with:toggle", pinned);
+    expectCommand("launcher:open-resource", pinned);
     commands.length = 0;
     click(nameFor(section.root), { altKey: true, ctrlKey: true });
 
@@ -227,7 +227,7 @@ describe("Tree View opening gestures", () => {
     click(nameFor(folder), { ctrlKey: true, altKey: true });
     click(nameFor(second), { shiftKey: true, altKey: true });
 
-    expect(dispatch).toHaveBeenCalledWith(tree.element, "open-with:toggle");
+    expect(dispatch).toHaveBeenCalledWith(tree.element, "launcher:open-resource");
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:open");
     expect(dispatch).toHaveBeenCalledWith(tree.element, "open-external:show");
     expect(opening).not.toHaveBeenCalled();
@@ -300,7 +300,7 @@ describe("Tree View opening gestures", () => {
     click(nameFor(second));
     expect(opening).not.toHaveBeenCalled();
     click(nameFor(second), { altKey: true });
-    expectCommand("open-with:toggle", second);
+    expectCommand("launcher:open-resource", second);
     click(nameFor(second), { detail: 2 });
 
     expect(await opening.calls.mostRecent().returnValue).toBe(viewer);
