@@ -524,6 +524,54 @@ describe("TreeView OS file drops", () => {
   });
 });
 
+describe("TreeView native copy-drag modifiers", () => {
+  for (const source of ["tree", "os"]) {
+    for (const platform of ["win32", "linux", "darwin"]) {
+      it(`uses the native copy modifier for ${source} drops on ${platform}`, async () => {
+        const destination = path.resolve(__dirname, "destination");
+        const sourcePath = path.resolve(__dirname, "source.txt");
+        const entryElement = document.createElement("li");
+        entryElement.className = "entry directory";
+        const treeView = {
+          rootDragAndDrop: { isDragging: () => false },
+          isLumineTreeViewEvent: () => true,
+          treeEntryForElement: () => ({ getPath: () => destination }),
+          treeEntryForPath: () => null,
+          pastePaths: jasmine.createSpy("pastePaths").and.resolveTo(),
+        };
+        if (source === "os") spyOn(webUtils, "getPathForFile").and.returnValue(sourcePath);
+        const descriptor = Object.getOwnPropertyDescriptor(process, "platform");
+        Object.defineProperty(process, "platform", { ...descriptor, value: platform });
+        try {
+          for (let modifiers = 0; modifiers < 8; modifiers++) {
+            const event = {
+              target: entryElement,
+              ctrlKey: Boolean(modifiers & 1),
+              metaKey: Boolean(modifiers & 2),
+              altKey: Boolean(modifiers & 4),
+              dataTransfer: {
+                getData: () => (source === "tree" ? JSON.stringify([sourcePath]) : ""),
+                files: source === "os" ? [{}] : [],
+              },
+              preventDefault() {},
+              stopPropagation() {},
+            };
+            await TreeView.prototype.onDrop.call(treeView, event);
+            const copied = platform === "darwin" ? event.altKey : event.ctrlKey;
+            expect(treeView.pastePaths.calls.mostRecent().args).toEqual([
+              [sourcePath],
+              copied ? "copy" : "cut",
+              destination,
+            ]);
+          }
+        } finally {
+          Object.defineProperty(process, "platform", descriptor);
+        }
+      });
+    }
+  }
+});
+
 describe("TreeView workspace file drags", () => {
   function dragEntries(entries) {
     const rows = new Map();

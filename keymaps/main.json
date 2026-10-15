@@ -1,7 +1,7 @@
 {
   "lumine-workspace": {
     "alt-t": "tree-view:toggle-focus",
-    "cmdorctrl-shift-\\": "tree-view:reveal-active-file"
+    "cmdorctrl-|": "tree-view:reveal-active-file"
   },
   ".tree-view": {
     "cmdorctrl-a": "core:select-all",
@@ -32,8 +32,8 @@
     "l": "tree-view:expand-item",
     "left": "tree-view:collapse-directory",
     "ctrl-[": "tree-view:collapse-directory",
-    "ctrl-right": "tree-view:recursive-expand-directory",
-    "ctrl-left": "tree-view:recursive-collapse-directory",
+    "cmdorctrl-right": "tree-view:recursive-expand-directory",
+    "cmdorctrl-left": "tree-view:recursive-collapse-directory",
     "h": "tree-view:collapse-directory",
     "enter": "tree-view:open-selected-entry",
     "escape": "tree-view:unfocus",
