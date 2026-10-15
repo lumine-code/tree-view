@@ -45,11 +45,33 @@
   ],
   "context-menu": {
     ".tree-view .full-menu": {
-      "groupOrder": ["opening", "extensions"],
+      "groupOrder": [
+        "opening",
+        "layout",
+        "entries",
+        "clipboard",
+        "favourites",
+        "tools",
+        "extensions",
+        "paths",
+        "projects",
+        "delete"
+      ],
       "items": []
     },
     ".tree-view .multi-select": {
-      "groupOrder": ["opening", "extensions"],
+      "groupOrder": [
+        "opening",
+        "layout",
+        "entries",
+        "clipboard",
+        "favourites",
+        "tools",
+        "extensions",
+        "paths",
+        "projects",
+        "delete"
+      ],
       "items": []
     },
     ".tree-view .full-menu .file": [
@@ -81,48 +103,64 @@
         "type": "separator"
       },
       {
-        "label": "New File",
-        "command": "tree-view:add-file"
+        "label": "New File…",
+        "command": "tree-view:add-file",
+        "group": "entries",
+        "order": 10
       },
       {
-        "label": "New Folder",
-        "command": "tree-view:add-folder"
+        "label": "New Folder…",
+        "command": "tree-view:add-folder",
+        "group": "entries",
+        "order": 20
       },
       {
         "type": "separator"
       },
       {
-        "label": "Rename",
+        "label": "Rename…",
         "command": "tree-view:move",
-        "afterGroupContaining": ["tree-view:add-file"]
+        "afterGroupContaining": ["tree-view:add-file"],
+        "group": "entries",
+        "order": 30
       },
       {
-        "label": "Duplicate",
-        "command": "tree-view:duplicate"
+        "label": "Duplicate…",
+        "command": "tree-view:duplicate",
+        "group": "entries",
+        "order": 40
       },
       {
         "label": "Delete",
-        "command": "tree-view:remove"
+        "command": "tree-view:remove",
+        "group": "delete",
+        "order": 10
       },
       { "type": "separator" },
       {
         "label": "Cut",
         "command": "tree-view:cut",
-        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"],
+        "group": "clipboard",
+        "order": 10
       },
       {
         "label": "Copy",
-        "command": "tree-view:copy"
+        "command": "tree-view:copy",
+        "group": "clipboard",
+        "order": 20
       },
       {
         "label": "Paste",
-        "command": "tree-view:paste"
+        "command": "tree-view:paste",
+        "group": "clipboard",
+        "order": 30
       },
       {
         "type": "separator"
       },
       {
-        "label": "Add Project Folder",
+        "label": "Add Project Folder…",
         "command": "application:add-project-folder",
         "afterGroupContaining": [
           {
@@ -143,7 +181,9 @@
           "tree-view:paste",
           "tree-view:remove",
           "tree-view:add-file"
-        ]
+        ],
+        "group": "projects",
+        "order": 10
       },
       {
         "type": "separator"
@@ -151,11 +191,15 @@
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path",
-        "afterGroupContaining": ["application:add-project-folder"]
+        "afterGroupContaining": ["application:add-project-folder"],
+        "group": "paths",
+        "order": 10
       },
       {
         "label": "Copy Project Path",
-        "command": "tree-view:copy-project-path"
+        "command": "tree-view:copy-project-path",
+        "group": "paths",
+        "order": 20
       },
       {
         "type": "separator"
@@ -167,7 +211,9 @@
       },
       {
         "label": "Copy Full Path",
-        "command": "tree-view:copy-full-path"
+        "command": "tree-view:copy-full-path",
+        "group": "paths",
+        "order": 10
       },
       {
         "type": "separator"
@@ -185,19 +231,27 @@
           "tree-view:paste",
           "tree-view:remove",
           "tree-view:add-file"
-        ]
+        ],
+        "group": "layout",
+        "order": 10
       },
       {
         "label": "Split Down",
-        "command": "tree-view:open-selected-entry-down"
+        "command": "tree-view:open-selected-entry-down",
+        "group": "layout",
+        "order": 20
       },
       {
         "label": "Split Left",
-        "command": "tree-view:open-selected-entry-left"
+        "command": "tree-view:open-selected-entry-left",
+        "group": "layout",
+        "order": 30
       },
       {
         "label": "Split Right",
-        "command": "tree-view:open-selected-entry-right"
+        "command": "tree-view:open-selected-entry-right",
+        "group": "layout",
+        "order": 40
       },
       {
         "type": "separator"
@@ -208,48 +262,64 @@
         "type": "separator"
       },
       {
-        "label": "New File",
-        "command": "tree-view:add-file"
+        "label": "New File…",
+        "command": "tree-view:add-file",
+        "group": "entries",
+        "order": 10
       },
       {
-        "label": "New Folder",
-        "command": "tree-view:add-folder"
+        "label": "New Folder…",
+        "command": "tree-view:add-folder",
+        "group": "entries",
+        "order": 20
       },
       {
         "type": "separator"
       },
       {
-        "label": "Rename",
+        "label": "Rename…",
         "command": "tree-view:move",
-        "afterGroupContaining": ["tree-view:add-file"]
+        "afterGroupContaining": ["tree-view:add-file"],
+        "group": "entries",
+        "order": 30
       },
       {
-        "label": "Duplicate",
-        "command": "tree-view:duplicate"
+        "label": "Duplicate…",
+        "command": "tree-view:duplicate",
+        "group": "entries",
+        "order": 40
       },
       {
         "label": "Delete",
-        "command": "tree-view:remove"
+        "command": "tree-view:remove",
+        "group": "delete",
+        "order": 10
       },
       { "type": "separator" },
       {
         "label": "Cut",
         "command": "tree-view:cut",
-        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"],
+        "group": "clipboard",
+        "order": 10
       },
       {
         "label": "Copy",
-        "command": "tree-view:copy"
+        "command": "tree-view:copy",
+        "group": "clipboard",
+        "order": 20
       },
       {
         "label": "Paste",
-        "command": "tree-view:paste"
+        "command": "tree-view:paste",
+        "group": "clipboard",
+        "order": 30
       },
       {
         "type": "separator"
       },
       {
-        "label": "Add Project Folder",
+        "label": "Add Project Folder…",
         "command": "application:add-project-folder",
         "afterGroupContaining": [
           {
@@ -270,15 +340,21 @@
           "tree-view:paste",
           "tree-view:remove",
           "tree-view:add-file"
-        ]
+        ],
+        "group": "projects",
+        "order": 10
       },
       {
         "label": "Remove Project Folder",
-        "command": "tree-view:remove-project-folder"
+        "command": "tree-view:remove-project-folder",
+        "group": "projects",
+        "order": 20
       },
       {
         "label": "Collapse All Project Folders",
-        "command": "tree-view:collapse-all"
+        "command": "tree-view:collapse-all",
+        "group": "projects",
+        "order": 30
       },
       {
         "type": "separator"
@@ -286,7 +362,9 @@
       {
         "label": "Copy Full Path",
         "command": "tree-view:copy-full-path",
-        "afterGroupContaining": ["application:add-project-folder"]
+        "afterGroupContaining": ["application:add-project-folder"],
+        "group": "paths",
+        "order": 10
       },
       // A project folder's path relative to itself is the empty string, so the
       // item has nothing to copy here. It is hidden rather than dropped: the
@@ -295,7 +373,9 @@
       {
         "label": "Copy Project Path",
         "command": "tree-view:copy-project-path",
-        "visible": false
+        "visible": false,
+        "group": "paths",
+        "order": 20
       },
       {
         "type": "separator"
@@ -307,21 +387,29 @@
       },
       {
         "label": "Delete",
-        "command": "tree-view:remove"
+        "command": "tree-view:remove",
+        "group": "delete",
+        "order": 10
       },
       { "type": "separator" },
       {
         "label": "Cut",
         "command": "tree-view:cut",
-        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"]
+        "afterGroupContaining": ["tree-view:remove", "tree-view:add-file"],
+        "group": "clipboard",
+        "order": 10
       },
       {
         "label": "Copy",
-        "command": "tree-view:copy"
+        "command": "tree-view:copy",
+        "group": "clipboard",
+        "order": 20
       },
       {
         "label": "Paste",
-        "command": "tree-view:paste"
+        "command": "tree-view:paste",
+        "group": "clipboard",
+        "order": 30
       },
       {
         "type": "separator"
@@ -349,11 +437,15 @@
           "tree-view:paste",
           "tree-view:remove",
           "tree-view:add-file"
-        ]
+        ],
+        "group": "paths",
+        "order": 10
       },
       {
         "label": "Copy Project Path",
-        "command": "tree-view:copy-project-path"
+        "command": "tree-view:copy-project-path",
+        "group": "paths",
+        "order": 20
       },
       {
         "type": "separator"
@@ -385,7 +477,9 @@
           "tree-view:paste",
           "tree-view:remove",
           "tree-view:add-file"
-        ]
+        ],
+        "group": "projects",
+        "order": 20
       },
       {
         "type": "separator"
@@ -396,7 +490,7 @@
         "type": "separator"
       },
       {
-        "label": "Rename File",
+        "label": "Rename File…",
         "command": "tree-view:rename",
         "after": ["open-external:show"],
         "before": ["diff-view:enable"],
@@ -407,7 +501,9 @@
           "tabs:open-in-new-window",
           "tabs:split-up",
           "tabs:close-tab"
-        ]
+        ],
+        "group": "extensions",
+        "order": 20
       },
       {
         "type": "separator"

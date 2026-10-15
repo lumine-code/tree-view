@@ -33,7 +33,7 @@ describe("Tree View opening context-menu group", () => {
       const pack = lumine.packages.loadPackage(
         name === "tree-view" ? path.resolve(__dirname, "..") : name,
       );
-      return pack.menus.find(([menuPath]) => menuPath.endsWith("main.json"))[1]["context-menu"];
+      return pack.menus.find(([menuPath]) => /main\.jsonc?$/.test(menuPath))[1]["context-menu"];
     };
     disposables = new CompositeDisposable(
       lumine.contextMenu.add(packageMenus("tree-view")),
@@ -78,7 +78,7 @@ describe("Tree View opening context-menu group", () => {
   };
 
   it("groups file opening first without window actions and shows the Enter hint", () => {
-    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally", "Show in Folder"]);
+    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally"]);
     expect(template(file).find((item) => item.label === "Open…").command).toBe(
       "launcher:open-resource",
     );
@@ -87,26 +87,21 @@ describe("Tree View opening context-menu group", () => {
   });
 
   it("offers Launcher on folders alongside the appropriate expansion action", () => {
-    expect(openingLabels(folder)).toEqual(["Expand", "Open…", "Open Externally", "Show in Folder"]);
+    expect(openingLabels(folder)).toEqual(["Expand", "Open…", "Open Externally"]);
     expectOpeningHint(folder);
     expectNoWindowRows(folder);
     folder.classList.replace("collapsed", "expanded");
-    expect(openingLabels(folder)).toEqual([
-      "Collapse",
-      "Open…",
-      "Open Externally",
-      "Show in Folder",
-    ]);
+    expect(openingLabels(folder)).toEqual(["Collapse", "Open…", "Open Externally"]);
     expectOpeningHint(folder);
   });
 
   it("offers Launcher for virtual entries and omits it from a multiple selection", () => {
     file.classList.add("tree-view-special-entry");
     tree.list.classList.add("special-select");
-    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally", "Show in Folder"]);
+    expect(openingLabels(file)).toEqual(["Open", "Open…", "Open Externally"]);
     expectNoWindowRows(file);
     tree.showMultiSelectMenu();
-    expect(openingLabels(file)).toEqual(["Open Externally", "Show in Folder"]);
+    expect(openingLabels(file)).toEqual(["Open Externally"]);
     expect(template(file).some((item) => item.command === "launcher:open-resource")).toBe(false);
   });
 

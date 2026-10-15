@@ -1883,7 +1883,7 @@ describe("TreeView construction", () => {
       const packagePath = path.resolve(__dirname, "..");
       pack = lumine.packages.loadPackage(packagePath);
       expect(pack.path).toBe(packagePath);
-      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("main.json"));
+      const [, menu] = pack.menus.find(([menuPath]) => menuPath.endsWith("main.jsonc"));
       disposable = lumine.contextMenu.add(menu["context-menu"]);
 
       treeView = new TreeView({});
@@ -1912,14 +1912,14 @@ describe("TreeView construction", () => {
       expect(labels(treeView.list)).toContain("Copy Project Path");
     });
 
-    // Project management stays together after file operations and before paths.
+    // Project management stays together after file operations and path copying.
     it("keeps the items that act on the project in one run", () => {
       const rootHeader = openMenu();
       const shown = labels(rootHeader);
       const at = (label) => shown.indexOf(label);
 
       const project = [
-        "Add Project Folder",
+        "Add Project Folder…",
         "Remove Project Folder",
         "Collapse All Project Folders",
       ];
@@ -1929,11 +1929,11 @@ describe("TreeView construction", () => {
       expect(shown).not.toContain("Open in New Window");
       expect(shown).not.toContain("Open in Detached Window");
       expect(shown).not.toContain("Open in This Window");
-      expect(at("Add Project Folder")).toBeGreaterThan(at("Paste"));
-      expect(at("Copy Full Path")).toBeGreaterThan(at("Collapse All Project Folders"));
+      expect(at("Add Project Folder…")).toBeGreaterThan(at("Paste"));
+      expect(at("Copy Full Path")).toBeLessThan(at("Add Project Folder…"));
     });
 
-    it("keeps path items after project actions without old window actions", () => {
+    it("keeps path items before project actions without old window actions", () => {
       openMenu();
       const shown = labels(treeView.list);
       const at = (label) => shown.indexOf(label);
@@ -1941,8 +1941,8 @@ describe("TreeView construction", () => {
       expect(shown).not.toContain("Open in New Window");
       expect(shown).not.toContain("Open in Detached Window");
       expect(shown).not.toContain("Open in This Window");
-      expect(at("Add Project Folder")).toBeGreaterThan(at("Paste"));
-      expect(at("Copy Full Path")).toBeGreaterThan(at("Add Project Folder"));
+      expect(at("Add Project Folder…")).toBeGreaterThan(at("Paste"));
+      expect(at("Copy Full Path")).toBeLessThan(at("Add Project Folder…"));
       expect(at("Copy Project Path")).toBe(at("Copy Full Path") + 1);
     });
 
