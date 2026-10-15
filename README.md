@@ -66,7 +66,8 @@ Commands available in `.tree-view-dialog`:
 - `tree-view:select-name`: select the whole name in the add, move and duplicate dialogs, or the base name when the whole name is already selected,
 - `tree-view:confirm`: create, duplicate or move the file and leave it closed, which is what confirming the dialog does,
 - `tree-view:confirm-and-update-references`: rename or move the entry and ask language servers to update references, available only in the rename dialog,
-- `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path.
+- `tree-view:confirm-and-open`: create, duplicate or move the file and open it at its new path,
+- `tree-view:confirm-and-open-via-launcher`: create a new file and choose how to open it with Launcher, available only in the new-file dialog.
 
 ## Usage
 
@@ -80,6 +81,7 @@ Tree view moves update the paths of open documents in the initiating workspace w
 - [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
 - [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, copying, moving, renaming and deletion.
 - `busy-signal`: consumed to report copy and move operations on the busy indicator.
+- `launcher`: consumed to choose how to open a file after creating it.
 - `project-list`: consumed to add a "List projects" button to the empty project view.
 - `recent-list`: consumed to add a "Reopen a project" button to the empty project view.
 

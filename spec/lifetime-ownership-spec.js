@@ -51,6 +51,7 @@ describe("Tree View native lifetime and service ownership", () => {
     ["project-list", "consumeProjectList", "projectList"],
     ["recent-list", "consumeRecentList", "recentList"],
     ["busy-signal", "consumeBusySignal", "busySignal"],
+    ["launcher", "consumeLauncher", "launcher"],
   ];
   for (const [service, method, field] of services) {
     it(`retains the shared ${service} payload when one native connection retires`, () => {

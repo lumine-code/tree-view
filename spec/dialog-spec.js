@@ -334,6 +334,38 @@ describe("TreeView dialogs", () => {
       expect(fs.existsSync(path.join(projectPath, "opened.txt"))).toBe(true);
     });
 
+    it("creates the file and requests Launcher through the focused input's Alt+Enter binding", async () => {
+      const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+      lumine.keymaps.loadKeymap(keymapPath);
+      try {
+        const dialog = track(new AddDialog(projectPath, true));
+        dialog.attach();
+        const created = deferred();
+        dialog.onDidCreateFile(created.resolve);
+        dialog.miniEditor.setText("choose.txt");
+        dialog.miniEditor.element.focus();
+        const event = new KeyboardEvent("keydown", {
+          key: "Enter",
+          altKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        Object.defineProperty(event, "target", { get: () => dialog.miniEditor.element });
+        Object.defineProperty(event, "path", { get: () => [dialog.miniEditor.element] });
+
+        lumine.keymaps.handleKeyboardEvent(event);
+
+        expect(await created.promise).toEqual({
+          path: path.join(projectPath, "choose.txt"),
+          open: true,
+          openViaLauncher: true,
+        });
+        expect(fs.readFileSync(path.join(projectPath, "choose.txt"), "utf8")).toBe("");
+      } finally {
+        lumine.keymaps.removeBindingsFromSource(keymapPath);
+      }
+    });
+
     it("places the caret after the default path for new files and folders", () => {
       const directory = path.join(projectPath, "nested");
       fs.mkdirSync(directory);
@@ -766,6 +798,35 @@ describe("TreeView dialogs", () => {
     function actionCommands(dialog) {
       return dialog.inputDialog.getAvailableActions().map((action) => action.command);
     }
+
+    it("offers Launcher confirmation only when creating a new file", () => {
+      const keymapPath = path.join(__dirname, "..", "keymaps", "main.json");
+      lumine.keymaps.loadKeymap(keymapPath);
+      const command = "tree-view:confirm-and-open-via-launcher";
+      try {
+        const file = track(new AddDialog(projectPath, true));
+        file.attach();
+        expect(actionCommands(file)).toContain(command);
+        expect(
+          lumine.keymaps
+            .findKeyBindings({ target: file.miniEditor.element, command })
+            .map((binding) => binding.keystrokes),
+        ).toEqual(["alt-enter"]);
+        for (const dialog of [
+          track(new AddDialog(projectPath, false)),
+          track(new CopyDialog(fixture("copy.txt"), {})),
+          track(new MoveDialog(fixture("move.txt"), {})),
+        ]) {
+          dialog.attach();
+          expect(actionCommands(dialog)).not.toContain(command);
+          expect(
+            lumine.keymaps.findKeyBindings({ target: dialog.miniEditor.element, command }),
+          ).toEqual([]);
+        }
+      } finally {
+        lumine.keymaps.removeBindingsFromSource(keymapPath);
+      }
+    });
 
     it("lists ordinary confirmation, opening and reference updates as separate actions", () => {
       const dialog = track(new MoveDialog(fixture("old.txt"), {}));

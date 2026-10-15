@@ -224,6 +224,11 @@
     }
   },
   "consumedServices": {
+    "launcher": {
+      "versions": {
+        "^1.0.0": "consumeLauncher"
+      }
+    },
     "busy-signal": {
       "versions": {
         "^1.0.0": "consumeBusySignal"
