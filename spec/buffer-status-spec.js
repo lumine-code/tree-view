@@ -17,6 +17,7 @@ describe("tree entries with unsaved buffers", () => {
     summary = null;
     ignored = false;
     repository = {
+      getWorkingDirectory: () => root,
       getStatusSnapshot: () => ({ initialized: true, files: [] }),
       getPathStatusSummary: () => summary,
       getDirectoryStatusSummary: () => summary,
@@ -72,6 +73,56 @@ describe("tree entries with unsaved buffers", () => {
     buffer.insert([0, 0], "changed");
     expect(file().status).toBe("modified");
     expect(directory().status).toBe("modified");
+  });
+
+  it("keeps dirty files and their folders neutral outside Git", async () => {
+    lumine.repositories.getForPath.and.returnValue(null);
+    const entry = file();
+    const parent = directory();
+    buffer.insert([0, 0], "changed");
+    expect(entry.status).toBeNull();
+    expect(parent.status).toBeNull();
+    await buffer.save();
+    expect(entry.status).toBeNull();
+    expect(parent.status).toBeNull();
+  });
+
+  it("does not project a nested repository's dirty buffers onto a non-Git parent", async () => {
+    lumine.repositories.getForPath.and.callFake((candidate) =>
+      candidate === root ? null : repository,
+    );
+    const entry = file();
+    const parent = directory();
+    buffer.insert([0, 0], "changed");
+    expect(entry.status).toBe("modified");
+    expect(parent.status).toBeNull();
+  });
+
+  it("does not mix a nested checkout's buffer state into a containing repository", async () => {
+    const nested = { ...repository };
+    lumine.repositories.getForPath.and.callFake((candidate) =>
+      candidate === root ? repository : nested,
+    );
+    const entry = file();
+    const parent = directory();
+    buffer.insert([0, 0], "changed");
+    expect(entry.status).toBe("modified");
+    expect(parent.status).toBeNull();
+  });
+
+  it("reclassifies an already dirty buffer when its repository appears or disappears", async () => {
+    const routing = require("../lib/repository-status-observer");
+    lumine.repositories.getForPath.and.returnValue(null);
+    const entry = file();
+    const parent = directory();
+    buffer.insert([0, 0], "changed");
+    expect(entry.status).toBeNull();
+    lumine.repositories.getForPath.and.returnValue(repository);
+    routing.repositoriesChanged();
+    await conditionPromise(() => entry.status === "modified" && parent.status === "modified");
+    lumine.repositories.getForPath.and.returnValue(null);
+    routing.repositoriesChanged();
+    await conditionPromise(() => entry.status === null && parent.status === null);
   });
 
   for (const status of ["added", "conflicted", "ignored"]) {

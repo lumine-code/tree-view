@@ -10,6 +10,7 @@ function repositoryFor({
   directoryStatusSummary = null,
   pathStatusSummary = null,
   ignoredPaths = [],
+  workingDirectory = os.tmpdir(),
 } = {}) {
   const statusesCallbacks = [];
   return {
@@ -28,7 +29,7 @@ function repositoryFor({
       .createSpy("isPathIgnoredCached")
       .and.callFake((candidate) => ignoredPaths.includes(candidate)),
     getWorkingDirectory() {
-      return null;
+      return workingDirectory;
     },
     isSubmodule() {
       return false;
