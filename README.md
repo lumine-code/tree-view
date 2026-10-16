@@ -13,7 +13,7 @@ Fork of [pulsar-edit/pulsar](https://github.com/pulsar-edit/pulsar) (`packages/t
 - **Native clipboard**: copy or cut entries across windows and external applications while preserving platform-specific duplicate names.
 - **Responsive file operations**: copy and move entries in a separate process with a cancellable operation queue.
 - **Language-aware file operations**: let integrations update references before a create, rename, move, copy, or delete proceeds.
-- **Debounced file watching**: rapid file creation and deletion is batched so the tree does not reload excessively.
+- **Live file updates**: color unsaved edits immediately and batch filesystem changes to keep the tree responsive.
 - **Virtual root sections**: let external packages inject their own root sections above the project folders.
 
 ![Browse a project tree beside the source editor.](.github/demo.png)
