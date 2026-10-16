@@ -2,12 +2,12 @@
 
 Read what is selected in the tree, find the element for a path, and scroll a path into view.
 
-|             |                                                        |
-| ----------- | ------------------------------------------------------ |
-| Version     | `1.0.0`                                                |
-| Provided by | `provideTreeViewSelection()` returning three functions |
-| Consumed by | `consumeTreeViewSelection(treeView)`                   |
-| Owner       | `tree-view` (bundled)                                  |
+|             |                                                             |
+| ----------- | ----------------------------------------------------------- |
+| Version     | `1.0.0`                                                     |
+| Provided by | `provideTreeViewSelection()` returning selection operations |
+| Consumed by | `consumeTreeViewSelection(treeView)`                        |
+| Owner       | `tree-view` (bundled)                                       |
 
 This is how a package acts on "the files the user has selected" — a publish command, a formatter, a linter run, a clipboard operation. The service reads the selection and reveals paths without changing the project folders.
 
@@ -29,6 +29,13 @@ In your `package.json`:
 
 ```ts
 type TreeViewSelection = {
+  getSelectionSnapshot(): Readonly<{
+    count: number;
+    paths: readonly string[];
+    entries: readonly { path: string; kind: string; projectRoot: boolean; removable: boolean }[];
+    primary: { path: string; kind: string; projectRoot: boolean; removable: boolean } | null;
+  }>;
+  onDidChangeSelection(callback: (snapshot: object) => void): Disposable;
   selectedPaths(): string[];
   entryForPath(entryPath: string): HTMLElement | undefined;
   revealPath(filePath: string, options?: object): Promise<void>;
@@ -40,6 +47,8 @@ type TreeViewSelection = {
 | `selectedPaths()`         | Absolute paths of every selected entry, in tree order. Empty when nothing is selected.                                 |
 | `entryForPath(entryPath)` | The entry element for a path, or `undefined` if that path is not currently rendered.                                   |
 | `revealPath(filePath)`    | Expands the tree to the path, selects it, and scrolls it into view; `show: true` or `focus: true` also shows the tree. |
+
+`getSelectionSnapshot()` returns the current immutable selection metadata without constructing the tree, touching the filesystem or materializing its visible rows. It returns an empty snapshot before the tree exists and after that activation is retired. Use its cached `count`, `paths` or `primary` in command availability predicates; `selectedPaths()` remains the execution API and may construct the tree. `onDidChangeSelection()` observes actual snapshot changes and returns a disposable. Tree selection changes also invalidate command availability.
 
 ## Minimal example
 
