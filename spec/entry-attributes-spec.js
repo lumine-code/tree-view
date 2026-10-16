@@ -87,6 +87,19 @@ describe("tree-view entry attributes", () => {
   });
 
   describe("synchronizing a mounted row", () => {
+    it("updates staged coloring in regular and sticky rows without changing the status kind", () => {
+      for (const sticky of [false, true]) {
+        const model = item("src", "/root/src", { status: "modified", staged: true });
+        const view = mount("directory", model, { sticky });
+        expect(view.element).toHaveClass("status-modified");
+        expect(view.element).toHaveClass("status-staged");
+        model.staged = false;
+        view.sync();
+        expect(view.element).toHaveClass("status-modified");
+        expect(view.element).not.toHaveClass("status-staged");
+      }
+    });
+
     it("leaves an unchanged row and its descendants untouched", () => {
       const view = mount("directory", item("src", "/root/src", { status: "modified" }), {
         depth: 2,

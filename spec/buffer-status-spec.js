@@ -55,7 +55,7 @@ describe("tree entries with unsaved buffers", () => {
     return model;
   }
 
-  it("updates the file and its directory before save and clears them on undo", () => {
+  it("updates the file and its directory before save and clears them on undo", async () => {
     const entry = file();
     const parent = directory();
     buffer.insert([0, 0], "changed");
@@ -63,18 +63,19 @@ describe("tree entries with unsaved buffers", () => {
     expect(parent.status).toBe("modified");
     expect(fs.readFileSync(filePath, "utf8")).toBe("original\n");
     buffer.undo();
+    await flushMicrotasks();
     expect(entry.status).toBeNull();
     expect(parent.status).toBeNull();
   });
 
-  it("reads buffers already modified before the tree entry is created", () => {
+  it("reads buffers already modified before the tree entry is created", async () => {
     buffer.insert([0, 0], "changed");
     expect(file().status).toBe("modified");
     expect(directory().status).toBe("modified");
   });
 
   for (const status of ["added", "conflicted", "ignored"]) {
-    it(`preserves ${status} coloring in files and directories`, () => {
+    it(`preserves ${status} coloring in files and directories`, async () => {
       summary = { [status]: true };
       ignored = status === "ignored";
       const entry = file();
@@ -85,15 +86,16 @@ describe("tree entries with unsaved buffers", () => {
     });
   }
 
-  it("restores the saved Git state after undo instead of clearing it", () => {
+  it("restores the saved Git state after undo instead of clearing it", async () => {
     summary = { modified: true };
     const entry = file();
     buffer.insert([0, 0], "changed");
     buffer.undo();
+    await flushMicrotasks();
     expect(entry.status).toBe("modified");
   });
 
-  it("updates both paths when a dirty buffer moves", () => {
+  it("updates both paths when a dirty buffer moves", async () => {
     const original = file();
     const otherPath = path.join(root, "renamed.txt");
     fs.writeFileSync(otherPath, "original\n");
@@ -104,7 +106,7 @@ describe("tree entries with unsaved buffers", () => {
     expect(renamed.status).toBe("modified");
   });
 
-  it("clears the overlay when the buffer is destroyed", () => {
+  it("clears the overlay when the buffer is destroyed", async () => {
     const entry = file();
     const parent = directory();
     buffer.insert([0, 0], "changed");
@@ -113,7 +115,7 @@ describe("tree entries with unsaved buffers", () => {
     expect(parent.status).toBeNull();
   });
 
-  it("does not update unrelated entries on a buffer change", () => {
+  it("does not update unrelated entries on a buffer change", async () => {
     file();
     const unrelated = file(path.join(root, "other.txt"));
     spyOn(unrelated, "updateStatus").and.callThrough();
@@ -121,7 +123,7 @@ describe("tree entries with unsaved buffers", () => {
     expect(unrelated.updateStatus).not.toHaveBeenCalled();
   });
 
-  it("releases buffer observers with the last entry and resumes on reopening", () => {
+  it("releases buffer observers with the last entry and resumes on reopening", async () => {
     const entry = file();
     entry.destroy();
     models = [];
@@ -137,4 +139,61 @@ describe("tree entries with unsaved buffers", () => {
     await buffer.save();
     expect(entry.status).toBeNull();
   });
+
+  for (const status of ["added", "modified"]) {
+    it(`distinguishes staged ${status} files and folders from unsaved edits`, async () => {
+      summary = { [status]: true, staged: true, unstaged: false };
+      const entry = file();
+      const parent = directory();
+      expect(entry.staged).toBe(true);
+      expect(parent.staged).toBe(true);
+      buffer.insert([0, 0], "changed");
+      expect(entry.status).toBe("modified");
+      expect(entry.staged).toBe(false);
+      expect(parent.staged).toBe(false);
+      buffer.undo();
+      await flushMicrotasks();
+      expect(entry.status).toBe(status);
+      expect(entry.staged).toBe(true);
+      expect(parent.staged).toBe(true);
+    });
+  }
+
+  it("emits a status change when staging changes without a classification change", async () => {
+    summary = { modified: true, staged: true, unstaged: false };
+    const entry = file();
+    const parent = directory();
+    const changed = jasmine.createSpy("changed");
+    entry.onDidStatusChange(changed);
+    parent.onDidStatusChange(changed);
+    summary = { modified: true, staged: true, unstaged: true };
+    entry.updateStatus();
+    parent.updateStatus();
+    expect(entry.status).toBe("modified");
+    expect(entry.staged).toBe(false);
+    expect(parent.staged).toBe(false);
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  for (const savedModified of [true, false]) {
+    it(`keeps file and folder colors until Git confirms a ${savedModified ? "modified" : "clean"} save`, async () => {
+      let finishRefresh;
+      repository.refreshStatusSnapshot = () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        });
+      const entry = file();
+      const parent = directory();
+      buffer.insert([0, 0], "changed");
+      await buffer.save();
+      expect(buffer.getFileState()).toBe("unmodified");
+      expect(entry.status).toBe("modified");
+      expect(parent.status).toBe("modified");
+      summary = savedModified ? { modified: true, unstaged: true } : null;
+      finishRefresh();
+      await flushMicrotasks();
+      expect(entry.status).toBe(savedModified ? "modified" : null);
+      expect(parent.status).toBe(savedModified ? "modified" : null);
+    });
+  }
 });
