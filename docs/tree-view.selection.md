@@ -31,6 +31,8 @@ In your `package.json`:
 type TreeViewSelection = {
   getSelectionSnapshot(): Readonly<{
     count: number;
+    removableCount: number;
+    directoryCount: number;
     paths: readonly string[];
     entries: readonly { path: string; kind: string; projectRoot: boolean; removable: boolean }[];
     primary: { path: string; kind: string; projectRoot: boolean; removable: boolean } | null;
