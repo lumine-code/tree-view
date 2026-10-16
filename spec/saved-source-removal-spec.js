@@ -1,16 +1,17 @@
 const fs = require("node:fs"),
   os = require("node:os"),
-  path = require("node:path"),
-  TreeView = require("../lib/tree-view");
+  path = require("node:path");
 describe("Saved document file removal", () => {
   let tree, editor, directory, file, extra, main;
   beforeEach(async () => {
+    // Earlier lifecycle specs can unload the package and retire its constructors.
+    const TreeView = require("../lib/tree-view");
     jasmine.attachToDOM(lumine.workspace.getElement());
     directory = fs.realpathSync.native(
       fs.mkdtempSync(path.join(os.tmpdir(), "tree-source-remove-")),
     );
-    file = path.join(directory, "source.txt");
-    fs.writeFileSync(file, "owned test fixture");
+    // Use a settled file so fresh-file metadata updates do not race the preflight.
+    file = path.join(__dirname, "fixtures", "saved-source.txt");
     lumine.project.setPaths([]);
     editor = await lumine.workspace.open(file, { opener: "text-editor" });
     tree = new TreeView({});
@@ -59,15 +60,16 @@ describe("Saved document file removal", () => {
     expect(lumine.commands.canDispatch(editor.getElement(), "tree-view:reveal-active-file")).toBe(
       false,
     );
-    lumine.project.setPaths([directory]);
+    lumine.project.setPaths([path.dirname(file)]);
     expect(lumine.commands.canDispatch(editor.getElement(), "tree-view:reveal-active-file")).toBe(
       true,
     );
   });
   it("removes the saved file even when no tree entry was materialized", async () => {
+    const contents = fs.readFileSync(file, "utf8");
     expect(tree.treeEntryForPath(file)).toBeNull();
     await tree.removeSelectedEntries({ target: editor.getElement() });
     expect(lumine.shell.trashItem).toHaveBeenCalledOnceWith(file);
-    expect(fs.readFileSync(file, "utf8")).toBe("owned test fixture");
+    expect(fs.readFileSync(file, "utf8")).toBe(contents);
   });
 });
