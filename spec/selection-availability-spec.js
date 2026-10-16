@@ -35,6 +35,7 @@ describe("Passive tree selection availability", () => {
     });
     const first = entry("/project/a", 0),
       second = entry("/project/b", 1);
+    second.kind = "directory";
     tree.visibleRows = [first, second];
     const changes = [];
     tree.onDidChangeSelection((snapshot) => changes.push(snapshot));
@@ -51,6 +52,7 @@ describe("Passive tree selection availability", () => {
     expect(read).not.toHaveBeenCalled();
     tree.selectMultipleEntries(second);
     expect(tree.getSelectionSnapshot().count).toBe(2);
+    expect(tree.getSelectionSnapshot().directoryCount).toBe(1);
     expect(tree.getSelectionSnapshot().primary.path).toBe("/project/b");
     expect(changes.length).toBe(2);
     tree.emitter.dispose();
