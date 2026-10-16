@@ -3184,6 +3184,44 @@ describe("TreeView revealing created paths", () => {
     expect(lumine.workspace.open).toHaveBeenCalledWith(createdPath);
   });
 
+  for (const method of ["moveSelectedEntry", "copySelectedEntry"]) {
+    it(`${method} keeps a tree command on its selected file after focus leaves`, async () => {
+      const sourcePath = path.join(projectPath, "source.txt");
+      fs.writeFileSync(sourcePath, "content");
+      treeView.treeEntryForPath(sourcePath).reload();
+      await treeView.revealPath(sourcePath);
+      spyOn(treeView, "hasFocus").and.returnValue(false);
+      spyOn(treeView, "getActivePath").and.returnValue(path.join(projectPath, "unrelated.txt"));
+      let dialog;
+      spyOn(treeView, "observeOperationDialog").and.callFake((value) => {
+        dialog = value;
+        return true;
+      });
+
+      treeView[method]({ target: treeView.element });
+
+      expect(dialog.initialPath).toBe(sourcePath);
+      dialog.cancel();
+    });
+  }
+
+  it("renames the clicked tab's file even while the tree retains focus", () => {
+    const sourcePath = path.join(projectPath, "tab.txt");
+    fs.writeFileSync(sourcePath, "content");
+    const tab = document.createElement("li");
+    tab.className = "tab";
+    tab.item = { getPath: () => sourcePath };
+    spyOn(treeView, "hasFocus").and.returnValue(true);
+
+    const dialog = treeView.moveSelectedEntry({
+      target: tab,
+      context: { documentItem: { getPath: () => path.join(projectPath, "unrelated.txt") } },
+    });
+
+    expect(dialog.initialPath).toBe(sourcePath);
+    dialog.cancel();
+  });
+
   it("does not reveal a file duplicated through the copy dialog", async () => {
     const sourcePath = path.join(projectPath, "source.txt");
     fs.writeFileSync(sourcePath, "content");
