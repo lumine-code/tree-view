@@ -193,6 +193,11 @@
     }
   },
   "providedServices": {
+    "tree-view.directory": {
+      "versions": {
+        "1.0.0": "provideTreeViewDirectory"
+      }
+    },
     "tree-view.selection": {
       "description": "Tree view API with path selection, entry lookup, and reveal support",
       "versions": {

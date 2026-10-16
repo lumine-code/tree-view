@@ -77,6 +77,7 @@ Tree view moves update the paths of open documents in the initiating workspace w
 
 ## Services
 
+- [`tree-view.directory`](docs/tree-view.directory.md): provided to list sibling files using the tree's sorting and visibility settings, observe policy changes and watch directory membership.
 - [`tree-view.selection`](docs/tree-view.selection.md): provided to expose the selected paths, look up the entry element for a path, and reveal a path in the tree.
 - [`tree-view.roots`](docs/tree-view.roots.md): provided to let external packages register virtual root sections above the project folders.
 - [`tree-view.file-operations`](docs/tree-view.file-operations.md): provided to let integrations prepare for and observe file creation, copying, moving, renaming and deletion.
