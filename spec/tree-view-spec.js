@@ -256,6 +256,120 @@ describe("TreeView directory disclosure clicks", () => {
 });
 
 describe("TreeView root updates", () => {
+  it("replaces the empty start screen before painting the initial project paths", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    lumine.project.setPaths([]);
+    const treeView = new TreeView({});
+
+    try {
+      expect(treeView.element.querySelector("#add-projects-view")).not.toBeNull();
+
+      lumine.project.setPaths([projectPath]);
+      await Promise.resolve();
+
+      // A microtask must suffice: waiting for a timer paints the obsolete
+      // no-project screen when startup reveals the default dock.
+      expect(treeView.element.querySelector("#add-projects-view")).toBeNull();
+      expect(treeView.roots.map((root) => root.getPath())).toEqual([projectPath]);
+      expect(treeView.list.querySelector(".project-root")).not.toBeNull();
+      expect(treeView.viewport.hidden).toBe(false);
+    } finally {
+      await treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("shows the empty start screen before painting the last project root's removal", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    lumine.project.setPaths([path.resolve(__dirname, "..")]);
+    const treeView = new TreeView({});
+
+    try {
+      lumine.project.setPaths([]);
+      await Promise.resolve();
+
+      expect(treeView.roots).toEqual([]);
+      expect(treeView.element.querySelector("#add-projects-view")).not.toBeNull();
+      expect(treeView.viewport.hidden).toBe(true);
+    } finally {
+      await treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("preserves selection when several project roots are added in one turn", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    const selectedPath = path.join(__dirname, path.basename(__filename));
+    const extraRoots = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-root-batch-")));
+    const addedPaths = ["first", "second"].map((name) => path.join(extraRoots, name));
+    for (const addedPath of addedPaths) fs.mkdirSync(addedPath);
+    lumine.project.setPaths([projectPath]);
+    const treeView = new TreeView({});
+
+    try {
+      await treeView.revealPath(selectedPath);
+      spyOn(treeView, "updateRoots").and.callThrough();
+
+      for (const addedPath of addedPaths) lumine.project.addPath(addedPath);
+      await Promise.resolve();
+      await treeView.updateRoots.calls.mostRecent().returnValue;
+
+      expect(treeView.updateRoots).toHaveBeenCalledTimes(1);
+      expect(treeView.roots.map((root) => root.getPath())).toEqual([projectPath, ...addedPaths]);
+      expect(treeView.selectedEntry()?.getPath()).toBe(selectedPath);
+    } finally {
+      await treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+      await lumine.fileWatchClient.settlePendingTeardown();
+      fs.rmSync(extraRoots, { recursive: true, force: true });
+    }
+  });
+
+  it("consumes a queued root refresh when workspace state is restored explicitly", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    const projectPath = path.resolve(__dirname, "..");
+    lumine.project.setPaths([]);
+    const treeView = new TreeView({});
+
+    try {
+      spyOn(treeView, "updateRoots").and.callThrough();
+      lumine.project.setPaths([projectPath]);
+      const restored = treeView.restoreState({
+        directoryExpansionStates: { [projectPath]: { isExpanded: false } },
+        selectedPaths: [projectPath],
+      });
+      await Promise.resolve();
+      await restored;
+
+      expect(treeView.updateRoots).toHaveBeenCalledTimes(1);
+      expect(treeView.roots[0].isExpanded).toBe(false);
+      expect(treeView.selectedEntry()?.getPath()).toBe(projectPath);
+    } finally {
+      await treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
+  it("cancels a queued root refresh when the tree is destroyed", async () => {
+    const originalProjectPaths = lumine.project.getPaths();
+    lumine.project.setPaths([]);
+    const treeView = new TreeView({});
+
+    try {
+      spyOn(treeView, "updateRoots").and.callThrough();
+      lumine.project.setPaths([path.resolve(__dirname, "..")]);
+      await treeView.destroy();
+      await Promise.resolve();
+
+      expect(treeView.updateRoots).not.toHaveBeenCalled();
+    } finally {
+      await treeView.destroy();
+      lumine.project.setPaths(originalProjectPaths);
+    }
+  });
+
   it("ignores updates after the project has been cleared during teardown", () => {
     const project = lumine.project;
     const treeView = { selectedPaths: jasmine.createSpy("selectedPaths") };

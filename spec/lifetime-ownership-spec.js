@@ -89,14 +89,21 @@ describe("Tree View native lifetime and service ownership", () => {
     });
   }
 
-  it("cancels a pending native project refresh and permits a fresh live dock view", async () => {
+  it("retires project refreshes with the view and permits a fresh live dock view", async () => {
     lumine.project.setPaths([path.join(directory, "first")]);
     const view = tree();
     await view.show();
     const refresh = spyOn(view, "updateRoots").and.callThrough();
     const allocate = spyOn(view, "createDirectoryTreeEntry").and.callThrough();
     lumine.project.setPaths([path.join(directory, "second")]);
+    await Promise.resolve();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(allocate).toHaveBeenCalledTimes(1);
+    expect(view.roots.map((root) => root.getPath())).toEqual([path.join(directory, "second")]);
     await lumine.workspace.paneForItem(view).destroyItem(view);
+    refresh.calls.reset();
+    allocate.calls.reset();
+    lumine.project.setPaths([path.join(directory, "first")]);
     await drain();
     expect(refresh).not.toHaveBeenCalled();
     expect(allocate).not.toHaveBeenCalled();
@@ -106,7 +113,7 @@ describe("Tree View native lifetime and service ownership", () => {
     trees.push(replacement);
     expect(replacement).not.toBe(view);
     expect(replacement.roots.map((root) => root.getPath())).toEqual([
-      path.join(directory, "second"),
+      path.join(directory, "first"),
     ]);
     await replacement.show();
     expect(lumine.workspace.paneForItem(replacement)).toBeDefined();
