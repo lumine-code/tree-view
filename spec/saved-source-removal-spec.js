@@ -33,6 +33,7 @@ describe("Saved document file removal", () => {
   });
   it("reveals the source from the invoking editor window", async () => {
     const TreeViewPackage = require("../lib/tree-view-package");
+    lumine.project.setPaths([directory]);
     extra = await lumine.workspace.openEditorWindow({ show: false });
     const secondary = lumine.workspace.buildTextEditor();
     secondary.getBuffer().setPath(path.join(directory, "secondary.txt"));
@@ -50,6 +51,18 @@ describe("Saved document file removal", () => {
     );
     await lumine.commands.dispatch(extra.getElement(), "tree-view:reveal-active-file");
     expect(revealPath).toHaveBeenCalledOnceWith(secondary.getPath(), { show: true });
+  });
+  it("does not offer reveal with no project root", async () => {
+    const TreeViewPackage = require("../lib/tree-view-package");
+    main = new TreeViewPackage();
+    main.activate();
+    expect(lumine.commands.canDispatch(editor.getElement(), "tree-view:reveal-active-file")).toBe(
+      false,
+    );
+    lumine.project.setPaths([directory]);
+    expect(lumine.commands.canDispatch(editor.getElement(), "tree-view:reveal-active-file")).toBe(
+      true,
+    );
   });
   it("removes the saved file even when no tree entry was materialized", async () => {
     expect(tree.treeEntryForPath(file)).toBeNull();
