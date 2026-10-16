@@ -481,40 +481,203 @@ describe("TreeView repository changes", () => {
 });
 
 describe("TreeView OS file drops", () => {
-  it("uses Electron's native path when adding a dropped folder as a project root", () => {
-    const droppedFolder = {};
-    const nativePath = path.resolve(__dirname, "..");
-    spyOn(webUtils, "getPathForFile").and.callFake((file) =>
-      file === droppedFolder ? nativePath : "",
-    );
-    spyOn(lumine.project, "addPath");
-    const event = {
-      target: { closest: () => null },
-      dataTransfer: { files: [droppedFolder] },
-    };
-    const treeView = {
-      treeEntryForElement: () => null,
-    };
+  let originalProjectPaths, temporaryPath, projectPath, folderPath, filePath, treeView;
+  let nativePaths;
 
-    TreeView.prototype.onDrop.call(treeView, event);
-
-    expect(lumine.project.addPath).toHaveBeenCalledWith(nativePath);
+  beforeEach(() => {
+    originalProjectPaths = lumine.project.getPaths();
+    temporaryPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-os-drop-")));
+    projectPath = path.join(temporaryPath, "project");
+    folderPath = path.join(temporaryPath, "incoming-folder");
+    filePath = path.join(temporaryPath, "incoming.txt");
+    fs.mkdirSync(projectPath);
+    fs.mkdirSync(folderPath);
+    fs.writeFileSync(filePath, "incoming\n");
+    fs.writeFileSync(path.join(projectPath, "existing.txt"), "existing\n");
+    lumine.project.setPaths([projectPath]);
+    nativePaths = new Map();
+    spyOn(webUtils, "getPathForFile").and.callFake((file) => nativePaths.get(file) || "");
   });
 
-  it("ignores a dropped file when Electron cannot resolve its path", () => {
-    spyOn(webUtils, "getPathForFile").and.returnValue("");
-    spyOn(lumine.project, "addPath");
-    const event = {
-      target: { closest: () => null },
-      dataTransfer: { files: [{}] },
-    };
-    const treeView = {
-      treeEntryForElement: () => null,
-    };
+  afterEach(async () => {
+    await treeView?.destroy();
+    treeView = null;
+    lumine.project.setPaths(originalProjectPaths);
+    await lumine.fileWatchClient.settlePendingTeardown();
+    fs.rmSync(temporaryPath, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
 
-    expect(() => TreeView.prototype.onDrop.call(treeView, event)).not.toThrow();
+  function transferFor(paths) {
+    const files = paths.map((entryPath) => {
+      const file = {};
+      nativePaths.set(file, entryPath);
+      return file;
+    });
+    return {
+      types: ["Files"],
+      files,
+      items: paths.map((entryPath) => ({
+        kind: "file",
+        webkitGetAsEntry: () => ({
+          isDirectory: fs.statSync(entryPath).isDirectory(),
+          isFile: fs.statSync(entryPath).isFile(),
+        }),
+      })),
+      getData: () => "",
+      effectAllowed: "all",
+      dropEffect: "none",
+    };
+  }
+
+  function dispatchDrag(type, target, dataTransfer) {
+    const event = new CustomEvent(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+    spyOn(event, "stopPropagation").and.callThrough();
+    target.dispatchEvent(event);
+    return event;
+  }
+
+  async function showTree() {
+    jasmine.attachToDOM(lumine.workspace.getElement());
+    treeView = new TreeView({});
+    await treeView.show();
+    spyOn(treeView, "pastePaths").and.resolveTo();
+    spyOn(treeView, "onDrop").and.callThrough();
+  }
+
+  for (const surface of [
+    "empty tree",
+    "blank tree",
+    "directory row",
+    "file row",
+    "sticky header",
+    "special header",
+  ]) {
+    it(`adds an OS folder as a project root when dropped on the ${surface}`, async () => {
+      if (surface === "empty tree") lumine.project.setPaths([]);
+      await showTree();
+      let target = treeView.scroller;
+      let sectionDrop;
+      if (surface === "directory row") {
+        target = treeView.elementForTreeEntry(treeView.roots[0]).querySelector(".name");
+      } else if (surface === "file row") {
+        await treeView.revealPath(path.join(projectPath, "existing.txt"));
+        target = treeView.elementForTreeEntry(treeView.selectedEntry()).querySelector(".name");
+      } else if (surface === "sticky header") {
+        treeView.renderStickyHeaderEntries([treeView.roots[0]]);
+        target = treeView.stickyHeaderList.querySelector(".name");
+      } else if (surface === "special header") {
+        sectionDrop = jasmine.createSpy("sectionDrop");
+        const section = treeView.addSpecialRoot({
+          name: "Recent",
+          className: "recent",
+          entryClassName: "recent-entry",
+          getEntries: () => [path.join(projectPath, "existing.txt")],
+          onDrop: sectionDrop,
+        });
+        treeView.rebuildVisibleRows();
+        target = treeView.elementForTreeEntry(section.root).querySelector(".name");
+      }
+      const dataTransfer = transferFor([folderPath]);
+      const files = dataTransfer.files;
+      // FileList is protected before drop; available entry types guide its preview.
+      dataTransfer.files = [];
+      const over = dispatchDrag("dragover", target, dataTransfer);
+
+      expect(over.defaultPrevented).toBe(true);
+      expect(over.stopPropagation).toHaveBeenCalled();
+      expect(dataTransfer.dropEffect).toBe("copy");
+      dataTransfer.files = files;
+      const drop = dispatchDrag("drop", target, dataTransfer);
+      dataTransfer.files = [];
+      expect(treeView.onDrop).toHaveBeenCalled();
+      await treeView.onDrop.calls.mostRecent().returnValue;
+
+      expect(drop.defaultPrevented).toBe(true);
+      expect(drop.stopPropagation).toHaveBeenCalled();
+      expect(lumine.project.getPaths()).toEqual(
+        surface === "empty tree" ? [folderPath] : [projectPath, folderPath],
+      );
+      expect(treeView.pastePaths).not.toHaveBeenCalled();
+      if (sectionDrop) expect(sectionDrop).not.toHaveBeenCalled();
+      expect(fs.existsSync(folderPath)).toBe(true);
+      expect(fs.existsSync(path.join(projectPath, "incoming-folder"))).toBe(false);
+    });
+  }
+
+  it("accepts Files-only protected metadata over blank tree space", async () => {
+    await showTree();
+    const dataTransfer = transferFor([folderPath]);
+    const files = dataTransfer.files;
+    dataTransfer.files = [];
+    dataTransfer.items = [];
+
+    const over = dispatchDrag("dragover", treeView.scroller, dataTransfer);
+
+    expect(over.defaultPrevented).toBe(true);
+    expect(over.stopPropagation).toHaveBeenCalled();
+    expect(dataTransfer.dropEffect).toBe("copy");
+    dataTransfer.files = files;
+    dispatchDrag("drop", treeView.scroller, dataTransfer);
+    dataTransfer.files = [];
+    expect(treeView.onDrop).toHaveBeenCalled();
+    await treeView.onDrop.calls.mostRecent().returnValue;
+    expect(lumine.project.getPaths()).toEqual([projectPath, folderPath]);
+    expect(treeView.pastePaths).not.toHaveBeenCalled();
+  });
+
+  it("ignores unresolved paths and ordinary files dropped on blank tree space", async () => {
+    await showTree();
+    const dataTransfer = transferFor([filePath]);
+    dataTransfer.files.push({});
+    spyOn(lumine.project, "addPath").and.callThrough();
+
+    dispatchDrag("drop", treeView.scroller, dataTransfer);
+    expect(treeView.onDrop).toHaveBeenCalled();
+    await treeView.onDrop.calls.mostRecent().returnValue;
+
     expect(lumine.project.addPath).not.toHaveBeenCalled();
+    expect(lumine.project.getPaths()).toEqual([projectPath]);
+    expect(treeView.pastePaths).not.toHaveBeenCalled();
   });
+
+  it("adds directories from a mixed native drop and passes only files to the destination", async () => {
+    await showTree();
+    const dataTransfer = transferFor([folderPath, filePath]);
+    const target = treeView.elementForTreeEntry(treeView.roots[0]);
+
+    dispatchDrag("drop", target, dataTransfer);
+    dataTransfer.files = [];
+    expect(treeView.onDrop).toHaveBeenCalled();
+    await treeView.onDrop.calls.mostRecent().returnValue;
+
+    expect(lumine.project.getPaths()).toEqual([projectPath, folderPath]);
+    expect(treeView.pastePaths).toHaveBeenCalledWith([filePath], "cut", projectPath);
+  });
+
+  for (const contents of ["files", "files and folders"]) {
+    it(`shows move or copy consistently with the native modifier for ${contents} on a directory`, async () => {
+      await showTree();
+      const dataTransfer = transferFor(contents === "files" ? [filePath] : [filePath, folderPath]);
+      const target = treeView.elementForTreeEntry(treeView.roots[0]);
+      dataTransfer.files = [];
+
+      for (const copy of [false, true]) {
+        const event = new CustomEvent("dragover", { bubbles: true, cancelable: true });
+        Object.defineProperties(event, {
+          dataTransfer: { value: dataTransfer },
+          ctrlKey: { value: process.platform !== "darwin" && copy },
+          altKey: { value: process.platform === "darwin" && copy },
+        });
+        spyOn(event, "stopPropagation").and.callThrough();
+        target.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(event.stopPropagation).toHaveBeenCalled();
+        expect(dataTransfer.dropEffect).toBe(copy ? "copy" : "move");
+      }
+    });
+  }
 });
 
 describe("TreeView native copy-drag modifiers", () => {
@@ -522,7 +685,7 @@ describe("TreeView native copy-drag modifiers", () => {
     for (const platform of ["win32", "linux", "darwin"]) {
       it(`uses the native copy modifier for ${source} drops on ${platform}`, async () => {
         const destination = path.resolve(__dirname, "destination");
-        const sourcePath = path.resolve(__dirname, "source.txt");
+        const sourcePath = __filename;
         const entryElement = document.createElement("li");
         entryElement.className = "entry directory";
         const treeView = {
