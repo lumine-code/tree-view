@@ -12,18 +12,13 @@ const TreeViewPackage = require("../lib/tree-view-package");
 const repositoryStatusObserver = require("../lib/repository-status-observer");
 
 describe("TreeViewPackage teardown", () => {
-  // Nothing fires onDidActivateInitialPackages in a spec run, and deactivate
-  // disposes the subscription before awaiting the promise it would resolve —
-  // so a package deactivated in that window used to hang forever, which is
-  // what stopped any suite from activating the real tree-view.
-  it("settles when deactivated before the initial packages activate", async () => {
-    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
+  it("settles when deactivated before core requests the default tree", async () => {
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
 
     // Activation publishes commands and service facades, but the tree itself
     // can be expensive to construct for a project with many root entries. It
-    // is created when the initial package batch opens it, or sooner when a
+    // is created when core requests the default item, or sooner when a
     // command, deserializer or service actually asks for it.
     expect(treeViewPackage.treeView).toBeUndefined();
 
@@ -80,7 +75,6 @@ describe("TreeViewPackage teardown", () => {
   });
 
   it("registers workspace commands for controlling the file operation queue", async () => {
-    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
@@ -110,7 +104,6 @@ describe("TreeViewPackage teardown", () => {
       return projectPath;
     });
     lumine.project.setPaths(projectPaths);
-    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(false);
     const treeViewPackage = new TreeViewPackage();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();

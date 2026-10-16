@@ -5,13 +5,12 @@ const { createRequire } = require("node:module");
 
 describe("Tree View new file Launcher integration", () => {
   let main, launcher, tree, AddDialog, fsCompat, observeDialog, openLauncher, openWorkspace;
-  let directory, temporary, previousPaths, previousHidden, pane, otherPane, first, second;
+  let directory, temporary, previousPaths, pane, otherPane, first, second;
   let dialogs, leases, gates, passiveBeforeActivation;
 
   beforeEach(async () => {
     jasmine.useRealClock();
     previousPaths = lumine.project.getPaths();
-    previousHidden = lumine.config.get("tree-view.hiddenOnStartup");
     for (const name of ["tree-view", "launcher"])
       if (lumine.packages.isPackageLoaded(name)) await lumine.packages.unloadPackage(name);
     temporary = fs.realpathSync.native(os.tmpdir());
@@ -22,7 +21,6 @@ describe("Tree View new file Launcher integration", () => {
     leases = [];
     gates = [];
     lumine.project.setPaths([directory]);
-    lumine.config.set("tree-view.hiddenOnStartup", true);
     jasmine.attachToDOM(lumine.workspace.getElement());
     first = await lumine.workspace.open();
     pane = lumine.workspace.paneForItem(first);
@@ -67,7 +65,6 @@ describe("Tree View new file Launcher integration", () => {
         editor.destroy();
     if (otherPane && !otherPane.isDestroyed()) await otherPane.destroy();
     lumine.project.setPaths(previousPaths);
-    lumine.config.set("tree-view.hiddenOnStartup", previousHidden);
     await lumine.fileWatchClient.settlePendingTeardown();
     if (path.dirname(fs.realpathSync.native(directory)) !== temporary)
       throw new Error("New file Launcher cleanup escaped the private temporary root");

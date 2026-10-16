@@ -2,7 +2,6 @@ describe("closing the Tree View", () => {
   let mainModule, workspaceElement;
 
   beforeEach(async () => {
-    lumine.config.set("tree-view.hiddenOnStartup", true);
     lumine.config.set("tree-view.showOnRightSide", false);
     workspaceElement = lumine.workspace.getElement();
     jasmine.attachToDOM(workspaceElement);

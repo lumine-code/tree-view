@@ -179,12 +179,6 @@
       "type": "boolean",
       "default": true
     },
-    "hiddenOnStartup": {
-      "title": "Hidden On Startup",
-      "description": "When Lumine is opened, the view is hidden.",
-      "type": "boolean",
-      "default": false
-    },
     "fileDoubleClick": {
       "title": "File Double Click",
       "description": "Require double click to open files. When enabled, single click only selects the entry.",

@@ -19,7 +19,6 @@ describe("Tree View native lifetime and service ownership", () => {
     trees = [];
     teardowns = [];
     lumine.project.setPaths([]);
-    lumine.config.set("tree-view.hiddenOnStartup", true);
     main = (await lumine.packages.activatePackage("tree-view")).mainModule;
     hub = new lumine.packages.serviceHub.constructor();
     jasmine.attachToDOM(lumine.workspace.getElement());
@@ -168,38 +167,38 @@ describe("Tree View native lifetime and service ownership", () => {
     expect(lumine.workspace.paneForItem(replacement)).toBeDefined();
   });
 
-  it("finishes a pending native startup open without recreating a retired tree", async () => {
+  it("retires its default dock registration without affecting a later activation", async () => {
     await lumine.packages.deactivatePackage("tree-view");
-    lumine.config.set("tree-view.hiddenOnStartup", false);
-    spyOn(lumine.packages, "hasActivatedInitialPackages").and.returnValue(true);
-    const open = lumine.workspace.open;
-    let release, ready;
-    const gate = new Promise((resolve) => (release = resolve));
-    const opened = new Promise((resolve) => (ready = resolve));
-    let first = true;
-    spyOn(lumine.workspace, "open").and.callFake(function (...args) {
-      const result = open.apply(this, args);
-      if (!first || args[0]?.getURI?.() !== "lumine://tree-view") return result;
-      first = false;
-      trees.push(args[0]);
-      return result.then((item) => {
-        ready();
-        return gate.then(() => item);
-      });
+    const registrations = [];
+    const register = lumine.workspace.addDefaultDockItem;
+    spyOn(lumine.workspace, "addDefaultDockItem").and.callFake(function (createItem) {
+      const registration = register.call(this, createItem);
+      spyOn(registration, "dispose").and.callThrough();
+      registrations.push({ createItem, registration });
+      return registration;
     });
     main = (await lumine.packages.activatePackage("tree-view")).mainModule;
-    await opened;
-    const retiring = lumine.packages.deactivatePackage("tree-view");
-    release();
-    await retiring;
-    try {
-      expect(main.treeView).toBeNull();
-      expect(
-        lumine.workspace.getPaneItems().filter((item) => item.getURI?.() === "lumine://tree-view"),
-      ).toEqual([]);
-    } finally {
-      // The staged original can recreate a view after its captured one closes.
-      await main.treeView?.destroy();
-    }
+    expect(main.treeView).toBeFalsy();
+    expect(registrations.length).toBe(1);
+
+    await lumine.packages.deactivatePackage("tree-view");
+
+    const retired = registrations[0].registration;
+    expect(retired.dispose).toHaveBeenCalled();
+    expect(main.treeView).toBeNull();
+
+    main = (await lumine.packages.activatePackage("tree-view")).mainModule;
+    const current = registrations[1];
+    const replacement = current.createItem();
+    trees.push(replacement);
+    expect(main.treeView).toBe(replacement);
+    expect(replacement.getDefaultVisibility()).toBe("project-or-empty");
+
+    retired.dispose();
+
+    expect(current.registration.dispose).not.toHaveBeenCalled();
+    expect(replacement.destroyed).not.toBe(true);
+    await replacement.show();
+    expect(lumine.workspace.paneForItem(replacement)).toBeDefined();
   });
 });
