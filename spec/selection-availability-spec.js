@@ -5,6 +5,7 @@ const TreeView = require("../lib/tree-view");
 describe("Passive tree selection availability", () => {
   it("does not construct a cold tree and retires its facade with activation", async () => {
     const main = new TreeViewPackage();
+    main.initialize();
     main.activate();
     const service = main.provideTreeViewSelection();
     const ensure = spyOn(main, "getTreeViewInstance").and.throwError(

@@ -59,6 +59,7 @@ describe("tree-view.directory", () => {
       return statsFor(entry.kind);
     });
     treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
     spyOn(treeViewPackage, "getTreeViewInstance").and.throwError("Must not construct the tree");
     service = treeViewPackage.provideTreeViewDirectory();
@@ -340,6 +341,7 @@ describe("TreeView sorting policy refresh", () => {
     const previousMethod = lumine.config.get("tree-view.sortMethod");
     const previousBase = lumine.config.get("tree-view.sortByBase");
     const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
     const tree = treeViewPackage.getTreeViewInstance();
     spyOn(tree, "updateRoots");

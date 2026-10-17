@@ -41,6 +41,7 @@ describe("Saved document file removal", () => {
     extra.getEditorContainer().getActivePane().activateItem(secondary, { activatePane: true });
     lumine.workspace.paneForItem(editor).activate();
     main = new TreeViewPackage();
+    main.initialize();
     main.activate();
     const revealPath = jasmine.createSpy("reveal actual source").and.resolveTo();
     spyOn(main, "getTreeViewInstance").and.returnValue({
@@ -56,6 +57,7 @@ describe("Saved document file removal", () => {
   it("does not offer reveal with no project root", async () => {
     const TreeViewPackage = require("../lib/tree-view-package");
     main = new TreeViewPackage();
+    main.initialize();
     main.activate();
     expect(lumine.commands.canDispatch(editor.getElement(), "tree-view:reveal-active-file")).toBe(
       false,

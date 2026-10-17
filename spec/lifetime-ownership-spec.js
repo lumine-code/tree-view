@@ -154,6 +154,7 @@ describe("Tree View native lifetime and service ownership", () => {
     leases.push(
       provider.onDidDispose(() => {
         view.destroy();
+        main.initialize();
         main.activate();
         leases.push(main.consumeRecentList(payload));
         replacement = tree();

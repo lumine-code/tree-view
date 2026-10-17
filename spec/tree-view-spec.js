@@ -14,6 +14,7 @@ const repositoryStatusObserver = require("../lib/repository-status-observer");
 describe("TreeViewPackage teardown", () => {
   it("settles when deactivated before core requests the default tree", async () => {
     const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
 
     // Activation publishes commands and service facades, but the tree itself
@@ -41,6 +42,7 @@ describe("TreeViewPackage teardown", () => {
   it("moves the tree to the other side when tree-view:toggle-side is dispatched", async () => {
     jasmine.attachToDOM(lumine.workspace.getElement());
     const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
     const locationOfTree = () => lumine.workspace.paneContainerForItem(treeView).getLocation();
@@ -76,6 +78,7 @@ describe("TreeViewPackage teardown", () => {
 
   it("registers workspace commands for controlling the file operation queue", async () => {
     const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
     spyOn(treeView, "pauseOperationQueue");
@@ -105,6 +108,7 @@ describe("TreeViewPackage teardown", () => {
     });
     lumine.project.setPaths(projectPaths);
     const treeViewPackage = new TreeViewPackage();
+    treeViewPackage.initialize();
     treeViewPackage.activate();
     const treeView = treeViewPackage.getTreeViewInstance();
     const directoryExpansionStates = {};
