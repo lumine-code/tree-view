@@ -74,7 +74,12 @@ describe("project-root drag and drop", () => {
     };
   }
 
-  afterEach(() => handler?.dispose());
+  afterEach(() => {
+    handler?.dispose();
+    // Core resets the real project after this fixture has finished.
+    lumine.project.getPaths.and?.callThrough();
+    lumine.project.setPaths.and?.callThrough();
+  });
 
   it("publishes every selected root in one canonical transfer session", () => {
     const firstPath = path.resolve("first-project");
@@ -174,8 +179,11 @@ describe("project-root drag and drop", () => {
     spyOn(lumine.workspaceDrops, "inspect").and.returnValue({ kind: "project-roots" });
     spyOn(lumine.workspaceDrops, "read").and.returnValue(descriptor);
     spyOn(lumine.workspaceDrops, "rollback").and.resolveTo(true);
-    spyOn(lumine.project, "getPaths").and.returnValues(["target"], ["target", "first", "second"]);
-    const setPaths = spyOn(lumine.project, "setPaths");
+    let projectPaths = ["target"];
+    spyOn(lumine.project, "getPaths").and.callFake(() => projectPaths.slice());
+    const setPaths = spyOn(lumine.project, "setPaths").and.callFake((paths) => {
+      projectPaths = paths.slice();
+    });
     const commit = spyOn(lumine.workspaceDrops, "commit").and.callFake(() => {
       expect(setPaths).toHaveBeenCalledWith(["target", "first", "second"]);
       return Promise.resolve(true);
@@ -185,6 +193,7 @@ describe("project-root drag and drop", () => {
     await handler.onDrop(dropEvent(treeView.elementForTreeEntry(treeView.roots[0]), dataTransfer));
 
     expect(commit).toHaveBeenCalledWith("remote-token", { sourceWindowId: 10 });
+    expect(lumine.project.getPaths()).toEqual(["target", "first", "second"]);
   });
 
   it("does not commit a remote session unless the target retained every root", async () => {
@@ -202,7 +211,7 @@ describe("project-root drag and drop", () => {
     spyOn(lumine.workspaceDrops, "read").and.returnValue(descriptor);
     const rollback = spyOn(lumine.workspaceDrops, "rollback").and.resolveTo(true);
     const commit = spyOn(lumine.workspaceDrops, "commit").and.resolveTo(true);
-    spyOn(lumine.project, "getPaths").and.returnValues(["target"], ["target"]);
+    spyOn(lumine.project, "getPaths").and.returnValue(["target"]);
     spyOn(lumine.project, "setPaths");
     spyOn(handler, "getDropTargetIndex").and.returnValue(1);
 
@@ -238,8 +247,11 @@ describe("project-root drag and drop", () => {
     spyOn(lumine.workspaceDrops, "read").and.returnValue(descriptor);
     spyOn(lumine.workspaceDrops, "rollback").and.resolveTo(false);
     spyOn(lumine.workspaceDrops, "commit").and.resolveTo(false);
-    spyOn(lumine.project, "getPaths").and.returnValues(["target"], ["target", "incoming"]);
-    const setPaths = spyOn(lumine.project, "setPaths");
+    let projectPaths = ["target"];
+    spyOn(lumine.project, "getPaths").and.callFake(() => projectPaths.slice());
+    const setPaths = spyOn(lumine.project, "setPaths").and.callFake((paths) => {
+      projectPaths = paths.slice();
+    });
     spyOn(handler, "getDropTargetIndex").and.returnValue(1);
 
     await expectAsync(
@@ -247,6 +259,7 @@ describe("project-root drag and drop", () => {
     ).toBeRejectedWithError("The source window rejected the project-root transfer");
 
     expect(setPaths.calls.allArgs()).toEqual([[["target", "incoming"]], [["target"]]]);
+    expect(lumine.project.getPaths()).toEqual(["target"]);
   });
 
   it("clears its insertion marker after a remote drag leaves the tree", async () => {
