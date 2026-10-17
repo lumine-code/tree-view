@@ -1,9 +1,9 @@
 {
   "title": "tree-view",
   "description": "Browse a project tree beside the source editor.",
-  "recordedOn": "2026-10-14",
-  "sourceRevision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
-  "themeSourceRevision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+  "recordedOn": "2026-10-17",
+  "sourceRevision": "b53b08b57b04b05d66810c555a4bc35b18fafe76",
+  "themeSourceRevision": "80e8864a2e9a891ef1f911d78ab8f03fb3911f58",
   "mode": "normal",
   "fontSettings": "default",
   "scenario": "demo.js",
@@ -11,8 +11,8 @@
   "environment": {
     "platform": "win32",
     "arch": "x64",
-    "electron": "44.7.0",
-    "chrome": "152.0.7977.130",
+    "electron": "44.9.0",
+    "chrome": "152.0.7977.167",
     "devicePixelRatio": 1,
     "locale": "en-GB",
     "fontFamily": "Fira Code, Menlo, DejaVu Sans Mono, Consolas, monospace",
@@ -21,29 +21,30 @@
   },
   "viewport": { "width": 1200, "height": 760 },
   "cornerRadius": 10,
+  "privacy": { "version": 1, "location": "neutral", "textChecked": true },
   "sources": {
     "editor": {
-      "revision": "8be8f86075ad93df038610d82b3ac6d99329957d",
+      "revision": "200598247a0ae40f5e0bf1998b44f7fe77bc0aa7",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "package": {
-      "revision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
+      "revision": "b53b08b57b04b05d66810c555a4bc35b18fafe76",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "tree-view": {
-      "revision": "fe6f35de06f036837aa9c2d3b138b3d72557bcc4",
+      "revision": "b53b08b57b04b05d66810c555a4bc35b18fafe76",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "language-javascript": {
-      "revision": "ae2e6968e3a349fb4d09ce53e339a0f8cce903aa",
+      "revision": "043d75bfaa5bef24edeb5cc36f5c9ec396d01497",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "one-theme": {
-      "revision": "7fbd047a87ecf1367c896b19ff270cdc28d319f7",
+      "revision": "80e8864a2e9a891ef1f911d78ab8f03fb3911f58",
       "dirty": false,
       "workingTreeHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
@@ -76,7 +77,7 @@
       "label": "Browse a project tree beside the source editor.",
       "width": 1200,
       "height": 760,
-      "sha256": "19c6fa64a1335cb584acd86d3f3e3428efb4ef4314d916d410304e7809e30dd9"
+      "sha256": "142a3a1110e24e9eba3508f0005075a8bdbc667283aa5816d0cd75ffa05bd467"
     }
   ]
 }
