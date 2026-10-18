@@ -97,7 +97,7 @@ Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to
   font-size: 14px;
   line-height: 1.6;
   --tree-view-indent-size: 18px;
-  --tree-view-indent-guide-color: var(--text-color-subtle);
+  --tree-view-indent-guide-color: var(--text-color-faded);
 }
 ```
 

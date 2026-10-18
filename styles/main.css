@@ -12,7 +12,7 @@
   --tree-view-row-border-radius: 0px;
   --tree-view-disclosure-gutter: calc(var(--ui-disclosure-size) + var(--ui-icon-spacing));
   --tree-view-indent-size: calc(var(--ui-icon-size) + var(--ui-icon-spacing));
-  --tree-view-indent-guide-color: var(--text-color-subtle);
+  --tree-view-indent-guide-color: var(--text-color-faded);
   --tree-view-indent-guide-origin: calc(var(--ui-icon-spacing) + var(--ui-icon-size) / 4);
   --tree-view-root-header-height: var(--ui-tab-height);
   --tree-view-root-name-color: currentColor;
