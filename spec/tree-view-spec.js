@@ -2854,7 +2854,7 @@ describe("TreeView row model and sticky headers", () => {
       --ui-icon-spacing: 5px;
       --ui-disclosure-size: 12px;
       --base-border-color: rgb(180, 180, 180);
-      --text-color-subtle: rgb(100, 100, 100);
+      --text-color-faded: rgb(100, 100, 100);
       --tree-view-row-inset: 4px;
       --tree-view-row-border-radius: 6px;
     `;
