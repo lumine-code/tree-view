@@ -524,9 +524,11 @@ describe("TreeView repository changes", () => {
     const treeView = new TreeView({});
 
     try {
-      await treeView.revealPath(submodulePath);
+      await treeView.revealPath(__filename);
       const rootEntry = treeView.roots[0];
       const submoduleEntry = treeView.treeEntryForPath(submodulePath);
+      const file = treeView.treeEntryForPath(__filename).file;
+      const updateFileStatus = spyOn(file, "updateStatus").and.callThrough();
       const rootView = treeView.rowViews.get(rootEntry);
       const submoduleView = treeView.rowViews.get(submoduleEntry);
       const rootName = rootView.name;
@@ -542,6 +544,7 @@ describe("TreeView repository changes", () => {
       const rootPath = rootEntry.getPath();
       getForPath.and.returnValue({
         getWorkingDirectory: () => rootPath,
+        getStatusSnapshot: () => ({ initialized: true, includesIgnored: true, files: [] }),
         isDestroyed: () => false,
         isSubmodule: (somePath) => somePath === submodulePath,
         isPathIgnoredCached: () => false,
@@ -562,9 +565,11 @@ describe("TreeView repository changes", () => {
       await conditionPromise(
         () =>
           rootName.classList.contains("icon-repo") &&
-          submoduleName.classList.contains("icon-file-submodule"),
+          submoduleName.classList.contains("icon-file-submodule") &&
+          updateFileStatus.calls.any(),
         "central repository icon repaint",
       );
+      expect(file.status).toBeNull();
       expect(rootView.refreshIcon).not.toHaveBeenCalled();
       expect(submoduleView.refreshIcon).not.toHaveBeenCalled();
     } finally {
