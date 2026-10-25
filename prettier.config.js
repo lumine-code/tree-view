@@ -6,6 +6,6 @@ module.exports = {
   printWidth: 100,
   bracketSpacing: true,
   arrowParens: "always",
-  endOfLine: "auto",
+  endOfLine: "lf",
   overrides: [{ files: "menus/*.jsonc", options: { trailingComma: "none" } }],
 };
