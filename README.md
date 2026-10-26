@@ -103,6 +103,8 @@ Adjust the tree's appearance by adding CSS to your `styles.css`. For example, to
 
 Focused rows and sticky headers use the package-owned `--tree-view-selection-background-color` and `--tree-view-selection-foreground-color` pair on `.tree-view`; their defaults follow the shared accent background and foreground. Override those two properties together to change the tree's focused selection without recoloring its buttons. Unfocused selection follows `--background-color-selected` and `--text-color-selected`.
 
+File-operation dialog paths are limited to 32768 UTF-16 units before extraction. Oversized drafts remain intact, and shortening them restores confirmation and name selection. Pending operation preparation follows the buffer revision instead of repeatedly reading the path text.
+
 ## Contributing
 
 Got ideas to make this package better, found a bug, or want to help add new features? Just drop your thoughts on GitHub. Any feedback is welcome!
