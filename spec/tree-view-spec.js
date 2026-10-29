@@ -2390,7 +2390,7 @@ describe("TreeView row model and sticky headers", () => {
     for (const view of views) view.destroy();
   });
 
-  it("keeps the root stable from the first scroll position and derives nested stickies from offsets", () => {
+  it("pins directories only after scrolling past the root's original position", () => {
     const treeView = stickyHarness();
     const root = entry(treeView, "root", "directory", null, { projectRoot: true });
     const source = entry(treeView, "source", "directory", root);
@@ -2398,7 +2398,7 @@ describe("TreeView row model and sticky headers", () => {
     entry(treeView, "button.js", "file", components);
     layout(treeView, [root]);
 
-    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
 
     treeView.scrollPosition.top = 1;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual([
@@ -2406,6 +2406,9 @@ describe("TreeView row model and sticky headers", () => {
       "source",
       "components",
     ]);
+
+    treeView.scrollPosition.top = 0;
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
   });
 
   it("unpins a directory exactly when its final descendant leaves its sticky slot", () => {
@@ -2499,10 +2502,13 @@ describe("TreeView row model and sticky headers", () => {
     layout(treeView, [first, second]);
 
     treeView.scrollPosition.top = second.top;
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
+
+    treeView.scrollPosition.top++;
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
   });
 
-  it("removes sticky rows when the whole tree fits in the viewport", () => {
+  it("hides sticky rows at the top and when the whole tree fits in the viewport", () => {
     const treeView = stickyHarness();
     treeView.stickyHeaderLayer = document.createElement("div");
     treeView.stickyHeaderList = document.createElement("ol");
@@ -2516,10 +2522,18 @@ describe("TreeView row model and sticky headers", () => {
     layout(treeView, [root]);
 
     treeView.scrollportHeight = 24;
+    treeView.scrollPosition.top = 1;
     treeView.updateStickyHeaderOverlay();
     expect(treeView.stickyHeaderEntries).toEqual([root]);
     expect(treeView.stickyHeaderLayer.hidden).toBe(false);
 
+    treeView.scrollPosition.top = 0;
+    treeView.updateStickyHeaderOverlay();
+    expect(treeView.stickyHeaderEntries).toEqual([]);
+    expect(treeView.stickyHeaderList.children.length).toBe(0);
+    expect(treeView.stickyHeaderLayer.hidden).toBe(true);
+
+    treeView.scrollPosition.top = 1;
     treeView.scrollportHeight = treeView.rowTops.at(-1);
     treeView.updateStickyHeaderOverlay();
     expect(treeView.stickyHeaderEntries).toEqual([]);
@@ -2598,7 +2612,7 @@ describe("TreeView row model and sticky headers", () => {
     treeView.refreshViewportMetrics();
 
     expect(treeView.scrollPosition.top).toBe(0);
-    expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["first"]);
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
   });
 
   it("updates immediately on scroll instead of waiting for another animation frame", () => {
@@ -2992,7 +3006,10 @@ describe("TreeView row model and sticky headers", () => {
       expect(getComputedStyle(stickyList).contain).toBe("paint");
       expect(getComputedStyle(stickyList).transform).toBe("none");
       expect(getComputedStyle(stickyList).backgroundColor).toBe("rgb(242, 242, 242)");
-      expect(getComputedStyle(stickyList).boxShadow).toContain("rgb(180, 180, 180)");
+      expect(getComputedStyle(stickyList).borderBottomWidth).toBe("1px");
+      expect(getComputedStyle(stickyList).backgroundImage).toContain("rgb(180, 180, 180)");
+      expect(getComputedStyle(stickyList).backgroundSize).toBe("calc(100% - 8px) 1px");
+      expect(stickyList.getBoundingClientRect().height).toBe(24);
       expect(getComputedStyle(stickyRow).backgroundColor).toBe("rgb(220, 225, 235)");
       expect(getComputedStyle(stickyGuides).display).toBe("flex");
       const directoryRowStyle = getComputedStyle(directoryRow);
@@ -3169,7 +3186,7 @@ describe("TreeView row model and sticky headers", () => {
 
       stickyList.classList.add("selection-continues-below");
       expect(getComputedStyle(lastSticky.header).borderBottomLeftRadius).toBe("0px");
-      expect(getComputedStyle(stickyList).boxShadow).toBe("none");
+      expect(getComputedStyle(stickyList).borderBottomWidth).toBe("1px");
     } finally {
       tree.remove();
       stylesheet.dispose();

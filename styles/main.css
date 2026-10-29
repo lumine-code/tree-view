@@ -520,18 +520,18 @@
 
   .tree-view-sticky-header-list {
     position: absolute;
+    box-sizing: border-box;
     top: 0;
     left: 0;
     width: 100%;
     overflow: hidden;
     contain: paint;
     isolation: isolate;
-    background: var(--tree-view-sticky-background);
-    box-shadow: inset 0 -1px var(--base-border-color);
-
-    &.selection-continues-below {
-      box-shadow: none;
-    }
+    /* Reserve the clipped bottom pixel for a separator aligned with row states. */
+    border-bottom: 1px solid transparent;
+    background: linear-gradient(var(--base-border-color), var(--base-border-color)) center bottom /
+      calc(100% - var(--tree-view-row-inset) * 2) 1px no-repeat border-box
+      var(--tree-view-sticky-background);
   }
 
   .tree-view-sticky-header {
