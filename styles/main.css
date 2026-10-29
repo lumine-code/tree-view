@@ -121,7 +121,7 @@
 
       &.is-cancellable {
         &:hover,
-        &:focus {
+        &:focus-visible {
           color: var(--text-color);
           background-color: var(--background-color-highlight);
         }
