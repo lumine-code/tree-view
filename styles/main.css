@@ -535,7 +535,8 @@
   }
 
   .tree-view-sticky-header {
-    position: relative;
+    position: absolute;
+    width: 100%;
     background: var(--tree-view-sticky-background);
 
     &::before {

@@ -2325,10 +2325,10 @@ describe("TreeView row model and sticky headers", () => {
       current.depth = depth;
       current.index = rows.length;
       current.top = tops[tops.length - 1];
-      current.height = current.projectRoot ? rootHeight : regularHeight;
+      current.height = current.projectRoot || current.specialRoot ? rootHeight : regularHeight;
       rows.push(current);
       tops.push(current.top + current.height);
-      if (current.kind === "directory" && current.isExpanded) {
+      if (current.kind === "directory" && current.isExpanded && !current.restoringExpansion) {
         for (const child of current.children) append(child, depth + 1);
       }
       current.subtreeEndIndex = rows.length;
@@ -2428,6 +2428,88 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
   });
 
+  it("keeps expanded empty directories in the scrolling content in both directions", () => {
+    const treeView = stickyHarness();
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const folder = entry(treeView, "bcdr", "directory", root);
+    const assets = entry(treeView, "assets", "directory", folder);
+    const report = entry(treeView, "report", "directory", folder);
+    report.isExpanded = false;
+    entry(treeView, "main.ipy", "file", folder);
+    entry(treeView, "following.js", "file", root);
+    layout(treeView, [root]);
+
+    const offsets = Array.from({ length: treeView.rowTops.at(-1) }, (_, index) => index);
+    for (const top of [...offsets, ...offsets.reverse()]) {
+      treeView.scrollPosition.top = top;
+      const pinned = treeView.collectStickyHeaderEntries();
+      expect(pinned).withContext(`scrollTop=${top}`).not.toContain(assets);
+      expect(pinned).withContext(`scrollTop=${top}`).not.toContain(report);
+    }
+
+    treeView.scrollPosition.top = 15;
+    expect(treeView.collectStickyHeaderEntries()).toEqual([root, folder]);
+  });
+
+  it("does not pin roots without visible descendants", () => {
+    const treeView = stickyHarness();
+    const empty = entry(treeView, "empty", "directory", null, { projectRoot: true });
+    const closed = entry(treeView, "closed", "directory", null, { projectRoot: true });
+    entry(treeView, "hidden.js", "file", closed);
+    closed.isExpanded = false;
+    const restoring = entry(treeView, "restoring", "directory", null, { specialRoot: true });
+    entry(treeView, "pending.js", "file", restoring);
+    restoring.restoringExpansion = Promise.resolve();
+    const following = entry(treeView, "following", "directory", null, { projectRoot: true });
+    entry(treeView, "visible.js", "file", following);
+    layout(treeView, [empty, closed, restoring, following]);
+
+    for (const mode of ["roots", "directories"]) {
+      treeView.stickyHeaderMode = mode;
+      for (const root of [empty, closed, restoring]) {
+        treeView.scrollPosition.top = root.top + 1;
+        expect(treeView.collectStickyHeaderEntries()).withContext(mode).toEqual([]);
+      }
+    }
+  });
+
+  it("removes a sticky directory after its last visible child disappears", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderLayer = document.createElement("div");
+    treeView.stickyHeaderList = document.createElement("ol");
+    treeView.stickyHeaderEntries = [];
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const folder = entry(treeView, "bcdr", "directory", root);
+    const assets = entry(treeView, "assets", "directory", folder);
+    entry(treeView, "image.png", "file", assets);
+    entry(treeView, "main.ipy", "file", folder);
+    layout(treeView, [root]);
+    treeView.scrollPosition.top = 15;
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    const rootElement = treeView.stickyHeaderList.firstElementChild;
+    expect(treeView.stickyHeaderEntries).toEqual([root, folder, assets]);
+
+    assets.children = [];
+    layout(treeView, [root]);
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+
+    expect(treeView.stickyHeaderEntries).toEqual([root, folder]);
+    expect(treeView.stickyHeaderList.firstElementChild).toBe(rootElement);
+    expect(treeView.stickyHeaderList.style.height).toBe("56px");
+    expect(assets.views.size).toBe(0);
+
+    entry(treeView, "restored.png", "file", assets);
+    layout(treeView, [root]);
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    expect(treeView.stickyHeaderEntries).toEqual([root, folder, assets]);
+
+    assets.isExpanded = false;
+    layout(treeView, [root]);
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    expect(treeView.stickyHeaderEntries).toEqual([root, folder]);
+    treeView.clearStickyHeaderViews();
+  });
+
   it("pushes an ending sticky directory upward before its next sibling", () => {
     const treeView = stickyHarness();
     treeView.stickyHeaderLayer = document.createElement("div");
@@ -2451,13 +2533,13 @@ describe("TreeView row model and sticky headers", () => {
         (row) => row.querySelectorAll(".tree-view-indent-guide").length,
       ),
     ).toEqual([0, 1]);
-    expect(treeView.stickyHeaderList.children[1].style.top).toBe("-1px");
+    expect(treeView.stickyHeaderList.children[1].style.top).toBe("31px");
     expect(treeView.stickyHeaderList.children[0].style.zIndex).toBe("2");
     expect(treeView.stickyHeaderList.children[1].style.zIndex).toBe("1");
 
     treeView.scrollPosition.top = 47;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
-    expect(treeView.stickyHeaderList.children[1].style.top).toBe("-23px");
+    expect(treeView.stickyHeaderList.children[1].style.top).toBe("9px");
 
     treeView.scrollPosition.top = 48;
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
@@ -2484,13 +2566,32 @@ describe("TreeView row model and sticky headers", () => {
     treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
 
     expect(treeView.stickyHeaderList.children.length).toBe(2);
-    expect(treeView.stickyHeaderList.children[1].style.top).toBe("-12px");
+    expect(treeView.stickyHeaderList.children[1].style.top).toBe("20px");
     // The departing header's subtree ends 44px below the viewport top, so the
     // opaque list must end there too. At the summed 56px, a dead band below
     // the pushed header blankets the top of the sibling row sliding in — one
     // band per simultaneously departing header.
     expect(treeView.stickyHeaderList.style.height).toBe("44px");
     treeView.clearStickyHeaderViews();
+  });
+
+  it("uses the visible sticky boundary when keeping a following row in view", () => {
+    const treeView = stickyHarness();
+    treeView.scrollportHeight = 80;
+    treeView.updateStickyHeaderOverlay = jasmine.createSpy("updateStickyHeaderOverlay");
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const documents = entry(treeView, "documents", "directory", root);
+    entry(treeView, "a.txt", "file", documents);
+    entry(treeView, "b.txt", "file", documents);
+    const sibling = entry(treeView, "bcdr", "directory", root);
+    entry(treeView, "main.ipy", "file", sibling);
+    layout(treeView, [root]);
+    treeView.scrollPosition.top = 60;
+    treeView.scroller.scrollTop = 60;
+
+    treeView.scrollToEntry(sibling, false);
+
+    expect(treeView.scrollPosition.top).toBe(60);
   });
 
   it("switches roots from logical row boundaries without reading layout geometry", () => {
