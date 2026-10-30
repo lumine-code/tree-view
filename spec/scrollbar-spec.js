@@ -129,6 +129,56 @@ describe("Tree View scrollbar with sticky directory headers", () => {
     expectWholeTrack(track, treeView.scroller.clientHeight);
     pointer(track, "pointerup", x, rect.top);
     await treeView.destroy();
+    treeView.element.remove();
+    await settle();
     expect(track.isConnected).toBeFalse();
+  });
+
+  it("keeps the owned rail above sticky headers after the pane item is detached and restored", async () => {
+    treeView.setStickyHeaderMode("directories");
+    treeView.setScrollTop(200);
+    await settle();
+    const originalTrack = treeView.viewport.querySelector(".lumine-scrollbar.vertical");
+    expectWholeTrack(originalTrack, treeView.scroller.clientHeight);
+
+    treeView.element.remove();
+    await settle();
+    fixture.appendChild(treeView.element);
+    await settle();
+    treeView.setScrollTop(200);
+    await settle();
+    // Read only the chrome that discovery actually installed. The public
+    // getter attaches a missing controller and could hide this lifecycle bug.
+    const restoredTrack = treeView.viewport.querySelector(".lumine-scrollbar.vertical");
+    expect(restoredTrack).not.toBeNull();
+    expect(treeView.stickyHeaderList.children.length).toBe(3);
+    expectWholeTrack(restoredTrack, treeView.scroller.clientHeight);
+    await treeView.destroy();
+    treeView.element.remove();
+    await settle();
+    expect(restoredTrack.isConnected).toBeFalse();
+  });
+
+  it("keeps the rail above sticky rows when the tree is first mounted after construction", async () => {
+    await treeView.destroy();
+    treeView.element.remove();
+    await settle();
+    treeView = new TreeView({});
+    treeView.element.style.cssText = "width:100%;height:100%";
+    // The workspace can construct its default dock item before attaching it.
+    // Let a full discovery pass happen while this instance is disconnected.
+    await settle();
+    fixture.appendChild(treeView.element);
+    await treeView.roots[0].expand();
+    await treeView.treeEntryForPath(path.join(projectPath, "source")).expand();
+    await treeView.treeEntryForPath(path.join(projectPath, "source", "nested")).expand();
+    treeView.setStickyHeaderMode("directories");
+    await settle();
+    treeView.setScrollTop(200);
+    await settle();
+    const track = treeView.viewport.querySelector(".lumine-scrollbar.vertical");
+    expect(track).not.toBeNull();
+    expect(treeView.stickyHeaderList.children.length).toBe(3);
+    expectWholeTrack(track, treeView.scroller.clientHeight);
   });
 });
