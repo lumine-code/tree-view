@@ -66,6 +66,8 @@ describe("tree-view.directory", () => {
   });
 
   afterEach(async () => {
+    // The service's narrow repository fake must not reach core project teardown.
+    lumine.repositories.getForPath.and.callThrough();
     if (treeViewPackage.disposables) await treeViewPackage.deactivate();
     for (const [key, value] of originalSettings) {
       if (value === undefined) lumine.config.unset(key);
