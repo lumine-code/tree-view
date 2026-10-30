@@ -144,6 +144,22 @@
       ],
       "default": "directories"
     },
+    "stickyHeaderExitBehavior": {
+      "title": "Sticky Header Exit Behavior",
+      "description": "Choose how a pinned directory header leaves when its contents scroll away.",
+      "type": "string",
+      "enum": [
+        {
+          "value": "slide",
+          "description": "Slide — slide the header under its ancestors as its contents scroll away"
+        },
+        {
+          "value": "unpin",
+          "description": "Unpin — remove the header before it becomes partially hidden"
+        }
+      ],
+      "default": "slide"
+    },
     "hideVcsIgnoredFiles": {
       "title": "Hide VCS Ignored Files",
       "description": "Don't show files and directories ignored by the current project's VCS system. For example, projects using Git have these paths defined in their `.gitignore` file.",

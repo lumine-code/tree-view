@@ -979,6 +979,37 @@ describe("TreeView construction", () => {
     expect(treeView.fileOperationProcess.childProcess).toBeUndefined();
   });
 
+  it("defaults to sliding headers and observes exit behavior changes without recreating the tree", async () => {
+    const key = "tree-view.stickyHeaderExitBehavior";
+    const original = lumine.config.get(key);
+    try {
+      lumine.config.unset(key);
+      treeView = new TreeView({});
+      expect(treeView.stickyHeaderExitBehavior).toBe("slide");
+      spyOn(treeView, "updateStickyHeaderOverlay").and.callThrough();
+
+      lumine.config.set(key, "unpin");
+      expect(treeView.stickyHeaderExitBehavior).toBe("unpin");
+      await conditionPromise(
+        () => treeView.updateStickyHeaderOverlay.calls.count() > 0,
+        "sticky header exit behavior update",
+      );
+
+      treeView.updateStickyHeaderOverlay.calls.reset();
+      lumine.config.set(key, "slide");
+      expect(treeView.stickyHeaderExitBehavior).toBe("slide");
+      await conditionPromise(
+        () => treeView.updateStickyHeaderOverlay.calls.count() > 0,
+        "restored sticky header exit behavior",
+      );
+    } finally {
+      await treeView?.destroy();
+      treeView = null;
+      if (original === undefined) lumine.config.unset(key);
+      else lumine.config.set(key, original);
+    }
+  });
+
   it("restores the expansion state of project roots and their folders from JSON", async () => {
     const projectPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-state-")));
     const openPath = path.join(projectPath, "open");
@@ -2341,6 +2372,7 @@ describe("TreeView row model and sticky headers", () => {
   function stickyHarness() {
     const treeView = Object.create(TreeView.prototype);
     treeView.stickyHeaderMode = "directories";
+    treeView.stickyHeaderExitBehavior = "slide";
     treeView.scroller = document.createElement("div");
     // The sticky pipeline reads the cached scroll position, never the element,
     // so scrolling the harness means writing here.
@@ -2428,6 +2460,86 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["root"]);
   });
 
+  it("unpins a nested header whole before it would start sliding under its parent", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderExitBehavior = "unpin";
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const directory = entry(treeView, "source", "directory", root);
+    entry(treeView, "last.js", "file", directory);
+    entry(treeView, "following.js", "file", root);
+    layout(treeView, [root]);
+
+    treeView.scrollPosition.top = 23;
+    const before = treeView.getStickyHeaderLayout();
+    expect(before.rows.map(({ entry, top }) => [entry.name, top])).toEqual([
+      ["root", 0],
+      ["source", 32],
+    ]);
+    expect(before.height).toBe(56);
+
+    treeView.scrollPosition.top = 24;
+    expect(treeView.collectStickyHeaderEntries()).toEqual([root]);
+    expect(treeView.getStickyHeaderLayout().height).toBe(32);
+  });
+
+  it("unpins ending project roots whole in both sticky header modes", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderExitBehavior = "unpin";
+    const first = entry(treeView, "first", "directory", null, { projectRoot: true });
+    entry(treeView, "last.js", "file", first);
+    const second = entry(treeView, "second", "directory", null, { projectRoot: true });
+    entry(treeView, "next.js", "file", second);
+    layout(treeView, [first, second]);
+
+    for (const mode of ["roots", "directories"]) {
+      treeView.stickyHeaderMode = mode;
+      treeView.scrollPosition.top = 0;
+      expect(treeView.collectStickyHeaderEntries()).withContext(mode).toEqual([]);
+      treeView.scrollPosition.top = 23;
+      expect(treeView.collectStickyHeaderEntries()).withContext(mode).toEqual([first]);
+      expect(treeView.getStickyHeaderLayout().rows[0].top).toBe(0);
+
+      treeView.scrollPosition.top = 24;
+      expect(treeView.collectStickyHeaderEntries()).withContext(mode).toEqual([]);
+      treeView.scrollPosition.top = second.top + 1;
+      expect(treeView.collectStickyHeaderEntries()).withContext(mode).toEqual([second]);
+    }
+  });
+
+  it("refreshes the sticky boundary when switching exit behaviors and preserves the common prefix", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderLayer = document.createElement("div");
+    treeView.stickyHeaderList = document.createElement("ol");
+    treeView.stickyHeaderEntries = [];
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    const documents = entry(treeView, "documents", "directory", root);
+    entry(treeView, "a.txt", "file", documents);
+    entry(treeView, "b.txt", "file", documents);
+    const sibling = entry(treeView, "next", "directory", root);
+    entry(treeView, "main.js", "file", sibling);
+    layout(treeView, [root]);
+    treeView.scrollPosition.top = 60;
+
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    const rootElement = treeView.stickyHeaderList.firstElementChild;
+    expect(treeView.stickyHeaderEntries).toEqual([root, documents]);
+    expect(treeView.stickyHeaderList.style.height).toBe("44px");
+    expect(treeView.stickyHeaderList.lastElementChild.style.top).toBe("20px");
+
+    treeView.stickyHeaderExitBehavior = "unpin";
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    expect(treeView.stickyHeaderEntries).toEqual([root]);
+    expect(treeView.stickyHeaderList.style.height).toBe("32px");
+    expect(treeView.stickyHeaderList.firstElementChild).toBe(rootElement);
+
+    treeView.stickyHeaderExitBehavior = "slide";
+    treeView.renderStickyHeaderEntries(treeView.collectStickyHeaderEntries());
+    expect(treeView.stickyHeaderEntries).toEqual([root, documents]);
+    expect(treeView.stickyHeaderList.style.height).toBe("44px");
+    expect(treeView.stickyHeaderList.firstElementChild).toBe(rootElement);
+    treeView.clearStickyHeaderViews();
+  });
+
   it("keeps expanded empty directories in the scrolling content in both directions", () => {
     const treeView = stickyHarness();
     const root = entry(treeView, "root", "directory", null, { projectRoot: true });
@@ -2440,11 +2552,14 @@ describe("TreeView row model and sticky headers", () => {
     layout(treeView, [root]);
 
     const offsets = Array.from({ length: treeView.rowTops.at(-1) }, (_, index) => index);
-    for (const top of [...offsets, ...offsets.reverse()]) {
-      treeView.scrollPosition.top = top;
-      const pinned = treeView.collectStickyHeaderEntries();
-      expect(pinned).withContext(`scrollTop=${top}`).not.toContain(assets);
-      expect(pinned).withContext(`scrollTop=${top}`).not.toContain(report);
+    for (const behavior of ["slide", "unpin"]) {
+      treeView.stickyHeaderExitBehavior = behavior;
+      for (const top of [...offsets, ...offsets.toReversed()]) {
+        treeView.scrollPosition.top = top;
+        const pinned = treeView.collectStickyHeaderEntries();
+        expect(pinned).withContext(`${behavior}, scrollTop=${top}`).not.toContain(assets);
+        expect(pinned).withContext(`${behavior}, scrollTop=${top}`).not.toContain(report);
+      }
     }
 
     treeView.scrollPosition.top = 15;
