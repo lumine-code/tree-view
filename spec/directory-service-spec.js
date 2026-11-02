@@ -346,15 +346,17 @@ describe("TreeView sorting policy refresh", () => {
     treeViewPackage.initialize();
     treeViewPackage.activate();
     const tree = treeViewPackage.getTreeViewInstance();
+    spyOn(tree, "refreshVisibility").and.callThrough();
     spyOn(tree, "updateRoots");
     try {
       lumine.config.set(
         "tree-view.sortMethod",
         previousMethod === "natural" ? "default" : "natural",
       );
-      expect(tree.updateRoots).toHaveBeenCalledTimes(1);
+      expect(tree.refreshVisibility).toHaveBeenCalledTimes(1);
       lumine.config.set("tree-view.sortByBase", !previousBase);
-      expect(tree.updateRoots).toHaveBeenCalledTimes(2);
+      expect(tree.refreshVisibility).toHaveBeenCalledTimes(2);
+      expect(tree.updateRoots).not.toHaveBeenCalled();
     } finally {
       await treeViewPackage.deactivate();
       if (previousMethod === undefined) lumine.config.unset("tree-view.sortMethod");

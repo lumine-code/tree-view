@@ -168,6 +168,66 @@ describe("TreeView Directory decorations and Git status", () => {
 
     expect(directory.entries.get("debug.log").ignoredByName).toBe(true);
   });
+
+  it("retains ignored children and their identities when display filters change", () => {
+    const previousNames = lumine.config.get("tree-view.hideIgnoredNames");
+    const previousVcs = lumine.config.get("tree-view.hideVcsIgnoredFiles");
+    const directoryPath = makeTemporaryDirectory("retained-ignored-children");
+    const ignoredPath = path.join(directoryPath, "debug.log");
+    const ignoredDirectoryPath = path.join(directoryPath, "build");
+    fs.writeFileSync(ignoredPath, "ignored");
+    fs.mkdirSync(ignoredDirectoryPath);
+    const repository = repositoryFor({ ignoredPaths: [ignoredDirectoryPath] });
+
+    try {
+      lumine.config.set("tree-view.hideIgnoredNames", true);
+      lumine.config.set("tree-view.hideVcsIgnoredFiles", true);
+      directory = createDirectory(directoryPath, repository, {
+        ignoredNames: { matches: (candidate) => candidate === ignoredPath },
+      });
+      directory.reload();
+      const file = directory.entries.get("debug.log");
+      const childDirectory = directory.entries.get("build");
+      expect(file.ignoredByName).toBe(true);
+      expect(childDirectory.status).toBe("ignored");
+      const removed = [];
+      const added = [];
+      directory.onDidRemoveEntries((entries) => removed.push(...entries));
+      directory.onDidAddEntries((entries) => added.push(...entries));
+
+      lumine.config.set("tree-view.hideIgnoredNames", false);
+      lumine.config.set("tree-view.hideVcsIgnoredFiles", false);
+      directory.reload();
+
+      expect(directory.entries.get("debug.log")).toBe(file);
+      expect(directory.entries.get("build")).toBe(childDirectory);
+      expect(removed).toEqual([]);
+      expect(added).toEqual([]);
+    } finally {
+      lumine.config.set("tree-view.hideIgnoredNames", previousNames);
+      lumine.config.set("tree-view.hideVcsIgnoredFiles", previousVcs);
+    }
+  });
+
+  it("preserves the source path of a synchronously squashed directory for filtering", () => {
+    const previous = lumine.config.get("tree-view.squashDirectoryNames");
+    const directoryPath = makeTemporaryDirectory("squashed-source-path");
+    const childPath = path.join(directoryPath, "build");
+    const nestedPath = path.join(childPath, "nested");
+    fs.mkdirSync(nestedPath, { recursive: true });
+
+    try {
+      lumine.config.set("tree-view.squashDirectoryNames", true);
+      directory = createDirectory(directoryPath, null, { isRoot: true });
+      directory.reload();
+
+      const child = directory.entries.get("build");
+      expect(child.path).toBe(nestedPath);
+      expect(child.sourcePath).toBe(childPath);
+    } finally {
+      lumine.config.set("tree-view.squashDirectoryNames", previous);
+    }
+  });
 });
 
 // The registry discovers repositories asynchronously — it scans each project
@@ -267,7 +327,7 @@ describe("TreeView Directory repository routing", () => {
     expect(directory.entries.get("index.js").status).toBe("modified");
   });
 
-  it("re-reads the entries when the new repository ignores one of them", async () => {
+  it("invalidates visibility without re-reading children when their repository changes", async () => {
     const originalHideVcsIgnoredFiles = lumine.config.get("tree-view.hideVcsIgnoredFiles");
     const directoryPath = makeTemporaryDirectory("late-repository-ignored");
     const ignoredPath = path.join(directoryPath, "build.log");
@@ -282,20 +342,30 @@ describe("TreeView Directory repository routing", () => {
 
       const repository = repositoryFor({ ignoredPaths: [ignoredPath] });
       lumine.repositories.getForPath.and.returnValue(repository);
+      const originalEntries = new Map(directory.entries);
       const removed = [];
       directory.onDidRemoveEntries((entries) => removed.push(...entries));
+      const visibilityChanged = jasmine.createSpy("visibility changed");
+      directory.onDidChangeVisibility(visibilityChanged);
+      spyOn(directory, "reload").and.callThrough();
 
       repositoryStatusObserver.repositoriesChanged();
       await new Promise((resolve) => setImmediate(resolve));
 
-      expect(Array.from(directory.entries.keys())).toEqual(["index.js"]);
-      expect(removed.map((entry) => entry.name)).toEqual(["build.log"]);
+      expect(Array.from(directory.entries.keys()).sort()).toEqual(["build.log", "index.js"]);
+      for (const [name, entry] of originalEntries) {
+        expect(directory.entries.get(name)).toBe(entry);
+      }
+      expect(directory.entries.get("build.log").status).toBe("ignored");
+      expect(visibilityChanged).toHaveBeenCalledTimes(1);
+      expect(directory.reload).not.toHaveBeenCalled();
+      expect(removed).toEqual([]);
     } finally {
       lumine.config.set("tree-view.hideVcsIgnoredFiles", originalHideVcsIgnoredFiles);
     }
   });
 
-  it("updates hidden entries when a loaded snapshot changes the ignored paths", async () => {
+  it("invalidates visibility and retains models when a snapshot changes ignored paths", async () => {
     const previous = lumine.config.get("tree-view.hideVcsIgnoredFiles");
     const directoryPath = makeTemporaryDirectory("changed-repository-ignored");
     const ignoredPath = path.join(directoryPath, "build.log");
@@ -308,12 +378,21 @@ describe("TreeView Directory repository routing", () => {
       directory = createDirectory(directoryPath, repository, { isExpanded: true });
       directory.reload();
       expect(Array.from(directory.entries.keys()).sort()).toEqual(["build.log", "index.js"]);
+      const ignoredEntry = directory.entries.get("build.log");
+      const visibilityChanged = jasmine.createSpy("visibility changed");
+      directory.onDidChangeVisibility(visibilityChanged);
+      spyOn(directory, "reload").and.callThrough();
       ignoredPaths.push(ignoredPath);
       repository.notifyStatusesChanged();
-      await conditionPromise(() => !directory.entries.has("build.log"));
+      await conditionPromise(() => visibilityChanged.calls.count() === 1);
+      expect(directory.entries.get("build.log")).toBe(ignoredEntry);
+      expect(ignoredEntry.status).toBe("ignored");
       ignoredPaths.length = 0;
       repository.notifyStatusesChanged();
-      await conditionPromise(() => directory.entries.has("build.log"));
+      await conditionPromise(() => visibilityChanged.calls.count() === 2);
+      expect(directory.entries.get("build.log")).toBe(ignoredEntry);
+      expect(ignoredEntry.status).toBeNull();
+      expect(directory.reload).not.toHaveBeenCalled();
     } finally {
       lumine.config.set("tree-view.hideVcsIgnoredFiles", previous);
     }

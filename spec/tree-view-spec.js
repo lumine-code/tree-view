@@ -455,12 +455,11 @@ describe("TreeView root updates", () => {
 
     try {
       await treeView.revealPath(selectedPath);
-      spyOn(treeView, "updateRoots").and.callThrough();
-
+      const root = treeView.roots[0];
       lumine.config.set("tree-view.hideIgnoredNames", true);
-      await treeView.updateRoots.calls.mostRecent().returnValue;
 
       expect(treeView.selectedEntry()?.getPath()).toBe(__dirname);
+      expect(treeView.roots[0]).toBe(root);
     } finally {
       treeView.destroy();
       lumine.project.setPaths(originalProjectPaths);

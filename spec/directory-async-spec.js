@@ -555,7 +555,7 @@ describe("TreeView Directory asynchronous initial loading", () => {
     }
   });
 
-  it("uses one settings snapshot per scan and applies changed settings on the next rescan", async () => {
+  it("retains ignored children and publishes the current sort when settings change during a scan", async () => {
     directory.destroy();
     directory = createDirectory({
       ignoredNames: { matches: (fullPath) => path.basename(fullPath) === "ignored.tmp" },
@@ -575,11 +575,26 @@ describe("TreeView Directory asynchronous initial loading", () => {
     lumine.config.set("tree-view.sortFoldersBeforeFiles", false);
     read.resolve(entries.map((entry) => entry.name));
     await loading;
-    expect(Array.from(directory.entries.keys())).toEqual(["z-directory", "a-file.txt"]);
+    expect(Array.from(directory.entries.keys())).toEqual([
+      "a-file.txt",
+      "ignored.tmp",
+      "z-directory",
+    ]);
+    expect(directory.entries.get("ignored.tmp").ignoredByName).toBe(true);
+    const originalModels = new Map(directory.entries);
+    for (const [index, entry] of Array.from(directory.entries.values()).entries()) {
+      expect(entry.indexInParentDirectory).toBe(index);
+    }
+    const removed = [];
+    directory.onDidRemoveEntries((models) => removed.push(...models));
 
+    lumine.config.set("tree-view.hideIgnoredNames", true);
     await directory.reloadAsync({ rescan: true });
     expect(directory.getEntries()).toEqual(["a-file.txt", "ignored.tmp", "z-directory"]);
-    expect(directory.entries.get("ignored.tmp").ignoredByName).toBe(true);
+    for (const [name, model] of originalModels) {
+      expect(directory.entries.get(name)).toBe(model);
+    }
+    expect(removed).toEqual([]);
   });
 
   it("refreshes retained squashed directories and symlinks without preparing their paths again", async () => {
@@ -607,6 +622,7 @@ describe("TreeView Directory asynchronous initial loading", () => {
     const squashed = directory.entries.get("squashed");
     const symlink = directory.entries.get("file-link");
     expect(squashed.path).toBe(nestedPath);
+    expect(squashed.sourcePath).toBe(squashedPath);
     expect(squashed.realPath).toBe(canonicalDirectoryPath);
     expect(squashed.squashedNames).toEqual(["squashed" + path.sep, "nested"]);
     expect(symlink.realPath).toBe(canonicalFilePath);
@@ -617,6 +633,7 @@ describe("TreeView Directory asynchronous initial loading", () => {
     expect(directory.entries.get("squashed")).toBe(squashed);
     expect(directory.entries.get("file-link")).toBe(symlink);
     expect(squashed.path).toBe(nestedPath);
+    expect(squashed.sourcePath).toBe(squashedPath);
     expect(squashed.realPath).toBe(canonicalDirectoryPath);
     expect(symlink.realPath).toBe(canonicalFilePath);
     const directoryReads = fs.promises.readdir.calls
