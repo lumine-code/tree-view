@@ -2802,6 +2802,89 @@ describe("TreeView row model and sticky headers", () => {
     expect(treeView.collectStickyHeaderEntries().map((row) => row.name)).toEqual(["second"]);
   });
 
+  it("reveals the last row and pages within the content area above a horizontal overlay", () => {
+    const treeView = stickyHarness();
+    treeView.stickyHeaderMode = "none";
+    treeView.scrollportHeight = 80;
+    treeView.scrollEndInset = 10;
+    treeView.updateStickyHeaderOverlay = jasmine.createSpy("updateStickyHeaderOverlay");
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    for (let index = 0; index < 10; index++) entry(treeView, `${index}.txt`, "file", root);
+    layout(treeView, [root]);
+    const last = treeView.visibleRows.at(-1);
+
+    treeView.pageDown();
+    expect(treeView.scrollPosition.top).toBe(70);
+    treeView.pageUp();
+    expect(treeView.scrollPosition.top).toBe(0);
+
+    treeView.scrollToEntry(last, false);
+    expect(treeView.scrollPosition.top + 70).toBe(last.top + last.height);
+    expect(treeView.maxScrollTop()).toBe(treeView.rowTops.at(-1) + 10 - 80);
+    treeView.setScrollTop(Infinity);
+    expect(treeView.scrollPosition.top).toBe(treeView.maxScrollTop());
+
+    // Gutter geometry reports no extra inset: clientHeight already excludes
+    // its native reservation, so the model must not reserve it twice.
+    treeView.scrollportHeight = 70;
+    treeView.scrollEndInset = 0;
+    expect(treeView.getContentViewportHeight()).toBe(70);
+    expect(treeView.maxScrollTop()).toBe(treeView.rowTops.at(-1) - 70);
+
+    // The scroll range still includes the whole physical inset when a tiny
+    // scrollport is shorter than the rail itself.
+    treeView.scrollportHeight = 5;
+    treeView.scrollEndInset = 10;
+    expect(treeView.getContentViewportHeight()).toBe(0);
+    expect(treeView.maxScrollTop()).toBe(treeView.rowTops.at(-1) + 5);
+  });
+
+  it("keeps sticky context when only the overlay end inset makes the last row scrollable", () => {
+    const treeView = stickyHarness();
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    entry(treeView, "one.js", "file", root);
+    layout(treeView, [root]);
+    treeView.scrollportHeight = 60;
+    treeView.scrollEndInset = 10;
+    treeView.scrollPosition.top = 1;
+
+    expect(treeView.maxScrollTop()).toBe(6);
+    expect(treeView.collectStickyHeaderEntries()).toEqual([root]);
+    treeView.scrollEndInset = 0;
+    expect(treeView.maxScrollTop()).toBe(0);
+    expect(treeView.collectStickyHeaderEntries()).toEqual([]);
+  });
+
+  it("does not retain an anchor whose former position was underneath the horizontal overlay", () => {
+    const treeView = stickyHarness();
+    treeView.scrollportHeight = 80;
+    treeView.scrollEndInset = 10;
+    treeView.stickyHeaderMode = "none";
+    treeView.regularRowHeight = 24;
+    treeView.rootRowHeight = 32;
+    const root = entry(treeView, "root", "directory", null, { projectRoot: true });
+    for (let index = 0; index < 10; index++) entry(treeView, `${index}.txt`, "file", root);
+    layout(treeView, [root]);
+    treeView.treeEntries = new Set(treeView.visibleRows);
+    treeView.roots = [root];
+    treeView.specialRoots = [];
+    treeView.viewport = document.createElement("div");
+    treeView.visibleChildren = (directory) => directory.children;
+    treeView.reconcileFilteredSelection = jasmine.createSpy("reconcileFilteredSelection");
+    treeView.renderVisibleRows = jasmine.createSpy("renderVisibleRows");
+    treeView.updateSelectionSnapshot = jasmine.createSpy("updateSelectionSnapshot");
+    treeView.updateStickyHeaderOverlay = jasmine.createSpy("updateStickyHeaderOverlay");
+    treeView.scrollPosition.top = root.height;
+    const survivor = root.children[3];
+    expect(survivor.top - treeView.scrollPosition.top).toBe(72);
+
+    root.children.splice(0, 3);
+    treeView.rebuildVisibleRows();
+
+    expect(treeView.scrollPosition.top).toBe(survivor.top);
+    expect(treeView.scrollPosition.top).toBe(32);
+  });
+
   it("takes the offset back from the scroller once the scrollport is real again", () => {
     const treeView = stickyHarness();
     const first = entry(treeView, "first", "directory", null, { projectRoot: true });

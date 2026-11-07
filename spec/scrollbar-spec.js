@@ -81,6 +81,138 @@ describe("Tree View scrollbar with sticky directory headers", () => {
     return rect;
   }
 
+  async function horizontalGeometry(layout = "overlay") {
+    fixture.style.width = "120px";
+    treeView.scroller.dataset.scrollbarLayout = layout;
+    await waitForFrames(
+      () => {
+        const geometry = lumine.scrollbars.getGeometry(treeView.scroller);
+        const inset = layout === "overlay" ? geometry.horizontalSize : 0;
+        return (
+          geometry.layout === layout &&
+          geometry.canScrollHorizontally &&
+          geometry.scrollEndInset === inset &&
+          treeView.scrollEndInset === inset
+        );
+      },
+      { frames: 60, description: `the ${layout} horizontal rail and its published end inset` },
+    );
+    await settle();
+    return lumine.scrollbars.getGeometry(treeView.scroller);
+  }
+
+  for (const layout of ["overlay", "gutter"]) {
+    it(`reveals the whole last row above the horizontal ${layout} rail with Down and End`, async () => {
+      const geometry = await horizontalGeometry(layout);
+      const last = treeView.visibleRows.at(-1);
+      const rail = treeView.viewport.querySelector(".lumine-scrollbar.horizontal");
+      const expectLastRowVisible = () => {
+        const row = treeView.elementForTreeEntry(last).getBoundingClientRect();
+        expect(treeView.selectedEntry()).toBe(last);
+        expect(row.bottom).toBeLessThanOrEqual(rail.getBoundingClientRect().top + 1);
+        expect(treeView.scroller.scrollTop).toBeNear(treeView.maxScrollTop());
+        expect(treeView.maxScrollTop()).toBeNear(
+          treeView.scroller.scrollHeight - treeView.scroller.clientHeight,
+        );
+        expect(treeView.scrollBottom()).toBeNear(treeView.rowTops.at(-1));
+      };
+      expect(treeView.getContentViewportHeight()).toBe(
+        treeView.scroller.clientHeight - geometry.scrollEndInset,
+      );
+
+      treeView.setScrollTop(0);
+      treeView.selectEntry(treeView.visibleRows.at(-2));
+      treeView.moveDown();
+      await settle();
+      expectLastRowVisible();
+
+      treeView.setScrollTop(0);
+      treeView.scrollToBottom();
+      await settle();
+      expectLastRowVisible();
+    });
+  }
+
+  it("drops the overlay end inset and reconciles the cached offset when horizontal overflow ends", async () => {
+    const geometry = await horizontalGeometry();
+    treeView.scrollToBottom();
+    await settle();
+    const maximumWithRail = treeView.maxScrollTop();
+    fixture.style.width = "1000px";
+    await waitForFrames(
+      () => {
+        const geometry = lumine.scrollbars.getGeometry(treeView.scroller);
+        return !geometry.canScrollHorizontally && geometry.scrollEndInset === 0;
+      },
+      { frames: 60, description: "the horizontal overlay end inset to be removed" },
+    );
+    await settle();
+
+    expect(treeView.scrollEndInset).toBe(0);
+    expect(treeView.maxScrollTop()).toBeNear(maximumWithRail - geometry.scrollEndInset);
+    expect(treeView.maxScrollTop()).toBeNear(
+      treeView.scroller.scrollHeight - treeView.scroller.clientHeight,
+    );
+    expect(treeView.scrollPosition.top).toBe(treeView.scroller.scrollTop);
+    expect(treeView.scrollPosition.top).toBeNear(treeView.maxScrollTop());
+  });
+
+  it("settles End above a horizontal overlay that appears after the synchronous reveal", async () => {
+    fixture.style.width = "120px";
+    treeView.scrollToBottom();
+    const last = treeView.selectedEntry();
+    await horizontalGeometry();
+
+    const rail = treeView.viewport.querySelector(".lumine-scrollbar.horizontal");
+    const row = treeView.elementForTreeEntry(last).getBoundingClientRect();
+    expect(row.bottom).toBeLessThanOrEqual(rail.getBoundingClientRect().top + 1);
+    expect(treeView.scrollPosition.top).toBeNear(treeView.maxScrollTop());
+    expect(treeView.scrollPosition.top).toBe(treeView.scroller.scrollTop);
+  });
+
+  it("keeps a revealed selected row visible when its horizontal overlay settles", async () => {
+    const selected = treeView.visibleRows[20];
+    treeView.selectEntry(selected);
+    treeView.scrollToEntry(selected, false);
+    expect(treeView.scrollPosition.top).toBeLessThan(treeView.maxScrollTop());
+    fixture.style.width = "120px";
+    treeView.scrollToEntry(selected, false);
+    await horizontalGeometry();
+
+    const rail = treeView.viewport.querySelector(".lumine-scrollbar.horizontal");
+    const row = treeView.elementForTreeEntry(selected).getBoundingClientRect();
+    expect(row.bottom).toBeNear(rail.getBoundingClientRect().top);
+    expect(treeView.selectedEntry()).toBe(selected);
+  });
+
+  it("does not pull an offscreen selection back after the user scrolls away before inset publication", async () => {
+    fixture.style.width = "120px";
+    treeView.scrollToBottom();
+    const last = treeView.selectedEntry();
+    treeView.scroller.scrollTop = 0;
+    await horizontalGeometry();
+
+    expect(treeView.selectedEntry()).toBe(last);
+    expect(treeView.scrollPosition.top).toBe(0);
+    expect(treeView.scroller.scrollTop).toBe(0);
+  });
+
+  it("does not replay a reveal after the selection changes to an offscreen row", async () => {
+    const selected = treeView.visibleRows[20];
+    treeView.selectEntry(selected);
+    treeView.scrollToEntry(selected, false);
+    const scrollTop = treeView.scroller.scrollTop;
+    fixture.style.width = "120px";
+    treeView.scrollToEntry(selected, false);
+    const last = treeView.visibleRows.at(-1);
+    treeView.selectEntry(last);
+    await horizontalGeometry();
+
+    expect(treeView.selectedEntry()).toBe(last);
+    expect(treeView.scrollPosition.top).toBe(scrollTop);
+    expect(treeView.scroller.scrollTop).toBe(scrollTop);
+  });
+
   it("keeps the full track reachable with no, root-only and multiple taller sticky headers", async () => {
     const height = treeView.scroller.clientHeight;
     const track = lumine.scrollbars.getVerticalTrack(treeView.scroller);
