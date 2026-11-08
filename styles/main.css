@@ -478,7 +478,7 @@
   /* A row is a single `li` with no descendant rows, so hovering it is hovering
      that row — a directory does not need to ask whether the pointer is over its
      header to tell itself apart from its children any more. */
-  .entry:not(.selected):hover::before {
+  .entry:not(.selected):is(:hover, [data-context-menu-hover])::before {
     background: var(--background-color-highlight);
   }
 
@@ -562,7 +562,7 @@
       overflow: hidden;
     }
 
-    &:not(.selected) > .tree-view-sticky-header-row:hover {
+    &:not(.selected) > .tree-view-sticky-header-row:is(:hover, [data-context-menu-hover]) {
       background: var(--background-color-highlight);
     }
 
