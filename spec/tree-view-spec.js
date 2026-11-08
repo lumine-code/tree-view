@@ -3573,6 +3573,8 @@ describe("TreeView shift-arrow selection", () => {
     treeView.selectedEntries = new Set();
     treeView.lastFocusedEntry = null;
     treeView.list = document.createElement("ol");
+    treeView.scroller = document.createElement("div");
+    treeView.scroller.appendChild(treeView.list);
     treeView.stickyHeaderList = document.createElement("ol");
     // Scrolling needs a measured scroller; every assertion here is about which
     // rows the selection ends up holding.
@@ -3615,11 +3617,13 @@ describe("TreeView shift-arrow selection", () => {
 
   it("grows the range from the row the last plain move landed on", () => {
     const treeView = tree();
+    const reveal = spyOn(lumine.scrollbars, "reveal").and.callThrough();
     const source = treeView.visibleRows[1];
     treeView.selectEntry(source);
 
     treeView.extendSelection(1);
     expect(selected(treeView)).toEqual(["source", "a.js"]);
+    expect(reveal).toHaveBeenCalledOnceWith(treeView.scroller);
     treeView.extendSelection(1);
     expect(selected(treeView)).toEqual(["source", "a.js", "b.js"]);
     expect(treeView.lastFocusedEntry).toBe(source);
