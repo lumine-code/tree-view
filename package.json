@@ -218,7 +218,7 @@
     "tree-view.selection": {
       "description": "Tree view API with path selection, entry lookup, and reveal support",
       "versions": {
-        "1.0.0": "provideTreeViewSelection"
+        "1.1.0": "provideTreeViewSelection"
       }
     },
     "tree-view.roots": {

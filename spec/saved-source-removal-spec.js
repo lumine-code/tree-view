@@ -52,7 +52,10 @@ describe("Saved document file removal", () => {
       true,
     );
     await lumine.commands.dispatch(extra.getElement(), "tree-view:reveal-active-file");
-    expect(revealPath).toHaveBeenCalledOnceWith(secondary.getPath(), { show: true });
+    expect(revealPath).toHaveBeenCalledOnceWith(secondary.getPath(), {
+      show: true,
+      navigation: true,
+    });
   });
   it("does not offer reveal with no project root", async () => {
     const TreeViewPackage = require("../lib/tree-view-package");

@@ -4,7 +4,7 @@ Read what is selected in the tree, find the element for a path, and scroll a pat
 
 |             |                                                             |
 | ----------- | ----------------------------------------------------------- |
-| Version     | `1.0.0`                                                     |
+| Version     | `1.1.0`                                                     |
 | Provided by | `provideTreeViewSelection()` returning selection operations |
 | Consumed by | `consumeTreeViewSelection(treeView)`                        |
 | Owner       | `tree-view` (bundled)                                       |
@@ -19,7 +19,7 @@ In your `package.json`:
 {
   "consumedServices": {
     "tree-view.selection": {
-      "versions": { "^1.0.0": "consumeTreeViewSelection" }
+      "versions": { "^1.1.0": "consumeTreeViewSelection" }
     }
   }
 }
@@ -40,7 +40,16 @@ type TreeViewSelection = {
   onDidChangeSelection(callback: (snapshot: object) => void): Disposable;
   selectedPaths(): string[];
   entryForPath(entryPath: string): HTMLElement | undefined;
-  revealPath(filePath: string, options?: object): Promise<void>;
+  revealPath(
+    filePath: string,
+    options?: {
+      show?: boolean;
+      focus?: boolean;
+      center?: boolean;
+      expandTarget?: boolean;
+      navigation?: boolean;
+    },
+  ): Promise<void>;
 };
 ```
 
@@ -79,6 +88,8 @@ Entries are only rendered while their parent directory is expanded, so `entryFor
 
 `revealPath` reads each ancestor's filesystem metadata asynchronously before continuing along the path, then publishes each completed directory listing in one update. The target is selected and scrolled into view once its ancestors have loaded, without waiting for every directory watcher to become ready; the returned promise settles after that remaining expansion work finishes. A newer reveal, selection or project change takes precedence over an older load. A directory reveals like a file: it is expanded, selected and scrolled to.
 
+Pass `navigation: true` for an explicit navigation action, such as revealing a favourite. Once the target is selected, it reveals the tree's transient scrollbar even when the target is already visible and no scroll occurs. The default is false, so automatic following, state restoration and other programmatic reveals do not signal navigation activity; native scroll movement continues to reveal its moving scrollport normally.
+
 The service resolves against the live tree-view instance on each call, so holding the service object across a tree-view teardown and re-creation is safe.
 
 ## Teardown
@@ -87,4 +98,4 @@ Return a `Disposable` from `consumeTreeViewSelection` that drops your reference.
 
 ## Versioning
 
-`1.0.0` provided, `^1.0.0` consumed. A change that breaks this shape gets a new service name rather than a new major version, and both sides move in the same release.
+`1.1.0` adds the optional `navigation` intent to `revealPath`; existing `^1.0.0` consumers remain compatible. Consumers requiring explicit navigation activity use `^1.1.0`. A change that breaks this shape gets a new service name rather than a new major version, and both sides move in the same release.
