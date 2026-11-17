@@ -601,6 +601,34 @@ describe("TreeView dialogs", () => {
       return track(new CopyDialog(source, { onCopy: onCopy || (() => {}) }));
     }
 
+    it("keeps failed directory copy paths and the nested file error below a short heading", async () => {
+      const source = path.join(projectPath, "[20260616] project", "[f] source");
+      const destination = path.join(projectPath, "[20260616] project", "[f] destination");
+      fs.mkdirSync(source, { recursive: true });
+      const childName = "[c] main.cdb";
+      const error = new Error(
+        `ENOSPC: no space left on device, copyfile '${path.join(source, childName)}' -> '${path.join(destination, childName)}'`,
+      );
+      const copy = jasmine.createSpy("copy").and.rejectWith(error);
+      const onCopy = jasmine.createSpy("onCopy");
+      const onCopyFailed = jasmine.createSpy("onCopyFailed");
+      spyOn(lumine.notifications, "addWarning");
+      const dialog = track(new CopyDialog(source, { copy, onCopy, onCopyFailed }));
+      dialog.attach();
+      dialog.miniEditor.setText(destination);
+
+      await dialog.confirm();
+
+      expect(copy).toHaveBeenCalledOnceWith(source, destination);
+      expect(onCopy).not.toHaveBeenCalled();
+      expect(onCopyFailed).toHaveBeenCalledOnceWith({ initialPath: source, newPath: destination });
+      expect(lumine.notifications.addWarning).toHaveBeenCalledOnceWith("Failed to copy", {
+        detail: `Source: ${source}\nDestination: ${destination}\n\n${error.message}`,
+        dismissable: true,
+      });
+      expect(dialog.closed).toBe(true);
+    });
+
     it("renders no checkboxes", () => {
       const dialog = makeCopyDialog(fixture("a.txt", "hi"));
       dialog.attach();

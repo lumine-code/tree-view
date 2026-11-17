@@ -1693,6 +1693,54 @@ describe("TreeView construction", () => {
       fs.rmSync(temporaryPath, { recursive: true, force: true });
     });
 
+    it("retains each path and cause when synchronous and asynchronous trash operations fail", async () => {
+      lumine.config.set("tree-view.confirmDelete", false);
+      const temporaryPath = fs.mkdtempSync(path.join(os.tmpdir(), "tree-view-trash-errors-"));
+      try {
+        const paths = ["[a] locked.txt", "[b] full.txt"].map((name) => {
+          const filePath = path.join(temporaryPath, name);
+          fs.writeFileSync(filePath, name);
+          return filePath;
+        });
+        const errors = [
+          new Error(`EACCES: cannot move '${paths[0]}'`),
+          new Error(`ENOSPC: no space left on device for '${paths[1]}'`),
+        ];
+        treeView = new TreeView({});
+        const entries = paths.map((selectedPath) => ({
+          special: false,
+          specialRoot: false,
+          parent: null,
+          getPath: () => selectedPath,
+        }));
+        spyOn(treeView, "hasFocus").and.returnValue(true);
+        spyOn(treeView, "selectedPaths").and.returnValue(paths);
+        spyOn(treeView, "getSelectedEntries").and.returnValue(entries);
+        spyOn(treeView.emitter, "emit").and.callThrough();
+        spyOn(lumine.notifications, "addError");
+        spyOn(lumine.shell, "trashItem").and.callFake((selectedPath) => {
+          if (selectedPath === paths[0]) throw errors[0];
+          return Promise.reject(errors[1]);
+        });
+
+        await treeView.removeSelectedEntries();
+
+        expect(lumine.notifications.addError).toHaveBeenCalledOnceWith("Failed to move to Trash", {
+          description: treeView.formatTrashEnabledMessage(),
+          detail: `Path: ${paths[0]}\n${errors[0].message}\n\nPath: ${paths[1]}\n${errors[1].message}`,
+          dismissable: true,
+        });
+        for (const selectedPath of paths) {
+          expect(treeView.emitter.emit).toHaveBeenCalledWith("delete-entry-failed", {
+            pathToDelete: selectedPath,
+          });
+          expect(fs.existsSync(selectedPath)).toBe(true);
+        }
+      } finally {
+        fs.rmSync(temporaryPath, { recursive: true, force: true });
+      }
+    });
+
     it("hands the pinned paths to the section instead of deleting them", async () => {
       const onRemove = jasmine.createSpy("onRemove");
       treeView = new TreeView({});
