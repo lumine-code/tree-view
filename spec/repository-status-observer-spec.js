@@ -123,6 +123,54 @@ describe("RepositoryStatusObserver", () => {
     observer.destroy();
   });
 
+  it("targets changed entries and emits one visibility invalidation before status batches", () => {
+    const repository = repositoryForTest("main");
+    repository.getStatusPathKey = (filePath) => filePath;
+    repository.onDidChangeStatusPaths = (callback) => {
+      repository.notifyPaths = callback;
+      return new Disposable(() => {});
+    };
+    const scheduler = schedulerForTest();
+    const observer = new RepositoryStatusObserver({
+      getRepository: () => repository,
+      schedule: (callback) => scheduler.schedule(callback),
+      batchSize: 1,
+    });
+    const updates = [];
+    for (const [filePath, directory] of [
+      ["src/a.js", false],
+      ["src/b.js", false],
+      ["src", true],
+      ["build/deep/a.js", false],
+      ["build/deep", true],
+      ["build-tools/a.js", false],
+    ]) {
+      observer.observe({ path: filePath }, { directory, onSnapshot: () => updates.push(filePath) });
+    }
+    const visibility = jasmine.createSpy("visibility");
+    observer.onDidChangeIgnoredPaths(visibility);
+
+    repository.notifyPaths({
+      files: ["src/a.js"],
+      directories: [],
+      ignoredFiles: [],
+      ignoredDirectories: [],
+    });
+    scheduler.runNext();
+    repository.notifyPaths({
+      files: [],
+      directories: [],
+      ignoredFiles: [],
+      ignoredDirectories: ["build"],
+    });
+    expect(visibility.calls.count()).toBe(1);
+    scheduler.runAll();
+
+    expect(updates).toEqual(["src/a.js", "src", "build/deep/a.js", "build/deep"]);
+    expect(visibility.calls.count()).toBe(1);
+    observer.destroy();
+  });
+
   it("time-slices repository rerouting and ignores registrations destroyed between slices", () => {
     const repository = repositoryForTest("main");
     const scheduler = schedulerForTest();
