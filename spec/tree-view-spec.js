@@ -752,28 +752,38 @@ describe("TreeView OS file drops", () => {
     await showTree();
     const dataTransfer = transferFor([filePath]);
     dataTransfer.files.push({});
-    spyOn(lumine.project, "addPath").and.callThrough();
+    spyOn(lumine.project, "addPaths").and.callThrough();
 
     dispatchDrag("drop", treeView.scroller, dataTransfer);
     expect(treeView.onDrop).toHaveBeenCalled();
     await treeView.onDrop.calls.mostRecent().returnValue;
 
-    expect(lumine.project.addPath).not.toHaveBeenCalled();
+    expect(lumine.project.addPaths).not.toHaveBeenCalled();
     expect(lumine.project.getPaths()).toEqual([projectPath]);
     expect(treeView.pastePaths).not.toHaveBeenCalled();
   });
 
-  it("adds directories from a mixed native drop and passes only files to the destination", async () => {
+  it("adds all directories from a mixed native drop in one project change and pastes the file", async () => {
+    const secondFolderPath = path.join(temporaryPath, "another-folder");
+    fs.mkdirSync(secondFolderPath);
     await showTree();
-    const dataTransfer = transferFor([folderPath, filePath]);
+    const dataTransfer = transferFor([folderPath, filePath, secondFolderPath]);
     const target = treeView.elementForTreeEntry(treeView.roots[0]);
+    const didChangePaths = jasmine.createSpy("didChangePaths");
+    const subscription = lumine.project.onDidChangePaths(didChangePaths);
 
-    dispatchDrag("drop", target, dataTransfer);
-    dataTransfer.files = [];
-    expect(treeView.onDrop).toHaveBeenCalled();
-    await treeView.onDrop.calls.mostRecent().returnValue;
+    try {
+      dispatchDrag("drop", target, dataTransfer);
+      dataTransfer.files = [];
+      expect(treeView.onDrop).toHaveBeenCalled();
+      await treeView.onDrop.calls.mostRecent().returnValue;
+    } finally {
+      subscription.dispose();
+    }
 
-    expect(lumine.project.getPaths()).toEqual([projectPath, folderPath]);
+    const expectedPaths = [projectPath, folderPath, secondFolderPath];
+    expect(lumine.project.getPaths()).toEqual(expectedPaths);
+    expect(didChangePaths).toHaveBeenCalledOnceWith(expectedPaths);
     expect(treeView.pastePaths).toHaveBeenCalledWith([filePath], "cut", projectPath);
   });
 
